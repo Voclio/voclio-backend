@@ -15,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(token, config.jwt.secret);
     
     const result = await pool.query(
-      'SELECT user_id, email, name, subscription_tier FROM users WHERE user_id = $1 AND is_active = true',
+      'SELECT user_id, email, name FROM users WHERE user_id = $1 AND is_active = true',
       [decoded.userId]
     );
 
@@ -50,7 +50,7 @@ const optionalAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, config.jwt.secret);
     
     const result = await pool.query(
-      'SELECT user_id, email, name, subscription_tier FROM users WHERE user_id = $1 AND is_active = true',
+      'SELECT user_id, email, name FROM users WHERE user_id = $1 AND is_active = true',
       [decoded.userId]
     );
 

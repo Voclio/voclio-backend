@@ -109,8 +109,7 @@ class AuthController {
         user: {
           user_id: user.user_id,
           email: user.email,
-          name: user.name,
-          subscription_tier: user.subscription_tier
+          name: user.name
         },
         tokens: {
           access_token: token,
