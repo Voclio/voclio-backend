@@ -5,9 +5,9 @@ CREATE TABLE users (
     password VARCHAR(255),
     name VARCHAR(255),
     phone_number VARCHAR(20),
-    subscription_tier VARCHAR(50) DEFAULT 'free',
     is_active BOOLEAN DEFAULT true,
     email_verified BOOLEAN DEFAULT false,
+    is_admin BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

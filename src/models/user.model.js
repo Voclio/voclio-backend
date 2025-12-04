@@ -22,7 +22,7 @@ class UserModel {
 
   static async findById(userId) {
     const result = await pool.query(
-      'SELECT user_id, email, name, phone_number, subscription_tier, is_active, created_at FROM users WHERE user_id = $1',
+      'SELECT user_id, email, name, phone_number, is_active, created_at FROM users WHERE user_id = $1',
       [userId]
     );
     return result.rows[0];
@@ -43,7 +43,7 @@ class UserModel {
     const result = await pool.query(
       `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = $${index} 
-       RETURNING user_id, email, name, phone_number, subscription_tier`,
+       RETURNING user_id, email, name, phone_number`,
       values
     );
     return result.rows[0];
