@@ -143,18 +143,42 @@ class NoteController {
 
   static async extractTasks(req, res, next) {
     try {
+      const { auto_create = false, category_id } = req.body;
+      
       const note = await NoteModel.findById(req.params.id, req.user.user_id);
 
       if (!note) {
         throw new NotFoundError('Note not found');
       }
 
-      const tasks = await geminiService.extractTasks(note.content);
+      const extractedTasks = await geminiService.extractTasks(note.content);
+
+      if (!auto_create) {
+        return successResponse(res, {
+          note_id: note.note_id,
+          extracted_tasks: extractedTasks,
+          message: 'Tasks extracted. Set auto_create=true to save them automatically.'
+        }, 'Tasks extracted successfully');
+      }
+
+      // Auto-create tasks
+      const TaskModel = require('../models/task.model');
+      
+      const tasksToCreate = extractedTasks.map(task => ({
+        title: task.title,
+        description: task.description || note.content.substring(0, 500),
+        priority: task.priority || 'medium',
+        category_id: category_id || null,
+        note_id: note.note_id
+      }));
+
+      const createdTasks = await TaskModel.bulkCreate(req.user.user_id, tasksToCreate);
 
       return successResponse(res, {
         note_id: note.note_id,
-        extracted_tasks: tasks
-      }, 'Tasks extracted successfully');
+        tasks: createdTasks,
+        count: createdTasks.length
+      }, 'Tasks created successfully', 201);
 
     } catch (error) {
       next(error);
@@ -199,6 +223,27 @@ class NoteController {
         note_id: note.note_id,
         tags: note.tags || []
       });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async removeTag(req, res, next) {
+    try {
+      const { id: noteId, tagId } = req.params;
+
+      // Verify note exists and belongs to user
+      const note = await NoteModel.findById(noteId, req.user.user_id);
+      if (!note) {
+        throw new NotFoundError('Note not found');
+      }
+
+      await NoteModel.removeTag(noteId, tagId);
+
+      const updatedNote = await NoteModel.findById(noteId, req.user.user_id);
+
+      return successResponse(res, { note: updatedNote }, 'Tag removed successfully');
 
     } catch (error) {
       next(error);

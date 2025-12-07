@@ -136,8 +136,19 @@ class TaskController {
   static async getStats(req, res, next) {
     try {
       const stats = await TaskModel.getStats(req.user.user_id);
+      
+      // Calculate overall progress percentage
+      const total = parseInt(stats.total) || 0;
+      const completed = parseInt(stats.completed) || 0;
+      const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-      return successResponse(res, { stats });
+      return successResponse(res, { 
+        stats: {
+          ...stats,
+          overall_progress: overallProgress,
+          completion_rate: overallProgress
+        }
+      });
 
     } catch (error) {
       next(error);
@@ -172,6 +183,89 @@ class TaskController {
       const tasks = await TaskModel.findAll(req.user.user_id, { category_id });
 
       return successResponse(res, { tasks, category_id });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createSubtask(req, res, next) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new ValidationError('Invalid request data', errors.mapped());
+      }
+
+      const subtask = await TaskModel.createSubtask(
+        req.user.user_id, 
+        req.params.id, 
+        req.body
+      );
+
+      return successResponse(res, { subtask }, 'Subtask created successfully', 201);
+
+    } catch (error) {
+      if (error.message === 'Parent task not found') {
+        next(new NotFoundError('Parent task not found'));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  static async getSubtasks(req, res, next) {
+    try {
+      const subtasks = await TaskModel.getSubtasks(req.params.id, req.user.user_id);
+
+      return successResponse(res, { 
+        parent_task_id: parseInt(req.params.id),
+        subtasks,
+        count: subtasks.length
+      });
+
+    } catch (error) {
+      if (error.message === 'Parent task not found') {
+        next(new NotFoundError('Parent task not found'));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  static async getTaskWithSubtasks(req, res, next) {
+    try {
+      const taskWithSubtasks = await TaskModel.getTaskWithSubtasks(req.params.id, req.user.user_id);
+
+      if (!taskWithSubtasks) {
+        throw new NotFoundError('Task not found');
+      }
+
+      return successResponse(res, { task: taskWithSubtasks });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMainTasks(req, res, next) {
+    try {
+      const filters = {
+        status: req.query.status,
+        priority: req.query.priority,
+        category_id: req.query.category_id
+      };
+
+      Object.keys(filters).forEach(key => 
+        filters[key] === undefined && delete filters[key]
+      );
+
+      const tasks = await TaskModel.getMainTasks(req.user.user_id, filters);
+
+      return successResponse(res, { 
+        tasks,
+        count: tasks.length,
+        type: 'main_tasks_only'
+      });
 
     } catch (error) {
       next(error);

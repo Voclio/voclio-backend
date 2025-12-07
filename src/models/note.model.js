@@ -112,6 +112,14 @@ class NoteModel {
     }
   }
 
+  static async removeTag(noteId, tagId) {
+    const result = await pool.query(
+      'DELETE FROM note_tags WHERE note_id = $1 AND tag_id = $2 RETURNING *',
+      [noteId, tagId]
+    );
+    return result.rows[0];
+  }
+
   static async count(userId, search) {
     let query = 'SELECT COUNT(*) FROM notes WHERE user_id = $1';
     const params = [userId];

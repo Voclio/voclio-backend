@@ -5,12 +5,17 @@ CREATE TABLE users (
     password VARCHAR(255),
     name VARCHAR(255),
     phone_number VARCHAR(20),
+    oauth_provider VARCHAR(50),
+    oauth_id VARCHAR(255),
     is_active BOOLEAN DEFAULT true,
     email_verified BOOLEAN DEFAULT false,
     is_admin BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add index for OAuth
+CREATE INDEX idx_users_oauth ON users(oauth_provider, oauth_id);
 
 -- Create Sessions Table
 CREATE TABLE sessions (
@@ -97,6 +102,7 @@ CREATE TABLE tasks (
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     note_id INTEGER REFERENCES notes(note_id) ON DELETE SET NULL,
     category_id INTEGER REFERENCES categories(category_id) ON DELETE SET NULL,
+    parent_task_id INTEGER REFERENCES tasks(task_id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     status VARCHAR(50) DEFAULT 'pending',
@@ -106,6 +112,9 @@ CREATE TABLE tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add index for sub-tasks
+CREATE INDEX idx_tasks_parent_task_id ON tasks(parent_task_id);
 
 -- Create Calendar Sync Table
 CREATE TABLE calendar_sync (

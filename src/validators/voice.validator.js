@@ -19,17 +19,52 @@ const voiceIdValidator = [
 ];
 
 const transcribeVoiceValidator = [
-  param('id')
+  body('recording_id')
     .isInt()
-    .withMessage('Voice recording ID must be a valid integer'),
+    .withMessage('Recording ID must be a valid integer'),
   body('language')
     .optional()
     .isIn(['en', 'ar', 'fr', 'es', 'de'])
     .withMessage('Language must be one of: en, ar, fr, es, de')
 ];
 
+const createNoteFromVoiceValidator = [
+  param('id')
+    .isInt()
+    .withMessage('Voice recording ID must be a valid integer'),
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Title must be less than 255 characters'),
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  body('tags.*')
+    .optional()
+    .isInt()
+    .withMessage('Each tag must be a valid tag ID')
+];
+
+const createTasksFromVoiceValidator = [
+  param('id')
+    .isInt()
+    .withMessage('Voice recording ID must be a valid integer'),
+  body('auto_create')
+    .optional()
+    .isBoolean()
+    .withMessage('auto_create must be a boolean'),
+  body('category_id')
+    .optional()
+    .isInt()
+    .withMessage('Category ID must be a valid integer')
+];
+
 module.exports = {
   uploadVoiceValidator,
   voiceIdValidator,
-  transcribeVoiceValidator
+  transcribeVoiceValidator,
+  createNoteFromVoiceValidator,
+  createTasksFromVoiceValidator
 };
