@@ -2,12 +2,12 @@ const pool = require('../config/database');
 
 class TaskModel {
   static async create(userId, taskData) {
-    const { title, description, due_date, priority, category_id, note_id } = taskData;
+    const { title, description, due_date, priority, category_id, note_id, parent_task_id } = taskData;
     const result = await pool.query(
-      `INSERT INTO tasks (user_id, title, description, due_date, priority, category_id, note_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+      `INSERT INTO tasks (user_id, title, description, due_date, priority, category_id, note_id, parent_task_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [userId, title, description || null, due_date || null, priority || 'medium', category_id || null, note_id || null]
+      [userId, title, description || null, due_date || null, priority || 'medium', category_id || null, note_id || null, parent_task_id || null]
     );
     return result.rows[0];
   }
@@ -132,6 +132,81 @@ class TaskModel {
       [userId]
     );
     return result.rows[0];
+  }
+
+  static async createSubtask(userId, parentTaskId, subtaskData) {
+    // Verify parent task exists and belongs to user
+    const parentTask = await this.findById(parentTaskId, userId);
+    if (!parentTask) {
+      throw new Error('Parent task not found');
+    }
+
+    // Create subtask with parent_task_id
+    const { title, description, due_date, priority, category_id } = subtaskData;
+    const result = await pool.query(
+      `INSERT INTO tasks (user_id, parent_task_id, title, description, due_date, priority, category_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING *`,
+      [userId, parentTaskId, title, description || null, due_date || null, priority || 'medium', category_id || null]
+    );
+    return result.rows[0];
+  }
+
+  static async getSubtasks(parentTaskId, userId) {
+    // Verify parent task belongs to user
+    const parentTask = await this.findById(parentTaskId, userId);
+    if (!parentTask) {
+      throw new Error('Parent task not found');
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM tasks 
+       WHERE parent_task_id = $1 AND user_id = $2
+       ORDER BY created_at DESC`,
+      [parentTaskId, userId]
+    );
+    return result.rows;
+  }
+
+  static async getTaskWithSubtasks(taskId, userId) {
+    const task = await this.findById(taskId, userId);
+    if (!task) {
+      return null;
+    }
+
+    const subtasks = await this.getSubtasks(taskId, userId);
+    
+    return {
+      ...task,
+      subtasks,
+      subtasks_count: subtasks.length,
+      subtasks_completed: subtasks.filter(st => st.status === 'completed').length
+    };
+  }
+
+  static async getMainTasks(userId, filters = {}) {
+    let query = 'SELECT * FROM tasks WHERE user_id = $1 AND parent_task_id IS NULL';
+    const params = [userId];
+
+    if (filters.status) {
+      params.push(filters.status);
+      query += ` AND status = $${params.length}`;
+    }
+
+    if (filters.priority) {
+      params.push(filters.priority);
+      query += ` AND priority = $${params.length}`;
+    }
+
+    if (filters.category_id) {
+      params.push(filters.category_id);
+      query += ` AND category_id = $${params.length}`;
+    }
+
+    query += ' ORDER BY due_date ASC NULLS LAST, created_at DESC';
+
+    const result = await pool.query(query, params);
+    return result.rows;
   }
 }
 

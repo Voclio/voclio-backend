@@ -12,6 +12,20 @@ class VoiceRecordingModel {
     return result.rows[0];
   }
 
+  static async findAll(userId, options = {}) {
+    const { page = 1, limit = 20 } = options;
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(
+      `SELECT * FROM voice_recordings 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return result.rows;
+  }
+
   static async findById(recordingId, userId) {
     const result = await pool.query(
       'SELECT * FROM voice_recordings WHERE recording_id = $1 AND user_id = $2',

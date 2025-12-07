@@ -12,6 +12,7 @@ const {
 router.use(authMiddleware);
 
 router.get('/', TagController.getAllTags);
+router.get('/:id', tagIdValidator, TagController.getTagById);
 router.post('/', createTagValidator, TagController.createTag);
 router.put('/:id', updateTagValidator, TagController.updateTag);
 router.delete('/:id', tagIdValidator, TagController.deleteTag);

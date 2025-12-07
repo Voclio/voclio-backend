@@ -11,6 +11,8 @@ router.use('/reminders', require('./reminder.routes'));
 router.use('/notifications', require('./notification.routes'));
 router.use('/settings', require('./settings.routes'));
 router.use('/productivity', require('./productivity.routes'));
+router.use('/calendar', require('./calendar.routes'));
+router.use('/dashboard', require('./dashboard.routes'));
 router.use('/admin', require('./admin.routes'));
 
 // Health check

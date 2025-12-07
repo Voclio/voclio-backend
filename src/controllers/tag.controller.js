@@ -15,6 +15,21 @@ class TagController {
     }
   }
 
+  static async getTagById(req, res, next) {
+    try {
+      const tag = await TagModel.findById(req.params.id, req.user.user_id);
+
+      if (!tag) {
+        throw new NotFoundError('Tag not found');
+      }
+
+      return successResponse(res, { tag });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async createTag(req, res, next) {
     try {
       const { name, color, description } = req.body;

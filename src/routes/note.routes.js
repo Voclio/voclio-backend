@@ -26,5 +26,6 @@ router.post('/:id/extract-tasks', NoteController.extractTasks);
 // Tags
 router.get('/:id/tags', NoteController.getNoteTags);
 router.post('/:id/tags', addTagsValidator, NoteController.addTags);
+router.delete('/:id/tags/:tagId', NoteController.removeTag);
 
 module.exports = router;

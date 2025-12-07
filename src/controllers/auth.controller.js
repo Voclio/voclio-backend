@@ -5,6 +5,7 @@ const { validationResult } = require('express-validator');
 const UserModel = require('../models/user.model');
 const SessionModel = require('../models/session.model');
 const OTPModel = require('../models/otp.model');
+const { verifyGoogleToken, verifyFacebookToken } = require('../config/oauth');
 const config = require('../config');
 const { successResponse, errorResponse } = require('../utils/responses');
 const { ValidationError, UnauthorizedError, NotFoundError, ConflictError } = require('../utils/errors');
@@ -300,6 +301,206 @@ class AuthController {
       console.log(`Reset token for ${email}: ${resetToken}`);
 
       return successResponse(res, null, 'Password reset instructions sent to your email');
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Google OAuth Login for Flutter
+  static async googleLogin(req, res, next) {
+    try {
+      const { id_token } = req.body;
+
+      if (!id_token) {
+        throw new ValidationError('Google ID token is required');
+      }
+
+      // Verify Google token
+      const googleUser = await verifyGoogleToken(id_token);
+
+      // Check if user exists
+      let user = await UserModel.findByEmail(googleUser.email);
+
+      if (!user) {
+        // Create new user from Google account
+        user = await UserModel.create({
+          email: googleUser.email,
+          name: googleUser.name,
+          oauth_provider: 'google',
+          oauth_id: googleUser.oauth_id,
+          email_verified: googleUser.email_verified
+        });
+
+        // Create default settings
+        await UserModel.createDefaultSettings(user.user_id);
+      } else if (!user.oauth_provider) {
+        // Link existing account with Google
+        await UserModel.updateOAuthInfo(user.user_id, 'google', googleUser.oauth_id);
+      }
+
+      // Generate tokens
+      const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn
+      });
+
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
+
+      // Create session
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await SessionModel.create(user.user_id, refreshToken, expiresAt);
+
+      return successResponse(res, {
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          name: user.name,
+          oauth_provider: user.oauth_provider
+        },
+        tokens: {
+          access_token: token,
+          refresh_token: refreshToken,
+          expires_in: 86400
+        }
+      }, 'Google login successful');
+
+    } catch (error) {
+      if (error.message === 'Invalid Google token') {
+        next(new UnauthorizedError('Invalid Google token'));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  // Facebook OAuth Login for Flutter
+  static async facebookLogin(req, res, next) {
+    try {
+      const { access_token } = req.body;
+
+      if (!access_token) {
+        throw new ValidationError('Facebook access token is required');
+      }
+
+      // Verify Facebook token
+      const facebookUser = await verifyFacebookToken(access_token);
+
+      // Check if user exists
+      let user = await UserModel.findByEmail(facebookUser.email);
+
+      if (!user) {
+        // Create new user from Facebook account
+        user = await UserModel.create({
+          email: facebookUser.email,
+          name: facebookUser.name,
+          oauth_provider: 'facebook',
+          oauth_id: facebookUser.oauth_id,
+          email_verified: facebookUser.email_verified
+        });
+
+        // Create default settings
+        await UserModel.createDefaultSettings(user.user_id);
+      } else if (!user.oauth_provider) {
+        // Link existing account with Facebook
+        await UserModel.updateOAuthInfo(user.user_id, 'facebook', facebookUser.oauth_id);
+      }
+
+      // Generate tokens
+      const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn
+      });
+
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
+
+      // Create session
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await SessionModel.create(user.user_id, refreshToken, expiresAt);
+
+      return successResponse(res, {
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          name: user.name,
+          oauth_provider: user.oauth_provider
+        },
+        tokens: {
+          access_token: token,
+          refresh_token: refreshToken,
+          expires_in: 86400
+        }
+      }, 'Facebook login successful');
+
+    } catch (error) {
+      if (error.message === 'Invalid Facebook token' || error.message === 'Email permission required') {
+        next(new UnauthorizedError(error.message));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  static async changePassword(req, res, next) {
+    try {
+      const { current_password, new_password } = req.body;
+
+      if (!current_password || !new_password) {
+        throw new ValidationError('Current password and new password are required');
+      }
+
+      // Get user with password
+      const user = await UserModel.findByIdWithPassword(req.user.user_id);
+      
+      if (!user || !user.password) {
+        throw new ValidationError('Cannot change password for OAuth accounts');
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(current_password, user.password);
+      if (!isValidPassword) {
+        throw new UnauthorizedError('Current password is incorrect');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(new_password, 10);
+
+      // Update password
+      await UserModel.updatePassword(user.user_id, hashedPassword);
+
+      return successResponse(res, null, 'Password changed successfully');
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resetPassword(req, res, next) {
+    try {
+      const { token, new_password } = req.body;
+
+      if (!token || !new_password) {
+        throw new ValidationError('Reset token and new password are required');
+      }
+
+      // Verify token (simple implementation - in production use a proper token system)
+      let userId;
+      try {
+        const decoded = jwt.verify(token, config.jwt.secret);
+        userId = decoded.userId;
+      } catch (err) {
+        throw new UnauthorizedError('Invalid or expired reset token');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(new_password, 10);
+
+      // Update password
+      await UserModel.updatePassword(userId, hashedPassword);
+
+      return successResponse(res, null, 'Password reset successfully');
 
     } catch (error) {
       next(error);

@@ -38,6 +38,28 @@ const upload = multer({
 class VoiceController {
   static uploadMiddleware = upload.single('audio');
 
+  static async getAllRecordings(req, res, next) {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+
+      const recordings = await VoiceRecordingModel.findAll(req.user.user_id, {
+        page: parseInt(page),
+        limit: parseInt(limit)
+      });
+
+      return successResponse(res, { 
+        recordings,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async uploadRecording(req, res, next) {
     try {
       if (!req.file) {
@@ -139,6 +161,117 @@ class VoiceController {
           transcribed_at: recording.transcribed_at
         }
       });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createNoteFromRecording(req, res, next) {
+    try {
+      const NoteModel = require('../models/note.model');
+      const { title, tags } = req.body;
+
+      const recording = await VoiceRecordingModel.findById(req.params.id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      if (!recording.transcription) {
+        throw new ValidationError('Recording must be transcribed first');
+      }
+
+      // Create note with transcription as content
+      const note = await NoteModel.create(req.user.user_id, {
+        title: title || `Voice Note - ${new Date().toLocaleString()}`,
+        content: recording.transcription,
+        voice_recording_id: recording.recording_id
+      });
+
+      // Add tags if provided
+      if (tags && tags.length > 0) {
+        await NoteModel.addTags(note.note_id, tags);
+      }
+
+      // Fetch complete note with tags
+      const completeNote = await NoteModel.findById(note.note_id, req.user.user_id);
+
+      return successResponse(res, { 
+        note: completeNote,
+        recording_id: recording.recording_id 
+      }, 'Note created from voice recording successfully', 201);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createTasksFromRecording(req, res, next) {
+    try {
+      const TaskModel = require('../models/task.model');
+      const { auto_create = false, category_id } = req.body;
+
+      const recording = await VoiceRecordingModel.findById(req.params.id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      if (!recording.transcription) {
+        throw new ValidationError('Recording must be transcribed first');
+      }
+
+      // Extract tasks using Gemini AI
+      const extractedTasks = await geminiService.extractTasks(recording.transcription);
+
+      if (!auto_create) {
+        return successResponse(res, {
+          recording_id: recording.recording_id,
+          extracted_tasks: extractedTasks,
+          message: 'Tasks extracted. Set auto_create=true to save them automatically.'
+        });
+      }
+
+      // Create tasks automatically
+      const tasksToCreate = extractedTasks.map(task => ({
+        title: task.title,
+        description: task.description || recording.transcription.substring(0, 500),
+        priority: task.priority || 'medium',
+        category_id: category_id || null
+      }));
+
+      const createdTasks = await TaskModel.bulkCreate(req.user.user_id, tasksToCreate);
+
+      return successResponse(res, {
+        recording_id: recording.recording_id,
+        tasks: createdTasks,
+        count: createdTasks.length
+      }, 'Tasks created from voice recording successfully', 201);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteRecording(req, res, next) {
+    try {
+      const recording = await VoiceRecordingModel.findById(req.params.id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      // Delete file from disk
+      try {
+        await fs.unlink(recording.file_path);
+      } catch (err) {
+        console.error('Failed to delete file:', err);
+      }
+
+      await VoiceRecordingModel.delete(req.params.id, req.user.user_id);
+
+      return successResponse(res, null, 'Recording deleted successfully');
 
     } catch (error) {
       next(error);
