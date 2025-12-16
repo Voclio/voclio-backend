@@ -5,7 +5,8 @@ Voice notes and task management system with AI-powered features.
 ## Quick Start
 
 ### 1. Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - PostgreSQL 16+
 - Git
 
@@ -42,9 +43,8 @@ JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_here
 JWT_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=7d
 
-# Gemini AI Configuration
-GEMINI_API_KEY=your_gemini_api_key_here
-GOOGLE_API_KEY=your_gemini_api_key_here
+# OpenRouter AI Configuration
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # File Upload Configuration
 MAX_FILE_SIZE=10485760

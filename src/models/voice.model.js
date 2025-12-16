@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const pool = require("../config/database");
 
 class VoiceRecordingModel {
   static async create(userId, recordingData) {
@@ -14,7 +14,7 @@ class VoiceRecordingModel {
 
   static async findById(recordingId, userId) {
     const result = await pool.query(
-      'SELECT * FROM voice_recordings WHERE recording_id = $1 AND user_id = $2',
+      "SELECT * FROM voice_recordings WHERE recording_id = $1 AND user_id = $2",
       [recordingId, userId]
     );
     return result.rows[0];
@@ -23,7 +23,7 @@ class VoiceRecordingModel {
   static async updateTranscription(recordingId, transcription) {
     const result = await pool.query(
       `UPDATE voice_recordings 
-       SET transcription = $1, transcribed_at = CURRENT_TIMESTAMP 
+       SET transcription_text = $1, updated_at = CURRENT_TIMESTAMP 
        WHERE recording_id = $2
        RETURNING *`,
       [transcription, recordingId]
@@ -33,7 +33,7 @@ class VoiceRecordingModel {
 
   static async delete(recordingId, userId) {
     const result = await pool.query(
-      'DELETE FROM voice_recordings WHERE recording_id = $1 AND user_id = $2 RETURNING *',
+      "DELETE FROM voice_recordings WHERE recording_id = $1 AND user_id = $2 RETURNING *",
       [recordingId, userId]
     );
     return result.rows[0];

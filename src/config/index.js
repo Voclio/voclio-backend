@@ -19,8 +19,8 @@ module.exports = {
     password: process.env.DB_PASSWORD || "password",
   },
 
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY,
   },
 
   upload: {
