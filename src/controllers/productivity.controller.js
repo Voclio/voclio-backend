@@ -1,22 +1,24 @@
-const ProductivityModel = require('../models/productivity.model');
-const geminiService = require('../services/gemini.service');
-const TaskModel = require('../models/task.model');
-const { successResponse, paginatedResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
+const ProductivityModel = require("../models/productivity.model");
+const aiService = require("../services/ai.service");
+const TaskModel = require("../models/task.model");
+const { successResponse, paginatedResponse } = require("../utils/responses");
+const { ValidationError, NotFoundError } = require("../utils/errors");
 
 class ProductivityController {
   static async startFocusSession(req, res, next) {
     try {
       const { timer_duration, ambient_sound, sound_volume } = req.body;
 
-      const session = await ProductivityModel.createFocusSession(req.user.user_id, {
-        timer_duration,
-        ambient_sound,
-        sound_volume
-      });
+      const session = await ProductivityModel.createFocusSession(
+        req.user.user_id,
+        {
+          timer_duration,
+          ambient_sound,
+          sound_volume,
+        }
+      );
 
-      return successResponse(res, { session }, 'Focus session started', 201);
-
+      return successResponse(res, { session }, "Focus session started", 201);
     } catch (error) {
       next(error);
     }
@@ -25,11 +27,13 @@ class ProductivityController {
   static async updateFocusSession(req, res, next) {
     try {
       const updates = {};
-      ['status', 'elapsed_time', 'ambient_sound', 'sound_volume'].forEach(field => {
-        if (req.body[field] !== undefined) {
-          updates[field] = req.body[field];
+      ["status", "elapsed_time", "ambient_sound", "sound_volume"].forEach(
+        (field) => {
+          if (req.body[field] !== undefined) {
+            updates[field] = req.body[field];
+          }
         }
-      });
+      );
 
       const session = await ProductivityModel.updateFocusSession(
         req.params.id,
@@ -38,11 +42,10 @@ class ProductivityController {
       );
 
       if (!session) {
-        throw new NotFoundError('Focus session not found');
+        throw new NotFoundError("Focus session not found");
       }
 
-      return successResponse(res, { session }, 'Focus session updated');
-
+      return successResponse(res, { session }, "Focus session updated");
     } catch (error) {
       next(error);
     }
@@ -50,17 +53,19 @@ class ProductivityController {
 
   static async endFocusSession(req, res, next) {
     try {
-      const session = await ProductivityModel.endFocusSession(req.params.id, req.user.user_id);
+      const session = await ProductivityModel.endFocusSession(
+        req.params.id,
+        req.user.user_id
+      );
 
       if (!session) {
-        throw new NotFoundError('Focus session not found');
+        throw new NotFoundError("Focus session not found");
       }
 
       // Update streak
       await ProductivityModel.updateStreak(req.user.user_id);
 
-      return successResponse(res, { session }, 'Focus session completed');
-
+      return successResponse(res, { session }, "Focus session completed");
     } catch (error) {
       next(error);
     }
@@ -70,19 +75,21 @@ class ProductivityController {
     try {
       const { page = 1, limit = 20, start_date, end_date } = req.query;
 
-      const sessions = await ProductivityModel.findFocusSessions(req.user.user_id, {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        start_date,
-        end_date
-      });
+      const sessions = await ProductivityModel.findFocusSessions(
+        req.user.user_id,
+        {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          start_date,
+          end_date,
+        }
+      );
 
       return paginatedResponse(res, sessions, {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: sessions.length
+        total: sessions.length,
       });
-
     } catch (error) {
       next(error);
     }
@@ -96,10 +103,9 @@ class ProductivityController {
         streak: streak || {
           current_streak: 0,
           longest_streak: 0,
-          streak_date: null
-        }
+          streak_date: null,
+        },
       });
-
     } catch (error) {
       next(error);
     }
@@ -107,10 +113,11 @@ class ProductivityController {
 
   static async getAchievements(req, res, next) {
     try {
-      const achievements = await ProductivityModel.getAchievements(req.user.user_id);
+      const achievements = await ProductivityModel.getAchievements(
+        req.user.user_id
+      );
 
       return successResponse(res, { achievements });
-
     } catch (error) {
       next(error);
     }
@@ -121,7 +128,7 @@ class ProductivityController {
       const { start_date, end_date } = req.query;
 
       if (!start_date || !end_date) {
-        throw new ValidationError('start_date and end_date are required');
+        throw new ValidationError("start_date and end_date are required");
       }
 
       const summary = await ProductivityModel.getProductivitySummary(
@@ -130,8 +137,10 @@ class ProductivityController {
         end_date
       );
 
-      return successResponse(res, { summary, period: { start_date, end_date } });
-
+      return successResponse(res, {
+        summary,
+        period: { start_date, end_date },
+      });
     } catch (error) {
       next(error);
     }
@@ -140,8 +149,10 @@ class ProductivityController {
   static async getAISuggestions(req, res, next) {
     try {
       // Get user's recent productivity data
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = new Date().toISOString().split("T")[0];
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
 
       const summary = await ProductivityModel.getProductivitySummary(
         req.user.user_id,
@@ -154,19 +165,23 @@ class ProductivityController {
       const userData = {
         summary,
         total_tasks: tasks.length,
-        pending_tasks: tasks.filter(t => t.status !== 'completed').length,
-        overdue_tasks: tasks.filter(t => 
-          t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
-        ).length
+        pending_tasks: tasks.filter((t) => t.status !== "completed").length,
+        overdue_tasks: tasks.filter(
+          (t) =>
+            t.due_date &&
+            new Date(t.due_date) < new Date() &&
+            t.status !== "completed"
+        ).length,
       };
 
-      const suggestions = await geminiService.generateProductivitySuggestions(userData);
+      const suggestions = await aiService.generateProductivitySuggestions(
+        userData
+      );
 
       return successResponse(res, {
         suggestions,
-        based_on: userData
+        based_on: userData,
       });
-
     } catch (error) {
       next(error);
     }
