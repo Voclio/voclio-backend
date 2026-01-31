@@ -19,7 +19,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000/api",
+      "value": "http://localhost:3001/api",
       "type": "string"
     },
     {
@@ -764,6 +764,52 @@
       "description": "Voice recording with transcription and AI features",
       "item": [
         {
+          "name": "� Process Voice Complete (One-Click)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "/path/to/audio.mp3",
+                  "description": "Audio file"
+                },
+                {
+                  "key": "language",
+                  "value": "ar",
+                  "type": "text",
+                  "description": "Language (ar/en)"
+                },
+                {
+                  "key": "auto_create_tasks",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "auto_create_notes",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Optional category"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/process-complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "process-complete"]
+            },
+            "description": "Upload + Transcribe + Extract + Create everything in one request"
+          }
+        },
+        {
           "name": "📋 Get All Recordings",
           "request": {
             "method": "GET",
@@ -776,7 +822,7 @@
           }
         },
         {
-          "name": "📤 Upload Recording",
+          "name": "� Upload Recording",
           "request": {
             "method": "POST",
             "header": [],
@@ -804,7 +850,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"recording_id\": 1,\n  \"language\": \"en\"\n}",
+              "raw": "{\n  \"recording_id\": 1,\n  \"language\": \"ar\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -816,6 +862,87 @@
               "host": ["{{baseUrl}}"],
               "path": ["voice", "transcribe"]
             }
+          }
+        },
+        {
+          "name": "✏️ Update Transcription",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recording_id\": 1,\n  \"transcription\": \"Updated transcription text\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/update-transcription",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "update-transcription"]
+            },
+            "description": "Update transcription if user edited it"
+          }
+        },
+        {
+          "name": "🔍 Preview Extraction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recording_id\": 1,\n  \"extraction_type\": \"both\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/preview-extraction",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "preview-extraction"]
+            },
+            "description": "Preview extracted tasks/notes before creating them. extraction_type: tasks, notes, or both"
+          }
+        },
+        {
+          "name": "✅ Create from Preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recording_id\": 1,\n  \"tasks\": [\n    {\n      \"title\": \"Task 1\",\n      \"priority\": \"high\",\n      \"due_date\": \"2026-02-01T17:00:00Z\",\n      \"subtasks\": [\n        {\"title\": \"Subtask 1\"},\n        {\"title\": \"Subtask 2\"}\n      ]\n    }\n  ],\n  \"notes\": [\n    {\n      \"title\": \"Note 1\",\n      \"content\": \"Note content\",\n      \"tags\": [\"tag1\", \"tag2\"]\n    }\n  ],\n  \"category_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/create-from-preview",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "create-from-preview"]
+            },
+            "description": "Create tasks/notes from preview after user confirmation"
           }
         },
         {

@@ -1,13 +1,13 @@
-const express = require('express');
+import express from 'express';
+import AuthController from '../controllers/auth.controller.js';
+import { authMiddleware, optionalAuth } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const AuthController = require('../controllers/auth.controller');
-const { authMiddleware, optionalAuth } = require('../middleware/auth.middleware');
-const {
+import {
   registerValidator,
   loginValidator,
   updateProfileValidator,
   otpValidator
-} = require('../validators/auth.validator');
+} from '../validators/auth.validator.js';
 
 // Public routes
 router.post('/register', registerValidator, AuthController.register);
@@ -27,4 +27,4 @@ router.put('/profile', authMiddleware, updateProfileValidator, AuthController.up
 router.put('/change-password', authMiddleware, AuthController.changePassword);
 router.post('/logout', authMiddleware, AuthController.logout);
 
-module.exports = router;
+export default router;

@@ -1,6 +1,5 @@
-const { OAuth2Client } = require('google-auth-library');
-const config = require('./index');
-
+import { OAuth2Client } from 'google-auth-library';
+import config from './index.js';
 // Google OAuth Client for Flutter
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -67,7 +66,4 @@ async function verifyFacebookToken(accessToken) {
   }
 }
 
-module.exports = {
-  verifyGoogleToken,
-  verifyFacebookToken
-};
+export { verifyGoogleToken, verifyFacebookToken };

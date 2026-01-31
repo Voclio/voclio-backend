@@ -1,7 +1,6 @@
-const NotificationModel = require('../models/notification.model');
-const { successResponse, paginatedResponse } = require('../utils/responses');
-const { NotFoundError } = require('../utils/errors');
-
+import NotificationModel from '../models/notification.model.js';
+import { successResponse, paginatedResponse } from '../utils/responses.js';
+import { NotFoundError } from '../utils/errors.js';
 class NotificationController {
   static async getAllNotifications(req, res, next) {
     try {
@@ -99,4 +98,4 @@ class NotificationController {
   }
 }
 
-module.exports = NotificationController;
+export default NotificationController;

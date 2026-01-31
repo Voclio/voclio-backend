@@ -60,7 +60,7 @@ const AUDIO_FORMATS = {
   WEBM: 'audio/webm'
 };
 
-module.exports = {
+export {
   USER_ROLES,
   TASK_STATUS,
   TASK_PRIORITY,

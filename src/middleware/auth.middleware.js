@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
-const config = require('../config');
-const { UnauthorizedError } = require('../utils/errors');
+import jwt from 'jsonwebtoken';
+import { User } from '../models/orm/index.js';
+import config from '../config/index.js';
+import { UnauthorizedError } from '../utils/errors.js';
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -14,16 +14,19 @@ const authMiddleware = async (req, res, next) => {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, config.jwt.secret);
     
-    const result = await pool.query(
-      'SELECT user_id, email, name FROM users WHERE user_id = $1 AND is_active = true',
-      [decoded.userId]
-    );
+    const user = await User.findOne({
+      where: { 
+        user_id: decoded.userId,
+        is_active: true
+      },
+      attributes: ['user_id', 'email', 'name']
+    });
 
-    if (result.rows.length === 0) {
+    if (!user) {
       throw new UnauthorizedError('User not found or inactive');
     }
 
-    req.user = result.rows[0];
+    req.user = user.toJSON();
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -49,13 +52,16 @@ const optionalAuth = async (req, res, next) => {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, config.jwt.secret);
     
-    const result = await pool.query(
-      'SELECT user_id, email, name FROM users WHERE user_id = $1 AND is_active = true',
-      [decoded.userId]
-    );
+    const user = await User.findOne({
+      where: { 
+        user_id: decoded.userId,
+        is_active: true
+      },
+      attributes: ['user_id', 'email', 'name']
+    });
 
-    if (result.rows.length > 0) {
-      req.user = result.rows[0];
+    if (user) {
+      req.user = user.toJSON();
     }
     
     next();
@@ -64,7 +70,28 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  authMiddleware,
-  optionalAuth
+const adminMiddleware = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const user = await User.findOne({
+      where: { 
+        user_id: req.user.user_id,
+        is_active: true
+      },
+      attributes: ['user_id', 'email', 'name', 'is_admin']
+    });
+
+    if (!user || !user.is_admin) {
+      throw new UnauthorizedError('Admin access required');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
+
+export { authMiddleware, optionalAuth, adminMiddleware };

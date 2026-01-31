@@ -1,18 +1,20 @@
-const SettingsModel = require('../models/settings.model');
-const { validationResult } = require('express-validator');
-const { successResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
+import { UserSettings } from '../models/orm/index.js';
+import { validationResult } from 'express-validator';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 
 class SettingsController {
   static async getSettings(req, res, next) {
     try {
-      const settings = await SettingsModel.findByUserId(req.user.user_id);
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
 
       if (!settings) {
         throw new NotFoundError('Settings not found');
       }
 
-      return successResponse(res, { settings });
+      return successResponse(res, { settings: settings.toJSON() });
 
     } catch (error) {
       next(error);
@@ -22,8 +24,7 @@ class SettingsController {
   static async updateSettings(req, res, next) {
     try {
       const updates = {};
-      const allowedFields = ['theme', 'language', 'timezone', 'auto_backup', 
-                            'backup_frequency', 'data_retention_days'];
+      const allowedFields = ['theme', 'language', 'timezone'];
 
       allowedFields.forEach(field => {
         if (req.body[field] !== undefined) {
@@ -35,9 +36,15 @@ class SettingsController {
         throw new ValidationError('No valid fields to update');
       }
 
-      const settings = await SettingsModel.update(req.user.user_id, updates);
+      await UserSettings.update(updates, {
+        where: { user_id: req.user.user_id }
+      });
 
-      return successResponse(res, { settings }, 'Settings updated successfully');
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
+
+      return successResponse(res, { settings: settings.toJSON() }, 'Settings updated successfully');
 
     } catch (error) {
       next(error);
@@ -52,9 +59,16 @@ class SettingsController {
         throw new ValidationError('Invalid theme. Must be: light, dark, or auto');
       }
 
-      const settings = await SettingsModel.updateTheme(req.user.user_id, theme);
+      await UserSettings.update(
+        { theme },
+        { where: { user_id: req.user.user_id } }
+      );
 
-      return successResponse(res, { settings }, 'Theme updated successfully');
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
+
+      return successResponse(res, { settings: settings.toJSON() }, 'Theme updated successfully');
 
     } catch (error) {
       next(error);
@@ -69,9 +83,16 @@ class SettingsController {
         throw new ValidationError('Language is required');
       }
 
-      const settings = await SettingsModel.updateLanguage(req.user.user_id, language);
+      await UserSettings.update(
+        { language },
+        { where: { user_id: req.user.user_id } }
+      );
 
-      return successResponse(res, { settings }, 'Language updated successfully');
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
+
+      return successResponse(res, { settings: settings.toJSON() }, 'Language updated successfully');
 
     } catch (error) {
       next(error);
@@ -86,9 +107,16 @@ class SettingsController {
         throw new ValidationError('Timezone is required');
       }
 
-      const settings = await SettingsModel.updateTimezone(req.user.user_id, timezone);
+      await UserSettings.update(
+        { timezone },
+        { where: { user_id: req.user.user_id } }
+      );
 
-      return successResponse(res, { settings }, 'Timezone updated successfully');
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
+
+      return successResponse(res, { settings: settings.toJSON() }, 'Timezone updated successfully');
 
     } catch (error) {
       next(error);
@@ -97,7 +125,9 @@ class SettingsController {
 
   static async getNotificationSettings(req, res, next) {
     try {
-      const settings = await SettingsModel.findByUserId(req.user.user_id);
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
 
       if (!settings) {
         throw new NotFoundError('Settings not found');
@@ -121,9 +151,25 @@ class SettingsController {
 
   static async updateNotificationSettings(req, res, next) {
     try {
-      const settings = await SettingsModel.updateNotificationSettings(req.user.user_id, req.body);
+      const updates = {};
+      const allowedFields = ['email_enabled', 'whatsapp_enabled', 'push_enabled', 
+                            'email_for_reminders', 'email_for_tasks', 'whatsapp_for_reminders'];
 
-      return successResponse(res, { settings }, 'Notification settings updated successfully');
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      });
+
+      await UserSettings.update(updates, {
+        where: { user_id: req.user.user_id }
+      });
+
+      const settings = await UserSettings.findOne({
+        where: { user_id: req.user.user_id }
+      });
+
+      return successResponse(res, { settings: settings.toJSON() }, 'Notification settings updated successfully');
 
     } catch (error) {
       next(error);
@@ -131,4 +177,4 @@ class SettingsController {
   }
 }
 
-module.exports = SettingsController;
+export default SettingsController;

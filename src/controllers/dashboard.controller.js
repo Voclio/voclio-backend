@@ -1,10 +1,10 @@
-const TaskModel = require('../models/task.model');
-const NoteModel = require('../models/note.model');
-const ReminderModel = require('../models/reminder.model');
-const ProductivityModel = require('../models/productivity.model');
-const VoiceRecordingModel = require('../models/voice.model');
-const pool = require('../config/database');
-const { successResponse } = require('../utils/responses');
+import TaskModel from '../models/task.model.js';
+import NoteModel from '../models/note.model.js';
+import ReminderModel from '../models/reminder.model.js';
+import ProductivityModel from '../models/productivity.model.js';
+import { User, Task, Note, VoiceRecording, Achievement, FocusSession, sequelize } from '../models/orm/index.js';
+import { successResponse } from '../utils/responses.js';
+import { Op } from 'sequelize';
 
 class DashboardController {
   static async getDashboardStats(req, res, next) {
@@ -20,61 +20,53 @@ class DashboardController {
         : 0;
 
       // Get upcoming tasks (next 7 days)
-      const upcomingTasks = await pool.query(
-        `SELECT task_id, title, due_date, priority, status, category_id
-         FROM tasks 
-         WHERE user_id = $1 
-         AND status != 'completed'
-         AND due_date IS NOT NULL
-         AND due_date >= CURRENT_DATE
-         AND due_date <= CURRENT_DATE + INTERVAL '7 days'
-         ORDER BY due_date ASC
-         LIMIT 5`,
-        [userId]
-      );
+      const upcomingTasks = await Task.findAll({
+        where: {
+          user_id: userId,
+          status: { [Op.ne]: 'completed' },
+          due_date: {
+            [Op.and]: [
+              { [Op.gte]: new Date() },
+              { [Op.lte]: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
+            ]
+          }
+        },
+        attributes: ['task_id', 'title', 'due_date', 'priority', 'status', 'category_id'],
+        order: [['due_date', 'ASC']],
+        limit: 5,
+        raw: true
+      });
 
       // Get recent notes
-      const recentNotes = await pool.query(
-        `SELECT note_id, title, content, created_at
-         FROM notes 
-         WHERE user_id = $1 
-         ORDER BY created_at DESC
-         LIMIT 3`,
-        [userId]
-      );
+      const recentNotes = await Note.findAll({
+        where: { user_id: userId },
+        attributes: ['note_id', 'title', 'content', 'created_at'],
+        order: [['created_at', 'DESC']],
+        limit: 3,
+        raw: true
+      });
 
       // Get productivity streak
       const streak = await ProductivityModel.getStreak(userId);
 
       // Get today's focus time
-      const todayFocus = await pool.query(
-        `SELECT COALESCE(SUM(elapsed_time), 0) as total_minutes
-         FROM focus_sessions
-         WHERE user_id = $1
-         AND DATE(started_at) = CURRENT_DATE`,
-        [userId]
-      );
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      const todayFocus = await FocusSession.sum('elapsed_time', {
+        where: {
+          user_id: userId,
+          started_at: { [Op.gte]: todayStart }
+        }
+      });
 
       // Get upcoming reminders
       const upcomingReminders = await ReminderModel.findUpcoming(userId);
 
-      // Get notes count
-      const notesCount = await pool.query(
-        'SELECT COUNT(*) FROM notes WHERE user_id = $1',
-        [userId]
-      );
-
-      // Get voice recordings count
-      const voiceCount = await pool.query(
-        'SELECT COUNT(*) FROM voice_recordings WHERE user_id = $1',
-        [userId]
-      );
-
-      // Get achievements count
-      const achievementsCount = await pool.query(
-        'SELECT COUNT(*) FROM achievements WHERE user_id = $1',
-        [userId]
-      );
+      // Get counts
+      const notesCount = await Note.count({ where: { user_id: userId } });
+      const voiceCount = await VoiceRecording.count({ where: { user_id: userId } });
+      const achievementsCount = await Achievement.count({ where: { user_id: userId } });
 
       return successResponse(res, {
         overview: {
@@ -83,12 +75,12 @@ class DashboardController {
           pending_tasks: parseInt(taskStats.todo) + parseInt(taskStats.in_progress),
           overdue_tasks: parseInt(taskStats.overdue),
           overall_progress: overallProgress,
-          total_notes: parseInt(notesCount.rows[0].count),
-          total_recordings: parseInt(voiceCount.rows[0].count),
-          total_achievements: parseInt(achievementsCount.rows[0].count)
+          total_notes: notesCount,
+          total_recordings: voiceCount,
+          total_achievements: achievementsCount
         },
-        upcoming_tasks: upcomingTasks.rows,
-        recent_notes: recentNotes.rows.map(note => ({
+        upcoming_tasks: upcomingTasks,
+        recent_notes: recentNotes.map(note => ({
           note_id: note.note_id,
           title: note.title,
           preview: note.content ? note.content.substring(0, 100) + '...' : '',
@@ -97,7 +89,7 @@ class DashboardController {
         productivity: {
           current_streak: streak ? streak.current_streak : 0,
           longest_streak: streak ? streak.longest_streak : 0,
-          today_focus_minutes: parseInt(todayFocus.rows[0].total_minutes) || 0
+          today_focus_minutes: parseInt(todayFocus) || 0
         },
         upcoming_reminders: upcomingReminders.slice(0, 3),
         quick_actions: [
@@ -117,20 +109,12 @@ class DashboardController {
     try {
       const userId = req.user.user_id;
 
-      const stats = await pool.query(
-        `SELECT 
-          (SELECT COUNT(*) FROM tasks WHERE user_id = $1) as total_tasks,
-          (SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND status = 'completed') as completed_tasks,
-          (SELECT COUNT(*) FROM notes WHERE user_id = $1) as total_notes,
-          (SELECT COUNT(*) FROM reminders WHERE user_id = $1) as total_reminders,
-          (SELECT COUNT(*) FROM focus_sessions WHERE user_id = $1) as focus_sessions,
-          (SELECT COALESCE(SUM(elapsed_time), 0) FROM focus_sessions WHERE user_id = $1) as total_focus_minutes`,
-        [userId]
-      );
-
-      const data = stats.rows[0];
-      const totalTasks = parseInt(data.total_tasks) || 0;
-      const completedTasks = parseInt(data.completed_tasks) || 0;
+      const totalTasks = await Task.count({ where: { user_id: userId } });
+      const completedTasks = await Task.count({ where: { user_id: userId, status: 'completed' } });
+      const totalNotes = await Note.count({ where: { user_id: userId } });
+      const totalReminders = await Note.count({ where: { user_id: userId } });
+      const focusSessions = await FocusSession.count({ where: { user_id: userId } });
+      const totalFocusMinutes = await FocusSession.sum('elapsed_time', { where: { user_id: userId } }) || 0;
 
       return successResponse(res, {
         tasks: {
@@ -138,12 +122,12 @@ class DashboardController {
           completed: completedTasks,
           progress_percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
         },
-        notes: parseInt(data.total_notes) || 0,
-        reminders: parseInt(data.total_reminders) || 0,
+        notes: totalNotes,
+        reminders: totalReminders,
         productivity: {
-          sessions: parseInt(data.focus_sessions) || 0,
-          total_minutes: parseInt(data.total_focus_minutes) || 0,
-          total_hours: Math.round((parseInt(data.total_focus_minutes) || 0) / 60 * 10) / 10
+          sessions: focusSessions,
+          total_minutes: parseInt(totalFocusMinutes),
+          total_hours: Math.round(parseInt(totalFocusMinutes) / 60 * 10) / 10
         }
       });
 
@@ -153,4 +137,4 @@ class DashboardController {
   }
 }
 
-module.exports = DashboardController;
+export default DashboardController;

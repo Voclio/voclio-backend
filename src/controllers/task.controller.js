@@ -1,8 +1,7 @@
-const { validationResult } = require('express-validator');
-const TaskModel = require('../models/task.model');
-const { successResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import { validationResult } from 'express-validator';
+import TaskModel from '../models/task.model.js';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 class TaskController {
   static async getAllTasks(req, res, next) {
     try {
@@ -273,4 +272,4 @@ class TaskController {
   }
 }
 
-module.exports = TaskController;
+export default TaskController;

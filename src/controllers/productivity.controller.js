@@ -1,9 +1,8 @@
-const ProductivityModel = require('../models/productivity.model');
-const geminiService = require('../services/gemini.service');
-const TaskModel = require('../models/task.model');
-const { successResponse, paginatedResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import ProductivityModel from '../models/productivity.model.js';
+import aiService from '../services/ai.service.js';
+import TaskModel from '../models/task.model.js';
+import { successResponse, paginatedResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 class ProductivityController {
   static async startFocusSession(req, res, next) {
     try {
@@ -160,7 +159,7 @@ class ProductivityController {
         ).length
       };
 
-      const suggestions = await geminiService.generateProductivitySuggestions(userData);
+      const suggestions = await aiService.generateProductivitySuggestions(userData);
 
       return successResponse(res, {
         suggestions,
@@ -173,4 +172,4 @@ class ProductivityController {
   }
 }
 
-module.exports = ProductivityController;
+export default ProductivityController;

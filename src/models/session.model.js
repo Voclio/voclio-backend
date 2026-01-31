@@ -1,37 +1,37 @@
-const pool = require('../config/database');
+import { Session } from './orm/index.js';
 
 class SessionModel {
   static async create(userId, refreshToken, expiresAt) {
-    const result = await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at) 
-       VALUES ($1, $2, $3) 
-       RETURNING session_id, refresh_token`,
-      [userId, refreshToken, expiresAt]
-    );
-    return result.rows[0];
+    const session = await Session.create({
+      user_id: userId,
+      refresh_token: refreshToken,
+      expires_at: expiresAt
+    });
+    
+    return {
+      session_id: session.session_id,
+      refresh_token: session.refresh_token
+    };
   }
 
   static async findByRefreshToken(refreshToken) {
-    const result = await pool.query(
-      'SELECT * FROM sessions WHERE refresh_token = $1',
-      [refreshToken]
-    );
-    return result.rows[0];
+    const session = await Session.findOne({
+      where: { refresh_token: refreshToken }
+    });
+    return session ? session.toJSON() : null;
   }
 
   static async invalidate(refreshToken) {
-    await pool.query(
-      'DELETE FROM sessions WHERE refresh_token = $1',
-      [refreshToken]
-    );
+    await Session.destroy({
+      where: { refresh_token: refreshToken }
+    });
   }
 
   static async invalidateAllUserSessions(userId) {
-    await pool.query(
-      'DELETE FROM sessions WHERE user_id = $1',
-      [userId]
-    );
+    await Session.destroy({
+      where: { user_id: userId }
+    });
   }
 }
 
-module.exports = SessionModel;
+export default SessionModel;

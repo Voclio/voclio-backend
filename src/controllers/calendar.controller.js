@@ -1,8 +1,7 @@
-const TaskModel = require('../models/task.model');
-const ReminderModel = require('../models/reminder.model');
-const { successResponse } = require('../utils/responses');
-const { ValidationError } = require('../utils/errors');
-
+import TaskModel from '../models/task.model.js';
+import ReminderModel from '../models/reminder.model.js';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError } from '../utils/errors.js';
 class CalendarController {
   static async getCalendarEvents(req, res, next) {
     try {
@@ -192,4 +191,4 @@ class CalendarController {
   }
 }
 
-module.exports = CalendarController;
+export default CalendarController;

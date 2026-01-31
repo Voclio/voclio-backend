@@ -1,4 +1,4 @@
-const { body } = require('express-validator');
+import { body } from 'express-validator';
 
 const updateSettingsValidator = [
   body('theme')
@@ -57,7 +57,7 @@ const updateNotificationSettingsValidator = [
     .withMessage('whatsapp_for_reminders must be boolean')
 ];
 
-module.exports = {
+export {
   updateSettingsValidator,
   updateNotificationSettingsValidator
 };

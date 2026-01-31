@@ -1,13 +1,13 @@
-const express = require('express');
+import express from 'express';
+import NoteController from '../controllers/note.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const NoteController = require('../controllers/note.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   createNoteValidator,
   updateNoteValidator,
   searchNotesValidator,
   addTagsValidator
-} = require('../validators/note.validator');
+} from '../validators/note.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -28,4 +28,4 @@ router.get('/:id/tags', NoteController.getNoteTags);
 router.post('/:id/tags', addTagsValidator, NoteController.addTags);
 router.delete('/:id/tags/:tagId', NoteController.removeTag);
 
-module.exports = router;
+export default router;

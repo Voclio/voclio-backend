@@ -1,19 +1,31 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
-const VoiceRecordingModel = require('../models/voice.model');
-const geminiService = require('../services/gemini.service');
-const config = require('../config');
-const { successResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-const { AUDIO_FORMATS } = require('../utils/constants');
+import multer from 'multer';
+import fs from 'fs';
+import { promises as fsPromises } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import VoiceRecordingModel from '../models/voice.model.js';
+import aiService from '../services/ai.service.js';
+import config from '../config/index.js';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { AUDIO_FORMATS } from '../utils/constants.js';
+import NoteModel from '../models/note.model.js';
+import TaskModel from '../models/task.model.js';
+
+// Fix __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads/voice');
-    await fs.mkdir(uploadDir, { recursive: true });
-    cb(null, uploadDir);
+    try {
+      await fsPromises.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error, uploadDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -85,7 +97,7 @@ class VoiceController {
     } catch (error) {
       // Clean up uploaded file if error occurs
       if (req.file) {
-        await fs.unlink(req.file.path).catch(() => {});
+        await fsPromises.unlink(req.file.path).catch(() => {});
       }
       next(error);
     }
@@ -93,7 +105,7 @@ class VoiceController {
 
   static async transcribeRecording(req, res, next) {
     try {
-      const { recording_id, language = 'en' } = req.body;
+      const { recording_id, language = 'ar' } = req.body;
 
       if (!recording_id) {
         throw new ValidationError('Recording ID is required');
@@ -105,20 +117,18 @@ class VoiceController {
         throw new NotFoundError('Recording not found');
       }
 
-      if (recording.transcription) {
+      if (recording.transcription_text) {
         return successResponse(res, {
           recording_id: recording.recording_id,
-          transcription: recording.transcription,
+          transcription: recording.transcription_text,
           cached: true
         });
       }
 
-      // Read audio file
-      const audioBuffer = await fs.readFile(recording.file_path);
-
-      // Transcribe using Gemini (placeholder - needs Google Cloud Speech-to-Text)
+      // Transcribe using AI service (AssemblyAI)
       try {
-        const transcription = await geminiService.transcribeAudio(audioBuffer);
+        console.log(`🎤 Transcribing audio file: ${recording.file_path}`);
+        const transcription = await aiService.transcribeAudio(recording.file_path, language);
         
         // Update recording with transcription
         await VoiceRecordingModel.updateTranscription(recording_id, transcription);
@@ -130,11 +140,13 @@ class VoiceController {
         }, 'Transcription completed successfully');
 
       } catch (transcriptionError) {
+        console.error('Transcription error:', transcriptionError);
         return successResponse(res, {
           recording_id,
-          error: 'Transcription service not configured. Please integrate Google Cloud Speech-to-Text API.',
-          message: transcriptionError.message
-        });
+          error: 'Transcription failed',
+          message: transcriptionError.message,
+          suggestion: 'Please ensure AssemblyAI API key is configured in .env file'
+        }, 'Transcription failed', 500);
       }
 
     } catch (error) {
@@ -169,7 +181,6 @@ class VoiceController {
 
   static async createNoteFromRecording(req, res, next) {
     try {
-      const NoteModel = require('../models/note.model');
       const { title, tags } = req.body;
 
       const recording = await VoiceRecordingModel.findById(req.params.id, req.user.user_id);
@@ -209,7 +220,6 @@ class VoiceController {
 
   static async createTasksFromRecording(req, res, next) {
     try {
-      const TaskModel = require('../models/task.model');
       const { auto_create = false, category_id } = req.body;
 
       const recording = await VoiceRecordingModel.findById(req.params.id, req.user.user_id);
@@ -222,8 +232,8 @@ class VoiceController {
         throw new ValidationError('Recording must be transcribed first');
       }
 
-      // Extract tasks using Gemini AI
-      const extractedTasks = await geminiService.extractTasks(recording.transcription);
+      // Extract tasks using AI
+      const extractedTasks = await aiService.extractTasks(recording.transcription);
 
       if (!auto_create) {
         return successResponse(res, {
@@ -264,7 +274,7 @@ class VoiceController {
 
       // Delete file from disk
       try {
-        await fs.unlink(recording.file_path);
+        await fsPromises.unlink(recording.file_path);
       } catch (err) {
         console.error('Failed to delete file:', err);
       }
@@ -277,6 +287,323 @@ class VoiceController {
       next(error);
     }
   }
+
+  /**
+   * PREVIEW: Extract tasks/notes without creating them (for user review)
+   */
+  static async previewExtraction(req, res, next) {
+    try {
+      const { recording_id, extraction_type = 'both' } = req.body;
+
+      if (!recording_id) {
+        throw new ValidationError('Recording ID is required');
+      }
+
+      const recording = await VoiceRecordingModel.findById(recording_id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      if (!recording.transcription) {
+        throw new ValidationError('Recording must be transcribed first');
+      }
+
+      console.log('🔍 Previewing extraction...');
+
+      let result = {};
+
+      if (extraction_type === 'tasks' || extraction_type === 'both') {
+        // Extract tasks using AI
+        const extractedData = await aiService.extractTasksAndNotes(recording.transcription);
+        result.tasks = extractedData.tasks || [];
+      }
+
+      if (extraction_type === 'notes' || extraction_type === 'both') {
+        // Extract notes using AI
+        const extractedData = await aiService.extractTasksAndNotes(recording.transcription);
+        result.notes = extractedData.notes || [];
+      }
+
+      return successResponse(res, {
+        recording_id,
+        transcription: recording.transcription,
+        preview: result,
+        message: 'Preview generated. Use create-from-preview endpoint to save.'
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * CREATE FROM PREVIEW: Create tasks/notes from previewed extraction
+   */
+  static async createFromPreview(req, res, next) {
+    try {
+      const { recording_id, tasks = [], notes = [], category_id } = req.body;
+
+      if (!recording_id) {
+        throw new ValidationError('Recording ID is required');
+      }
+
+      const recording = await VoiceRecordingModel.findById(recording_id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      const userId = req.user.user_id;
+      const result = {
+        recording_id,
+        created: {
+          tasks: [],
+          notes: []
+        }
+      };
+
+      // Create tasks
+      if (tasks && tasks.length > 0) {
+        console.log(`✅ Creating ${tasks.length} tasks...`);
+        
+        for (const taskData of tasks) {
+          try {
+            // Create main task
+            const task = await TaskModel.create(userId, {
+              title: taskData.title,
+              description: taskData.description || recording.transcription.substring(0, 500),
+              priority: taskData.priority || 'medium',
+              due_date: taskData.due_date || null,
+              category_id: category_id || null
+            });
+
+            // Create subtasks if any
+            if (taskData.subtasks && taskData.subtasks.length > 0) {
+              for (const subtaskData of taskData.subtasks) {
+                await TaskModel.createSubtask(userId, task.task_id, {
+                  title: subtaskData.title,
+                  description: subtaskData.description || null
+                });
+              }
+            }
+
+            // Fetch complete task with subtasks
+            const completeTask = await TaskModel.getTaskWithSubtasks(task.task_id, userId);
+            result.created.tasks.push(completeTask);
+
+          } catch (taskError) {
+            console.error('Failed to create task:', taskError);
+          }
+        }
+      }
+
+      // Create notes
+      if (notes && notes.length > 0) {
+        console.log(`📝 Creating ${notes.length} notes...`);
+        
+        for (const noteData of notes) {
+          try {
+            const note = await NoteModel.create(userId, {
+              title: noteData.title || `Voice Note - ${new Date().toLocaleString()}`,
+              content: noteData.content || recording.transcription,
+              voice_recording_id: recording.recording_id
+            });
+
+            // Add tags if provided
+            if (noteData.tags && noteData.tags.length > 0) {
+              await NoteModel.addTags(note.note_id, noteData.tags);
+            }
+
+            const completeNote = await NoteModel.findById(note.note_id, userId);
+            result.created.notes.push(completeNote);
+
+          } catch (noteError) {
+            console.error('Failed to create note:', noteError);
+          }
+        }
+      }
+
+      console.log('🎉 Creation completed!');
+      console.log(`   📊 Created: ${result.created.tasks.length} tasks, ${result.created.notes.length} notes`);
+
+      return successResponse(res, result, 'Items created successfully', 201);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * UPDATE TRANSCRIPTION: Allow user to edit transcription before conversion
+   */
+  static async updateTranscription(req, res, next) {
+    try {
+      const { recording_id, transcription } = req.body;
+
+      if (!recording_id || !transcription) {
+        throw new ValidationError('Recording ID and transcription are required');
+      }
+
+      const recording = await VoiceRecordingModel.findById(recording_id, req.user.user_id);
+
+      if (!recording) {
+        throw new NotFoundError('Recording not found');
+      }
+
+      // Update transcription
+      await VoiceRecordingModel.updateTranscription(recording_id, transcription);
+
+      return successResponse(res, {
+        recording_id,
+        transcription
+      }, 'Transcription updated successfully');
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * ONE-CLICK: Upload + Transcribe + Extract Tasks & Notes + Create Everything
+   * This is the main endpoint for voice-to-everything workflow
+   */
+  static async processVoiceComplete(req, res, next) {
+    try {
+      if (!req.file) {
+        throw new ValidationError('No audio file uploaded');
+      }
+
+      const { language = 'ar', category_id, auto_create_tasks = true, auto_create_notes = true } = req.body;
+      const userId = req.user.user_id;
+
+      console.log('🎙️ Starting complete voice processing...');
+
+      // Step 1: Save recording
+      console.log('📝 Step 1: Saving recording...');
+      const recording = await VoiceRecordingModel.create(userId, {
+        file_path: req.file.path,
+        file_size: req.file.size,
+        format: req.file.mimetype,
+        duration: null
+      });
+
+      // Step 2: Transcribe audio
+      console.log('🎤 Step 2: Transcribing audio...');
+      let transcription;
+      try {
+        transcription = await aiService.transcribeAudio(recording.file_path, language);
+        await VoiceRecordingModel.updateTranscription(recording.recording_id, transcription);
+      } catch (transcriptionError) {
+        console.error('Transcription failed:', transcriptionError);
+        return successResponse(res, {
+          recording_id: recording.recording_id,
+          error: 'Transcription failed',
+          message: transcriptionError.message,
+          suggestion: 'Please check AssemblyAI API key configuration'
+        }, 'Recording saved but transcription failed', 500);
+      }
+
+      // Step 3: Extract tasks and notes using AI
+      console.log('🤖 Step 3: Extracting tasks and notes with AI...');
+      let extractedData;
+      try {
+        extractedData = await aiService.extractTasksAndNotes(transcription);
+      } catch (aiError) {
+        console.error('AI extraction failed:', aiError);
+        return successResponse(res, {
+          recording_id: recording.recording_id,
+          transcription,
+          error: 'AI extraction failed',
+          message: aiError.message
+        }, 'Transcription completed but AI extraction failed', 500);
+      }
+
+      const result = {
+        recording_id: recording.recording_id,
+        transcription,
+        extracted: extractedData,
+        created: {
+          tasks: [],
+          notes: []
+        }
+      };
+
+      // Step 4: Create tasks automatically
+      if (auto_create_tasks && extractedData.tasks && extractedData.tasks.length > 0) {
+        console.log(`✅ Step 4: Creating ${extractedData.tasks.length} tasks...`);
+        
+        for (const taskData of extractedData.tasks) {
+          try {
+            // Create main task
+            const task = await TaskModel.create(userId, {
+              title: taskData.title,
+              description: taskData.description || transcription.substring(0, 500),
+              priority: taskData.priority || 'medium',
+              due_date: taskData.due_date || null,
+              category_id: category_id || null
+            });
+
+            // Create subtasks if any
+            if (taskData.subtasks && taskData.subtasks.length > 0) {
+              console.log(`  📋 Creating ${taskData.subtasks.length} subtasks for task ${task.task_id}...`);
+              for (const subtaskData of taskData.subtasks) {
+                await TaskModel.createSubtask(userId, task.task_id, {
+                  title: subtaskData.title,
+                  description: subtaskData.description || null
+                });
+              }
+            }
+
+            // Fetch complete task with subtasks
+            const completeTask = await TaskModel.getTaskWithSubtasks(task.task_id, userId);
+            result.created.tasks.push(completeTask);
+
+          } catch (taskError) {
+            console.error('Failed to create task:', taskError);
+          }
+        }
+      }
+
+      // Step 5: Create notes automatically
+      if (auto_create_notes && extractedData.notes && extractedData.notes.length > 0) {
+        console.log(`📝 Step 5: Creating ${extractedData.notes.length} notes...`);
+        
+        for (const noteData of extractedData.notes) {
+          try {
+            const note = await NoteModel.create(userId, {
+              title: noteData.title || `Voice Note - ${new Date().toLocaleString()}`,
+              content: noteData.content || transcription,
+              voice_recording_id: recording.recording_id
+            });
+
+            // Add tags if provided
+            if (noteData.tags && noteData.tags.length > 0) {
+              await NoteModel.addTags(note.note_id, noteData.tags);
+            }
+
+            const completeNote = await NoteModel.findById(note.note_id, userId);
+            result.created.notes.push(completeNote);
+
+          } catch (noteError) {
+            console.error('Failed to create note:', noteError);
+          }
+        }
+      }
+
+      console.log('🎉 Voice processing completed successfully!');
+      console.log(`   📊 Created: ${result.created.tasks.length} tasks, ${result.created.notes.length} notes`);
+
+      return successResponse(res, result, 'Voice processed successfully', 201);
+
+    } catch (error) {
+      // Clean up uploaded file if error occurs
+      if (req.file) {
+        await fsPromises.unlink(req.file.path).catch(() => {});
+      }
+      next(error);
+    }
+  }
 }
 
-module.exports = VoiceController;
+export default VoiceController;
