@@ -151,7 +151,13 @@ class NoteController {
         throw new NotFoundError('Note not found');
       }
 
+      console.log('📝 Extracting tasks from note:', note.note_id);
+      console.log('Content:', note.content);
+
       const extractedTasks = await aiService.extractTasks(note.content);
+      
+      console.log('🤖 AI extracted tasks:', extractedTasks.length);
+      console.log('Tasks:', JSON.stringify(extractedTasks, null, 2));
 
       if (!auto_create) {
         return successResponse(res, {
@@ -161,16 +167,29 @@ class NoteController {
         }, 'Tasks extracted successfully');
       }
 
-      // Auto-create tasks
-      const tasksToCreate = extractedTasks.map(task => ({
-        title: task.title,
-        description: task.description || note.content.substring(0, 500),
-        priority: task.priority || 'medium',
-        category_id: category_id || null,
-        note_id: note.note_id
-      }));
+      // Auto-create tasks - ensure category_id is valid or null
+      const tasksToCreate = extractedTasks.map(task => {
+        const taskData = {
+          title: task.title,
+          description: task.description || note.content.substring(0, 500),
+          priority: task.priority || 'medium',
+          due_date: task.due_date || null,
+          note_id: note.note_id
+        };
+        
+        // Only add category_id if it's provided and valid
+        if (category_id) {
+          taskData.category_id = category_id;
+        }
+        
+        return taskData;
+      });
+
+      console.log('💾 Creating tasks:', tasksToCreate.length);
 
       const createdTasks = await TaskModel.bulkCreate(req.user.user_id, tasksToCreate);
+
+      console.log('✅ Created tasks:', createdTasks.length);
 
       return successResponse(res, {
         note_id: note.note_id,
@@ -179,6 +198,7 @@ class NoteController {
       }, 'Tasks created successfully', 201);
 
     } catch (error) {
+      console.error('❌ Extract tasks error:', error);
       next(error);
     }
   }

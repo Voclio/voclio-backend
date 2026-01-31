@@ -29,6 +29,9 @@ const Category = sequelize.define('Category', {
   }
 }, {
   tableName: 'categories',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
   indexes: [
     { unique: true, fields: ['user_id', 'name'] }
   ]

@@ -11,6 +11,7 @@ import { ValidationError, NotFoundError } from "../utils/errors.js";
 import { AUDIO_FORMATS } from "../utils/constants.js";
 import NoteModel from "../models/note.model.js";
 import TaskModel from "../models/task.model.js";
+import NotificationService from "../services/notification.service.js";
 
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -656,6 +657,9 @@ class VoiceController {
               category_id: category_id || null,
             });
 
+            // Send notification for task created from voice
+            await NotificationService.notifyVoiceToTaskCreated(userId, task);
+
             // Create subtasks if any
             if (taskData.subtasks && taskData.subtasks.length > 0) {
               console.log(
@@ -717,6 +721,11 @@ class VoiceController {
       console.log(
         `   📊 Created: ${result.created.tasks.length} tasks, ${result.created.notes.length} notes`,
       );
+
+      // Send notification for voice processing completion
+      if (result.created.tasks.length > 0 || result.created.notes.length > 0) {
+        await NotificationService.notifyVoiceProcessed(userId, recording);
+      }
 
       return successResponse(res, result, "Voice processed successfully", 201);
     } catch (error) {

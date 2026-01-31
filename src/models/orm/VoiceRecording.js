@@ -45,6 +45,9 @@ const VoiceRecording = sequelize.define('VoiceRecording', {
   }
 }, {
   tableName: 'voice_recordings',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
   indexes: [
     { fields: ['user_id'] }
   ]
