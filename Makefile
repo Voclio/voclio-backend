@@ -46,6 +46,10 @@ help:
 	@echo "  make lint-fix         - Fix ESLint issues automatically"
 	@echo "  make format           - Format code with Prettier"
 	@echo ""
+	@echo "$(YELLOW)Documentation:$(NC)"
+	@echo "  make docs             - Generate API documentation"
+	@echo "  make postman          - Generate Postman collection"
+	@echo ""
 	@echo "$(YELLOW)Maintenance:$(NC)"
 	@echo "  make clean            - Clean temporary files and caches"
 	@echo "  make clean-all        - Clean everything including node_modules"
@@ -191,6 +195,25 @@ lint-fix:
 format:
 	@echo "$(GREEN)Formatting code...$(NC)"
 	npm run format
+
+## docs: Generate API documentation
+docs:
+	@echo "$(GREEN)API Documentation available:$(NC)"
+	@echo "  - ALL_APIS_COMPLETE.md"
+	@echo "  - API_COMPLETE_REFERENCE.md"
+	@echo "  - MOBILE_APP_API_GUIDE.md"
+	@echo "  - ADMIN_PANEL_GUIDE.md"
+	@echo "  - VOICE_TO_EVERYTHING.md"
+	@echo "  - NOTIFICATION_SYSTEM.md"
+	@echo "  - DATABASE_FIXES_GUIDE.md"
+	@echo "  - DOCUMENTATION_INDEX.md"
+
+## postman: Generate Postman collection
+postman:
+	@echo "$(GREEN)Generating Postman collection...$(NC)"
+	node generate-postman-collection.js
+	@echo "$(GREEN)✓ Postman collection generated: Voclio_Complete_APIs_2026.postman_collection.json$(NC)"
+	@echo "$(YELLOW)Import this file into Postman to test all APIs$(NC)"
 
 ## clean: Clean temporary files
 clean:

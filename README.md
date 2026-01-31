@@ -186,10 +186,14 @@ npm run test:voice
 ## 📚 التوثيق
 
 - [📖 دليل API الكامل](./API_COMPLETE_REFERENCE.md)
+- [📡 جميع الـ APIs](./ALL_APIS_COMPLETE.md)
+- [📮 دليل Postman](./POSTMAN_GUIDE.md)
 - [📱 دليل Mobile App API](./MOBILE_APP_API_GUIDE.md)
 - [👨‍💼 دليل لوحة الإدارة](./ADMIN_PANEL_GUIDE.md)
 - [🎤 دليل Voice to Everything](./VOICE_TO_EVERYTHING.md)
 - [🔔 نظام الإشعارات](./NOTIFICATION_SYSTEM.md)
+- [🗄️ دليل إصلاحات قاعدة البيانات](./DATABASE_FIXES_GUIDE.md)
+- [📚 فهرس التوثيق](./DOCUMENTATION_INDEX.md)
 - [🚀 البدء السريع](./QUICK_START.md)
 
 ## 🔧 التكوين
