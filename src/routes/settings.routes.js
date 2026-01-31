@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
+import SettingsController from '../controllers/settings.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const SettingsController = require('../controllers/settings.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   updateSettingsValidator,
   updateNotificationSettingsValidator
-} = require('../validators/settings.validator');
+} from '../validators/settings.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -18,4 +18,4 @@ router.put('/timezone', SettingsController.updateTimezone);
 router.get('/notifications', SettingsController.getNotificationSettings);
 router.put('/notifications', updateNotificationSettingsValidator, SettingsController.updateNotificationSettings);
 
-module.exports = router;
+export default router;

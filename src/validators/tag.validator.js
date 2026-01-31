@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const createTagValidator = [
   body('name')
@@ -33,7 +33,7 @@ const tagIdValidator = [
     .withMessage('Tag ID must be a valid integer')
 ];
 
-module.exports = {
+export {
   createTagValidator,
   updateTagValidator,
   tagIdValidator

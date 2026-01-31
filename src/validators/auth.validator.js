@@ -1,4 +1,4 @@
-const { body } = require('express-validator');
+import { body } from 'express-validator';
 
 const registerValidator = [
   body('email')
@@ -79,7 +79,7 @@ const otpValidator = [
     .withMessage('Invalid OTP type')
 ];
 
-module.exports = {
+export {
   registerValidator,
   loginValidator,
   updateProfileValidator,

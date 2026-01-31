@@ -1,13 +1,14 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { validationResult } = require('express-validator');
-const UserModel = require('../models/user.model');
-const SessionModel = require('../models/session.model');
-const OTPModel = require('../models/otp.model');
-const config = require('../config');
-const { successResponse, errorResponse } = require('../utils/responses');
-const { ValidationError, UnauthorizedError, NotFoundError, ConflictError } = require('../utils/errors');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { validationResult } from 'express-validator';
+import { Op } from 'sequelize';
+import { User, Session, OTP, UserSettings } from '../models/orm/index.js';
+import { verifyGoogleToken, verifyFacebookToken } from '../config/oauth.js';
+import config from '../config/index.js';
+import emailService from '../services/email.service.js';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, UnauthorizedError, NotFoundError, ConflictError } from '../utils/errors.js';
 
 class AuthController {
   static async register(req, res, next) {
@@ -20,7 +21,7 @@ class AuthController {
       const { email, password, name, phone_number } = req.body;
 
       // Check if user exists
-      const existingUser = await UserModel.findByEmail(email);
+      const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         throw new ConflictError('Email already registered');
       }
@@ -29,7 +30,7 @@ class AuthController {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Create user
-      const user = await UserModel.create({
+      const user = await User.create({
         email,
         password: hashedPassword,
         name,
@@ -37,7 +38,7 @@ class AuthController {
       });
 
       // Create default settings
-      await UserModel.createDefaultSettings(user.user_id);
+      await UserSettings.create({ user_id: user.user_id });
 
       // Generate tokens
       const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
@@ -50,7 +51,11 @@ class AuthController {
 
       // Create session
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      await SessionModel.create(user.user_id, refreshToken, expiresAt);
+      await Session.create({
+        user_id: user.user_id,
+        refresh_token: refreshToken,
+        expires_at: expiresAt
+      });
 
       return successResponse(res, {
         user: {
@@ -81,7 +86,7 @@ class AuthController {
       const { email, password } = req.body;
 
       // Find user
-      const user = await UserModel.findByEmail(email);
+      const user = await User.findOne({ where: { email } });
       if (!user) {
         throw new UnauthorizedError('Invalid credentials');
       }
@@ -103,7 +108,11 @@ class AuthController {
 
       // Create session
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      await SessionModel.create(user.user_id, refreshToken, expiresAt);
+      await Session.create({
+        user_id: user.user_id,
+        refresh_token: refreshToken,
+        expires_at: expiresAt
+      });
 
       return successResponse(res, {
         user: {
@@ -125,12 +134,16 @@ class AuthController {
 
   static async getProfile(req, res, next) {
     try {
-      const user = await UserModel.findById(req.user.user_id);
+      const user = await User.findOne({
+        where: { user_id: req.user.user_id },
+        attributes: ['user_id', 'email', 'name', 'phone_number', 'is_active', 'oauth_provider', 'created_at']
+      });
+      
       if (!user) {
         throw new NotFoundError('User not found');
       }
 
-      return successResponse(res, { user });
+      return successResponse(res, { user: user.toJSON() });
 
     } catch (error) {
       next(error);
@@ -148,9 +161,16 @@ class AuthController {
       if (req.body.name) updates.name = req.body.name;
       if (req.body.phone_number) updates.phone_number = req.body.phone_number;
 
-      const user = await UserModel.update(req.user.user_id, updates);
+      await User.update(updates, {
+        where: { user_id: req.user.user_id }
+      });
 
-      return successResponse(res, { user }, 'Profile updated successfully');
+      const user = await User.findOne({
+        where: { user_id: req.user.user_id },
+        attributes: ['user_id', 'email', 'name', 'phone_number']
+      });
+
+      return successResponse(res, { user: user.toJSON() }, 'Profile updated successfully');
 
     } catch (error) {
       next(error);
@@ -160,7 +180,7 @@ class AuthController {
   static async logout(req, res, next) {
     try {
       const token = req.headers.authorization.substring(7);
-      await SessionModel.invalidate(token);
+      await Session.destroy({ where: { refresh_token: token } });
 
       return successResponse(res, null, 'Logged out successfully');
 
@@ -181,7 +201,7 @@ class AuthController {
       const decoded = jwt.verify(refresh_token, config.jwt.refreshSecret);
 
       // Check if session exists
-      const session = await SessionModel.findByRefreshToken(refresh_token);
+      const session = await Session.findOne({ where: { refresh_token } });
       if (!session) {
         throw new UnauthorizedError('Invalid refresh token');
       }
@@ -196,9 +216,13 @@ class AuthController {
       });
 
       // Invalidate old session and create new one
-      await SessionModel.invalidate(refresh_token);
+      await Session.destroy({ where: { refresh_token } });
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      await SessionModel.create(decoded.userId, newRefreshToken, expiresAt);
+      await Session.create({
+        user_id: decoded.userId,
+        refresh_token: newRefreshToken,
+        expires_at: expiresAt
+      });
 
       return successResponse(res, {
         access_token: newToken,
@@ -220,12 +244,28 @@ class AuthController {
 
       // Generate 6-digit OTP
       const otpCode = crypto.randomInt(100000, 999999).toString();
+      const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Store OTP
-      const otp = await OTPModel.create(email, otpCode, type);
+      const otp = await OTP.create({
+        otp_id: otpId,
+        email,
+        otp_code: otpCode,
+        type,
+        expires_at: expiresAt
+      });
 
-      // TODO: Send OTP via email/SMS (integrate email service)
-      console.log(`OTP for ${email}: ${otpCode}`);
+      // Send OTP via email
+      try {
+        await emailService.sendOTP(email, otpCode, type);
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        // Continue even if email fails in development
+        if (config.nodeEnv !== 'development') {
+          throw emailError;
+        }
+      }
 
       return successResponse(res, {
         otp_id: otp.otp_id,
@@ -241,15 +281,26 @@ class AuthController {
 
   static async verifyOTP(req, res, next) {
     try {
-      const { email, otp_code, type, otp_id } = req.body;
+      const { email, otp_code, type } = req.body;
 
-      const otp = await OTPModel.findValid(email, otp_code, type);
+      const otp = await OTP.findOne({
+        where: {
+          email,
+          otp_code,
+          type,
+          verified: false,
+          expires_at: {
+            [Op.gt]: new Date()
+          }
+        }
+      });
+
       if (!otp) {
         throw new UnauthorizedError('Invalid or expired OTP');
       }
 
       // Mark OTP as used
-      await OTPModel.markAsUsed(otp.otp_id);
+      await otp.update({ verified: true });
 
       return successResponse(res, {
         verified: true,
@@ -267,10 +318,26 @@ class AuthController {
 
       // Generate new OTP
       const otpCode = crypto.randomInt(100000, 999999).toString();
-      const otp = await OTPModel.create(email, otpCode, type);
+      const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-      // TODO: Send OTP via email/SMS
-      console.log(`Resend OTP for ${email}: ${otpCode}`);
+      const otp = await OTP.create({
+        otp_id: otpId,
+        email,
+        otp_code: otpCode,
+        type,
+        expires_at: expiresAt
+      });
+
+      // Send OTP via email
+      try {
+        await emailService.sendOTP(email, otpCode, type);
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        if (config.nodeEnv !== 'development') {
+          throw emailError;
+        }
+      }
 
       return successResponse(res, {
         otp_id: otp.otp_id,
@@ -287,17 +354,31 @@ class AuthController {
     try {
       const { email } = req.body;
 
-      const user = await UserModel.findByEmail(email);
+      const user = await User.findOne({ where: { email } });
       if (!user) {
         // Don't reveal if email exists
         return successResponse(res, null, 'If the email exists, a password reset link has been sent');
       }
 
-      // Generate reset token
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      
-      // TODO: Store reset token with expiry and send email
-      console.log(`Reset token for ${email}: ${resetToken}`);
+      // Generate reset token (JWT with 1 hour expiry)
+      const resetToken = jwt.sign(
+        { userId: user.user_id, purpose: 'password_reset' },
+        config.jwt.secret,
+        { expiresIn: '1h' }
+      );
+
+      // Send reset email
+      try {
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+        await emailService.sendPasswordReset(email, resetUrl, user.name);
+      } catch (emailError) {
+        console.error('Email service error:', emailError);
+        if (config.nodeEnv !== 'development') {
+          throw emailError;
+        }
+        // In development, log the token
+        console.log(`Reset token for ${email}: ${resetToken}`);
+      }
 
       return successResponse(res, null, 'Password reset instructions sent to your email');
 
@@ -305,6 +386,235 @@ class AuthController {
       next(error);
     }
   }
+
+  // Google OAuth Login for Flutter
+  static async googleLogin(req, res, next) {
+    try {
+      const { id_token } = req.body;
+
+      if (!id_token) {
+        throw new ValidationError('Google ID token is required');
+      }
+
+      // Verify Google token
+      const googleUser = await verifyGoogleToken(id_token);
+
+      // Check if user exists
+      let user = await User.findOne({ where: { email: googleUser.email } });
+
+      if (!user) {
+        // Create new user from Google account
+        user = await User.create({
+          email: googleUser.email,
+          name: googleUser.name,
+          oauth_provider: 'google',
+          oauth_id: googleUser.oauth_id,
+          email_verified: googleUser.email_verified
+        });
+
+        // Create default settings
+        await UserSettings.create({ user_id: user.user_id });
+      } else if (!user.oauth_provider) {
+        // Link existing account with Google
+        await user.update({
+          oauth_provider: 'google',
+          oauth_id: googleUser.oauth_id,
+          email_verified: true
+        });
+      }
+
+      // Generate tokens
+      const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn
+      });
+
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
+
+      // Create session
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await Session.create({
+        user_id: user.user_id,
+        refresh_token: refreshToken,
+        expires_at: expiresAt
+      });
+
+      return successResponse(res, {
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          name: user.name,
+          oauth_provider: user.oauth_provider
+        },
+        tokens: {
+          access_token: token,
+          refresh_token: refreshToken,
+          expires_in: 86400
+        }
+      }, 'Google login successful');
+
+    } catch (error) {
+      if (error.message === 'Invalid Google token') {
+        next(new UnauthorizedError('Invalid Google token'));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  // Facebook OAuth Login for Flutter
+  static async facebookLogin(req, res, next) {
+    try {
+      const { access_token } = req.body;
+
+      if (!access_token) {
+        throw new ValidationError('Facebook access token is required');
+      }
+
+      // Verify Facebook token
+      const facebookUser = await verifyFacebookToken(access_token);
+
+      // Check if user exists
+      let user = await User.findOne({ where: { email: facebookUser.email } });
+
+      if (!user) {
+        // Create new user from Facebook account
+        user = await User.create({
+          email: facebookUser.email,
+          name: facebookUser.name,
+          oauth_provider: 'facebook',
+          oauth_id: facebookUser.oauth_id,
+          email_verified: facebookUser.email_verified
+        });
+
+        // Create default settings
+        await UserSettings.create({ user_id: user.user_id });
+      } else if (!user.oauth_provider) {
+        // Link existing account with Facebook
+        await user.update({
+          oauth_provider: 'facebook',
+          oauth_id: facebookUser.oauth_id,
+          email_verified: true
+        });
+      }
+
+      // Generate tokens
+      const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
+        expiresIn: config.jwt.expiresIn
+      });
+
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
+
+      // Create session
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await Session.create({
+        user_id: user.user_id,
+        refresh_token: refreshToken,
+        expires_at: expiresAt
+      });
+
+      return successResponse(res, {
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          name: user.name,
+          oauth_provider: user.oauth_provider
+        },
+        tokens: {
+          access_token: token,
+          refresh_token: refreshToken,
+          expires_in: 86400
+        }
+      }, 'Facebook login successful');
+
+    } catch (error) {
+      if (error.message === 'Invalid Facebook token' || error.message === 'Email permission required') {
+        next(new UnauthorizedError(error.message));
+      } else {
+        next(error);
+      }
+    }
+  }
+
+  static async changePassword(req, res, next) {
+    try {
+      const { current_password, new_password } = req.body;
+
+      if (!current_password || !new_password) {
+        throw new ValidationError('Current password and new password are required');
+      }
+
+      // Get user with password
+      const user = await User.findOne({ where: { user_id: req.user.user_id } });
+      
+      if (!user || !user.password) {
+        throw new ValidationError('Cannot change password for OAuth accounts');
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(current_password, user.password);
+      if (!isValidPassword) {
+        throw new UnauthorizedError('Current password is incorrect');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(new_password, 10);
+
+      // Update password
+      await user.update({ password: hashedPassword });
+
+      return successResponse(res, null, 'Password changed successfully');
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resetPassword(req, res, next) {
+    try {
+      const { token, new_password } = req.body;
+
+      if (!token || !new_password) {
+        throw new ValidationError('Reset token and new password are required');
+      }
+
+      // Verify token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, config.jwt.secret);
+        
+        // Verify token purpose
+        if (decoded.purpose !== 'password_reset') {
+          throw new UnauthorizedError('Invalid reset token');
+        }
+      } catch (err) {
+        throw new UnauthorizedError('Invalid or expired reset token');
+      }
+
+      // Verify user exists
+      const user = await User.findOne({ where: { user_id: decoded.userId } });
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(new_password, 10);
+
+      // Update password
+      await user.update({ password: hashedPassword });
+
+      // Invalidate all existing sessions for security
+      await Session.destroy({ where: { user_id: decoded.userId } });
+
+      return successResponse(res, null, 'Password reset successfully. Please login with your new password.');
+
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
-module.exports = AuthController;
+export default AuthController;

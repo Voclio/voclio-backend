@@ -1,71 +1,78 @@
-const pool = require('../config/database');
+import { User, UserSettings } from './orm/index.js';
 
 class UserModel {
   static async create(userData) {
-    const { email, password, name, phone_number } = userData;
-    const result = await pool.query(
-      `INSERT INTO users (email, password, name, phone_number) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING user_id, email, name, phone_number, created_at`,
-      [email, password, name, phone_number || null]
-    );
-    return result.rows[0];
+    const user = await User.create(userData);
+    return user.toJSON();
   }
 
   static async findByEmail(email) {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-    return result.rows[0];
+    const user = await User.findOne({ where: { email } });
+    return user ? user.toJSON() : null;
+  }
+
+  static async findByOAuth(provider, oauthId) {
+    const user = await User.findOne({ 
+      where: { 
+        oauth_provider: provider, 
+        oauth_id: oauthId 
+      } 
+    });
+    return user ? user.toJSON() : null;
   }
 
   static async findById(userId) {
-    const result = await pool.query(
-      'SELECT user_id, email, name, phone_number, is_active, created_at FROM users WHERE user_id = $1',
-      [userId]
-    );
-    return result.rows[0];
+    const user = await User.findOne({
+      where: { user_id: userId },
+      attributes: ['user_id', 'email', 'name', 'phone_number', 'is_active', 'oauth_provider', 'created_at']
+    });
+    return user ? user.toJSON() : null;
+  }
+
+  static async findByIdWithPassword(userId) {
+    const user = await User.findOne({ where: { user_id: userId } });
+    return user ? user.toJSON() : null;
+  }
+
+  static async updateOAuthInfo(userId, provider, oauthId) {
+    const user = await User.findOne({ where: { user_id: userId } });
+    if (!user) return null;
+    
+    await user.update({
+      oauth_provider: provider,
+      oauth_id: oauthId,
+      email_verified: true
+    });
+    return user.toJSON();
   }
 
   static async update(userId, updates) {
-    const fields = [];
-    const values = [];
-    let index = 1;
-
-    Object.keys(updates).forEach(key => {
-      fields.push(`${key} = $${index}`);
-      values.push(updates[key]);
-      index++;
-    });
-
-    values.push(userId);
-    const result = await pool.query(
-      `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $${index} 
-       RETURNING user_id, email, name, phone_number`,
-      values
-    );
-    return result.rows[0];
+    const user = await User.findOne({ where: { user_id: userId } });
+    if (!user) return null;
+    
+    await user.update(updates);
+    return {
+      user_id: user.user_id,
+      email: user.email,
+      name: user.name,
+      phone_number: user.phone_number
+    };
   }
 
   static async updatePassword(userId, hashedPassword) {
-    await pool.query(
-      'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-      [hashedPassword, userId]
+    await User.update(
+      { password: hashedPassword },
+      { where: { user_id: userId } }
     );
   }
 
   static async delete(userId) {
-    await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
+    await User.destroy({ where: { user_id: userId } });
   }
 
   static async createDefaultSettings(userId) {
-    await pool.query(
-      'INSERT INTO user_settings (user_id) VALUES ($1)',
-      [userId]
-    );
+    await UserSettings.create({ user_id: userId });
   }
 }
 
-module.exports = UserModel;
+export default UserModel;

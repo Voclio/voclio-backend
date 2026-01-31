@@ -1,4 +1,4 @@
-const { body, query } = require('express-validator');
+import { body, query } from 'express-validator';
 
 const createNoteValidator = [
   body('title')
@@ -59,7 +59,7 @@ const addTagsValidator = [
     .withMessage('Each tag must be a valid ID')
 ];
 
-module.exports = {
+export {
   createNoteValidator,
   updateNoteValidator,
   searchNotesValidator,

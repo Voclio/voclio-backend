@@ -1,54 +1,51 @@
-const pool = require('../config/database');
+import { Tag } from './orm/index.js';
 
 class TagModel {
   static async create(userId, tagData) {
-    const { name, color, description } = tagData;
-    const result = await pool.query(
-      `INSERT INTO tags (user_id, name, color, description) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING *`,
-      [userId, name, color || null, description || null]
-    );
-    return result.rows[0];
+    const tag = await Tag.create({
+      user_id: userId,
+      ...tagData
+    });
+    return tag.toJSON();
   }
 
   static async findAll(userId) {
-    const result = await pool.query(
-      'SELECT * FROM tags WHERE user_id = $1 ORDER BY name ASC',
-      [userId]
-    );
-    return result.rows;
+    const tags = await Tag.findAll({
+      where: { user_id: userId },
+      order: [['name', 'ASC']]
+    });
+    return tags.map(tag => tag.toJSON());
   }
 
   static async findById(tagId, userId) {
-    const result = await pool.query(
-      'SELECT * FROM tags WHERE tag_id = $1 AND user_id = $2',
-      [tagId, userId]
-    );
-    return result.rows[0];
+    const tag = await Tag.findOne({
+      where: { tag_id: tagId, user_id: userId }
+    });
+    return tag ? tag.toJSON() : null;
   }
 
   static async update(tagId, userId, updates) {
-    const { name, color, description } = updates;
-    const result = await pool.query(
-      `UPDATE tags 
-       SET name = COALESCE($1, name), 
-           color = COALESCE($2, color),
-           description = COALESCE($3, description)
-       WHERE tag_id = $4 AND user_id = $5
-       RETURNING *`,
-      [name, color, description, tagId, userId]
-    );
-    return result.rows[0];
+    const tag = await Tag.findOne({
+      where: { tag_id: tagId, user_id: userId }
+    });
+    
+    if (!tag) return null;
+    
+    await tag.update(updates);
+    return tag.toJSON();
   }
 
   static async delete(tagId, userId) {
-    const result = await pool.query(
-      'DELETE FROM tags WHERE tag_id = $1 AND user_id = $2 RETURNING *',
-      [tagId, userId]
-    );
-    return result.rows[0];
+    const tag = await Tag.findOne({
+      where: { tag_id: tagId, user_id: userId }
+    });
+    
+    if (!tag) return null;
+    
+    const tagData = tag.toJSON();
+    await tag.destroy();
+    return tagData;
   }
 }
 
-module.exports = TagModel;
+export default TagModel;
