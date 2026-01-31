@@ -1,4 +1,4 @@
-const { query, param } = require('express-validator');
+import { query, param } from 'express-validator';
 
 const getCalendarEventsValidator = [
   query('start_date')
@@ -26,7 +26,7 @@ const getDayEventsValidator = [
     .withMessage('Date must be a valid ISO 8601 date')
 ];
 
-module.exports = {
+export {
   getCalendarEventsValidator,
   getMonthCalendarValidator,
   getDayEventsValidator

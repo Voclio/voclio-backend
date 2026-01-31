@@ -1,12 +1,12 @@
-const express = require('express');
+import express from 'express';
+import CalendarController from '../controllers/calendar.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const CalendarController = require('../controllers/calendar.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   getCalendarEventsValidator,
   getMonthCalendarValidator,
   getDayEventsValidator
-} = require('../validators/calendar.validator');
+} from '../validators/calendar.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -15,4 +15,4 @@ router.get('/events', getCalendarEventsValidator, CalendarController.getCalendar
 router.get('/month/:year/:month', getMonthCalendarValidator, CalendarController.getMonthCalendar);
 router.get('/day/:date', getDayEventsValidator, CalendarController.getDayEvents);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const { param } = require('express-validator');
+import { param } from 'express-validator';
 
 const notificationIdValidator = [
   param('id')
@@ -6,6 +6,6 @@ const notificationIdValidator = [
     .withMessage('Notification ID must be a valid integer')
 ];
 
-module.exports = {
+export {
   notificationIdValidator
 };

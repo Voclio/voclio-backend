@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const createReminderValidator = [
   body('task_id')
@@ -61,7 +61,7 @@ const snoozeReminderValidator = [
     .withMessage('Snooze until must be a valid date')
 ];
 
-module.exports = {
+export {
   createReminderValidator,
   updateReminderValidator,
   reminderIdValidator,

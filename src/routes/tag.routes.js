@@ -1,12 +1,12 @@
-const express = require('express');
+import express from 'express';
+import TagController from '../controllers/tag.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const TagController = require('../controllers/tag.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   createTagValidator,
   updateTagValidator,
   tagIdValidator
-} = require('../validators/tag.validator');
+} from '../validators/tag.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -17,4 +17,4 @@ router.post('/', createTagValidator, TagController.createTag);
 router.put('/:id', updateTagValidator, TagController.updateTag);
 router.delete('/:id', tagIdValidator, TagController.deleteTag);
 
-module.exports = router;
+export default router;

@@ -1,8 +1,7 @@
-const TagModel = require('../models/tag.model');
-const { validationResult } = require('express-validator');
-const { successResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import TagModel from '../models/tag.model.js';
+import { validationResult } from 'express-validator';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 class TagController {
   static async getAllTags(req, res, next) {
     try {
@@ -88,4 +87,4 @@ class TagController {
   }
 }
 
-module.exports = TagController;
+export default TagController;

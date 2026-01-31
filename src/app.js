@@ -1,18 +1,30 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const config = require('./config');
-const routes = require('./routes');
-const errorHandler = require('./middleware/error.middleware');
-
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import config from './config/index.js';
+import routes from './routes/index.js';
+import errorHandler from './middleware/error.middleware.js';
 const app = express();
 
 // Security middleware
 app.use(helmet());
 app.use(cors());
 
-// Rate limiting
+// Rate limiting for auth endpoints (stricter)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per 15 minutes
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many authentication attempts, please try again later.'
+    }
+  }
+});
+
+// Rate limiting for general API
 const limiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.max,
@@ -24,6 +36,15 @@ const limiter = rateLimit({
     }
   }
 });
+
+// Apply stricter rate limiting to auth endpoints
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/send-otp', authLimiter);
+app.use('/api/auth/verify-otp', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+
+// Apply general rate limiting to all API routes
 app.use('/api/', limiter);
 
 // Body parsing middleware
@@ -66,4 +87,4 @@ app.use((req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

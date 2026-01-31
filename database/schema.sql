@@ -155,6 +155,8 @@ CREATE TABLE focus_sessions (
     ambient_sound VARCHAR(100),
     sound_volume INTEGER DEFAULT 50,
     status VARCHAR(50) DEFAULT 'active',
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -164,12 +166,14 @@ CREATE TABLE focus_sessions (
 CREATE TABLE productivity_streaks (
     streak_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    streak_date DATE NOT NULL,
     current_streak INTEGER DEFAULT 0,
     longest_streak INTEGER DEFAULT 0,
     last_activity_date DATE,
     total_points INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, streak_date)
 );
 
 -- Create Achievements Table
@@ -202,6 +206,7 @@ CREATE TABLE reminders (
     reminder_type VARCHAR(50) DEFAULT 'push',
     notification_types TEXT[],
     status VARCHAR(50) DEFAULT 'pending',
+    is_dismissed BOOLEAN DEFAULT false,
     sent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

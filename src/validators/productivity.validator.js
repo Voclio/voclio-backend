@@ -1,4 +1,4 @@
-const { body, query } = require('express-validator');
+import { body, query } from 'express-validator';
 
 const createFocusSessionValidator = [
   body('timer_duration')
@@ -45,7 +45,7 @@ const getSummaryValidator = [
     .withMessage('end_date must be a valid ISO 8601 date')
 ];
 
-module.exports = {
+export {
   createFocusSessionValidator,
   updateFocusSessionValidator,
   getSummaryValidator

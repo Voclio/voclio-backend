@@ -1,4 +1,4 @@
-const { body, query, param } = require('express-validator');
+import { body, query, param } from 'express-validator';
 
 const createTaskValidator = [
   body('title')
@@ -113,7 +113,7 @@ const taskIdValidator = [
     .withMessage('Task ID must be a valid integer')
 ];
 
-module.exports = {
+export {
   createTaskValidator,
   updateTaskValidator,
   bulkCreateValidator,

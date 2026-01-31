@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
+import NotificationController from '../controllers/notification.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const NotificationController = require('../controllers/notification.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   notificationIdValidator
-} = require('../validators/notification.validator');
+} from '../validators/notification.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -16,4 +16,4 @@ router.put('/mark-all-read', NotificationController.markAllAsRead);
 router.put('/:id/read', notificationIdValidator, NotificationController.markAsRead);
 router.delete('/:id', notificationIdValidator, NotificationController.deleteNotification);
 
-module.exports = router;
+export default router;

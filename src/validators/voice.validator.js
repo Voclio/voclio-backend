@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+import { body, param } from 'express-validator';
 
 const uploadVoiceValidator = [
   body('title')
@@ -61,7 +61,7 @@ const createTasksFromVoiceValidator = [
     .withMessage('Category ID must be a valid integer')
 ];
 
-module.exports = {
+export {
   uploadVoiceValidator,
   voiceIdValidator,
   transcribeVoiceValidator,

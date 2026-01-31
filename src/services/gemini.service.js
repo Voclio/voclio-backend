@@ -1,6 +1,5 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const config = require('../config');
-
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import config from '../config/index.js';
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
 class GeminiService {
@@ -71,4 +70,4 @@ class GeminiService {
   }
 }
 
-module.exports = new GeminiService();
+export default new GeminiService();

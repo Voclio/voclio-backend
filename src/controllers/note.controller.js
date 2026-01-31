@@ -1,9 +1,9 @@
-const { validationResult } = require('express-validator');
-const NoteModel = require('../models/note.model');
-const geminiService = require('../services/gemini.service');
-const { successResponse, paginatedResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import { validationResult } from 'express-validator';
+import NoteModel from '../models/note.model.js';
+import aiService from '../services/ai.service.js';
+import { successResponse, paginatedResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+import TaskModel from '../models/task.model.js';
 class NoteController {
   static async getAllNotes(req, res, next) {
     try {
@@ -129,7 +129,7 @@ class NoteController {
         throw new NotFoundError('Note not found');
       }
 
-      const summary = await geminiService.summarizeText(note.content);
+      const summary = await aiService.summarizeText(note.content);
 
       return successResponse(res, {
         note_id: note.note_id,
@@ -151,7 +151,7 @@ class NoteController {
         throw new NotFoundError('Note not found');
       }
 
-      const extractedTasks = await geminiService.extractTasks(note.content);
+      const extractedTasks = await aiService.extractTasks(note.content);
 
       if (!auto_create) {
         return successResponse(res, {
@@ -162,8 +162,6 @@ class NoteController {
       }
 
       // Auto-create tasks
-      const TaskModel = require('../models/task.model');
-      
       const tasksToCreate = extractedTasks.map(task => ({
         title: task.title,
         description: task.description || note.content.substring(0, 500),
@@ -251,4 +249,4 @@ class NoteController {
   }
 }
 
-module.exports = NoteController;
+export default NoteController;
