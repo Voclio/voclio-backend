@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { Op } from 'sequelize';
 import { Reminder, User, Task, Notification, OTP, Session } from '../models/orm/index.js';
 import emailService from './email.service.js';
+import NotificationService from './notification.service.js';
 
 class CronService {
   constructor() {
@@ -16,6 +17,13 @@ class CronService {
     this.jobs.push(
       cron.schedule('* * * * *', () => {
         this.checkReminders();
+      })
+    );
+
+    // Check for overdue and due soon tasks every hour
+    this.jobs.push(
+      cron.schedule('0 * * * *', () => {
+        this.checkTasksDueSoon();
       })
     );
 
@@ -105,13 +113,7 @@ class CronService {
       // Create in-app notification
       if (notificationTypes.includes('push')) {
         try {
-          await Notification.create({
-            user_id: user.user_id,
-            title: '⏰ Reminder',
-            message: task?.title || 'You have a reminder',
-            type: 'reminder',
-            data: { related_id: reminder.reminder_id }
-          });
+          await NotificationService.notifyReminderTriggered(user.user_id, reminder, task);
         } catch (notifError) {
           console.error('Failed to create notification:', notifError);
         }
@@ -171,6 +173,77 @@ class CronService {
       }
     } catch (error) {
       console.error('Error cleaning up sessions:', error);
+    }
+  }
+
+  // Check for tasks due soon or overdue
+  async checkTasksDueSoon() {
+    try {
+      const now = new Date();
+      const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      // Find tasks due in next 24 hours
+      const tasksDueSoon = await Task.findAll({
+        where: {
+          due_date: {
+            [Op.between]: [now, in24Hours]
+          },
+          status: {
+            [Op.ne]: 'completed'
+          }
+        },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['user_id', 'name']
+          }
+        ]
+      });
+
+      // Find overdue tasks
+      const overdueTasks = await Task.findAll({
+        where: {
+          due_date: {
+            [Op.lt]: now
+          },
+          status: {
+            [Op.ne]: 'completed'
+          }
+        },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['user_id', 'name']
+          }
+        ]
+      });
+
+      // Send notifications for tasks due soon
+      for (const task of tasksDueSoon) {
+        try {
+          const hoursLeft = Math.round((new Date(task.due_date) - now) / (1000 * 60 * 60));
+          await NotificationService.notifyTaskDueSoon(task.user_id, task, hoursLeft);
+        } catch (error) {
+          console.error('Failed to send due soon notification:', error);
+        }
+      }
+
+      // Send notifications for overdue tasks
+      for (const task of overdueTasks) {
+        try {
+          await NotificationService.notifyTaskOverdue(task.user_id, task);
+        } catch (error) {
+          console.error('Failed to send overdue notification:', error);
+        }
+      }
+
+      if (tasksDueSoon.length > 0 || overdueTasks.length > 0) {
+        console.log(`📅 Checked tasks: ${tasksDueSoon.length} due soon, ${overdueTasks.length} overdue`);
+      }
+    } catch (error) {
+      console.error('Error checking tasks due soon:', error);
     }
   }
 }

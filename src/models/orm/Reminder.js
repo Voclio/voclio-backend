@@ -49,6 +49,9 @@ const Reminder = sequelize.define('Reminder', {
   }
 }, {
   tableName: 'reminders',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
   indexes: [
     { fields: ['user_id'] },
     { fields: ['reminder_time'] }

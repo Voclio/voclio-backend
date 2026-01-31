@@ -3,6 +3,7 @@ import aiService from '../services/ai.service.js';
 import TaskModel from '../models/task.model.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
+import NotificationService from '../services/notification.service.js';
 class ProductivityController {
   static async startFocusSession(req, res, next) {
     try {
@@ -56,7 +57,15 @@ class ProductivityController {
       }
 
       // Update streak
-      await ProductivityModel.updateStreak(req.user.user_id);
+      const streak = await ProductivityModel.updateStreak(req.user.user_id);
+
+      // Send notification for completed focus session
+      await NotificationService.notifyFocusSessionCompleted(req.user.user_id, session);
+
+      // Check for streak milestone and send notification
+      if (streak && streak.current_streak > 0 && streak.current_streak % 7 === 0) {
+        await NotificationService.notifyStreakMilestone(req.user.user_id, streak);
+      }
 
       return successResponse(res, { session }, 'Focus session completed');
 

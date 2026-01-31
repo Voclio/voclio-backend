@@ -2,6 +2,7 @@ import ReminderModel from '../models/reminder.model.js';
 import { validationResult } from 'express-validator';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
+import NotificationService from '../services/notification.service.js';
 class ReminderController {
   static async getAllReminders(req, res, next) {
     try {
@@ -54,6 +55,9 @@ class ReminderController {
         reminder_type,
         notification_types
       });
+
+      // Send notification for reminder creation
+      await NotificationService.notifyReminderCreated(req.user.user_id, reminder);
 
       return successResponse(res, { reminder }, 'Reminder created successfully', 201);
 

@@ -2,6 +2,7 @@ import { validationResult } from 'express-validator';
 import TaskModel from '../models/task.model.js';
 import { successResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
+import NotificationService from '../services/notification.service.js';
 class TaskController {
   static async getAllTasks(req, res, next) {
     try {
@@ -50,6 +51,9 @@ class TaskController {
 
       const task = await TaskModel.create(req.user.user_id, req.body);
 
+      // Send notification
+      await NotificationService.notifyTaskCreated(req.user.user_id, task);
+
       return successResponse(res, { task }, 'Task created successfully', 201);
 
     } catch (error) {
@@ -95,6 +99,9 @@ class TaskController {
         throw new NotFoundError('Task not found');
       }
 
+      // Send notification
+      await NotificationService.notifyTaskUpdated(req.user.user_id, task);
+
       return successResponse(res, { task }, 'Task updated successfully');
 
     } catch (error) {
@@ -109,6 +116,9 @@ class TaskController {
       if (!task) {
         throw new NotFoundError('Task not found');
       }
+
+      // Send notification
+      await NotificationService.notifyTaskCompleted(req.user.user_id, task);
 
       return successResponse(res, { task }, 'Task marked as complete');
 

@@ -23,9 +23,9 @@ const Achievement = sequelize.define('Achievement', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  icon: {
+  achievement_type: {
     type: DataTypes.STRING(100),
-    allowNull: true
+    allowNull: false
   },
   earned_at: {
     type: DataTypes.DATE,

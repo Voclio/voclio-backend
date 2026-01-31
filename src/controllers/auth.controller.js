@@ -9,6 +9,7 @@ import config from '../config/index.js';
 import emailService from '../services/email.service.js';
 import { successResponse } from '../utils/responses.js';
 import { ValidationError, UnauthorizedError, NotFoundError, ConflictError } from '../utils/errors.js';
+import NotificationService from '../services/notification.service.js';
 
 class AuthController {
   static async register(req, res, next) {
@@ -56,6 +57,9 @@ class AuthController {
         refresh_token: refreshToken,
         expires_at: expiresAt
       });
+
+      // Send welcome notification
+      await NotificationService.notifyWelcome(user.user_id, user.name || 'مستخدم جديد');
 
       return successResponse(res, {
         user: {
