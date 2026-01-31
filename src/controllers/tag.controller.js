@@ -1,14 +1,28 @@
-const TagModel = require('../models/tag.model');
-const { validationResult } = require('express-validator');
-const { successResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import TagModel from '../models/tag.model.js';
+import { validationResult } from 'express-validator';
+import { successResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 class TagController {
   static async getAllTags(req, res, next) {
     try {
       const tags = await TagModel.findAll(req.user.user_id);
 
       return successResponse(res, { tags });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getTagById(req, res, next) {
+    try {
+      const tag = await TagModel.findById(req.params.id, req.user.user_id);
+
+      if (!tag) {
+        throw new NotFoundError('Tag not found');
+      }
+
+      return successResponse(res, { tag });
 
     } catch (error) {
       next(error);
@@ -73,4 +87,4 @@ class TagController {
   }
 }
 
-module.exports = TagController;
+export default TagController;

@@ -1,93 +1,74 @@
-const pool = require('../config/database');
+import { UserSettings } from './orm/index.js';
 
 class SettingsModel {
   static async findByUserId(userId) {
-    const result = await pool.query(
-      'SELECT * FROM user_settings WHERE user_id = $1',
-      [userId]
-    );
-    return result.rows[0];
+    const settings = await UserSettings.findOne({
+      where: { user_id: userId }
+    });
+    return settings ? settings.toJSON() : null;
   }
 
   static async update(userId, updates) {
-    const fields = [];
-    const values = [];
-    let index = 1;
-
-    Object.keys(updates).forEach(key => {
-      fields.push(`${key} = $${index}`);
-      values.push(updates[key]);
-      index++;
+    const settings = await UserSettings.findOne({
+      where: { user_id: userId }
     });
-
-    values.push(userId);
-    const result = await pool.query(
-      `UPDATE user_settings 
-       SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $${index}
-       RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    
+    if (!settings) return null;
+    
+    await settings.update(updates);
+    return settings.toJSON();
   }
 
   static async updateTheme(userId, theme) {
-    const result = await pool.query(
-      `UPDATE user_settings 
-       SET theme = $1, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $2
-       RETURNING *`,
-      [theme, userId]
-    );
-    return result.rows[0];
+    const settings = await UserSettings.findOne({
+      where: { user_id: userId }
+    });
+    
+    if (!settings) return null;
+    
+    await settings.update({ theme });
+    return settings.toJSON();
   }
 
   static async updateLanguage(userId, language) {
-    const result = await pool.query(
-      `UPDATE user_settings 
-       SET language = $1, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $2
-       RETURNING *`,
-      [language, userId]
-    );
-    return result.rows[0];
+    const settings = await UserSettings.findOne({
+      where: { user_id: userId }
+    });
+    
+    if (!settings) return null;
+    
+    await settings.update({ language });
+    return settings.toJSON();
   }
 
   static async updateTimezone(userId, timezone) {
-    const result = await pool.query(
-      `UPDATE user_settings 
-       SET timezone = $1, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $2
-       RETURNING *`,
-      [timezone, userId]
-    );
-    return result.rows[0];
+    const settings = await UserSettings.findOne({
+      where: { user_id: userId }
+    });
+    
+    if (!settings) return null;
+    
+    await settings.update({ timezone });
+    return settings.toJSON();
   }
 
   static async updateNotificationSettings(userId, settings) {
-    const result = await pool.query(
-      `UPDATE user_settings 
-       SET email_enabled = COALESCE($1, email_enabled),
-           whatsapp_enabled = COALESCE($2, whatsapp_enabled),
-           push_enabled = COALESCE($3, push_enabled),
-           email_for_reminders = COALESCE($4, email_for_reminders),
-           email_for_tasks = COALESCE($5, email_for_tasks),
-           whatsapp_for_reminders = COALESCE($6, whatsapp_for_reminders),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = $7
-       RETURNING *`,
-      [
-        settings.email_enabled,
-        settings.whatsapp_enabled,
-        settings.push_enabled,
-        settings.email_for_reminders,
-        settings.email_for_tasks,
-        settings.whatsapp_for_reminders,
-        userId
-      ]
-    );
-    return result.rows[0];
+    const userSettings = await UserSettings.findOne({
+      where: { user_id: userId }
+    });
+    
+    if (!userSettings) return null;
+    
+    const updates = {};
+    if (settings.email_enabled !== undefined) updates.email_enabled = settings.email_enabled;
+    if (settings.whatsapp_enabled !== undefined) updates.whatsapp_enabled = settings.whatsapp_enabled;
+    if (settings.push_enabled !== undefined) updates.push_enabled = settings.push_enabled;
+    if (settings.email_for_reminders !== undefined) updates.email_for_reminders = settings.email_for_reminders;
+    if (settings.whatsapp_for_reminders !== undefined) updates.whatsapp_for_reminders = settings.whatsapp_for_reminders;
+    
+    await userSettings.update(updates);
+    return userSettings.toJSON();
   }
 }
 
-module.exports = SettingsModel;
+export default SettingsModel;

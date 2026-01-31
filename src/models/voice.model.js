@@ -1,43 +1,57 @@
-const pool = require("../config/database");
+import { VoiceRecording } from './orm/index.js';
 
 class VoiceRecordingModel {
   static async create(userId, recordingData) {
-    const { file_path, file_size, duration, format } = recordingData;
-    const result = await pool.query(
-      `INSERT INTO voice_recordings (user_id, file_path, file_size, duration, format) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING *`,
-      [userId, file_path, file_size, duration || null, format]
-    );
-    return result.rows[0];
+    const recording = await VoiceRecording.create({
+      user_id: userId,
+      ...recordingData
+    });
+    return recording.toJSON();
+  }
+
+  static async findAll(userId, options = {}) {
+    const { page = 1, limit = 20 } = options;
+    const offset = (page - 1) * limit;
+
+    const recordings = await VoiceRecording.findAll({
+      where: { user_id: userId },
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    });
+    
+    return recordings.map(rec => rec.toJSON());
   }
 
   static async findById(recordingId, userId) {
-    const result = await pool.query(
-      "SELECT * FROM voice_recordings WHERE recording_id = $1 AND user_id = $2",
-      [recordingId, userId]
-    );
-    return result.rows[0];
+    const recording = await VoiceRecording.findOne({
+      where: { recording_id: recordingId, user_id: userId }
+    });
+    return recording ? recording.toJSON() : null;
   }
 
   static async updateTranscription(recordingId, transcription) {
-    const result = await pool.query(
-      `UPDATE voice_recordings 
-       SET transcription_text = $1, updated_at = CURRENT_TIMESTAMP 
-       WHERE recording_id = $2
-       RETURNING *`,
-      [transcription, recordingId]
-    );
-    return result.rows[0];
+    const recording = await VoiceRecording.findByPk(recordingId);
+    if (!recording) return null;
+    
+    await recording.update({
+      transcription_text: transcription,
+      status: 'transcribed'
+    });
+    return recording.toJSON();
   }
 
   static async delete(recordingId, userId) {
-    const result = await pool.query(
-      "DELETE FROM voice_recordings WHERE recording_id = $1 AND user_id = $2 RETURNING *",
-      [recordingId, userId]
-    );
-    return result.rows[0];
+    const recording = await VoiceRecording.findOne({
+      where: { recording_id: recordingId, user_id: userId }
+    });
+    
+    if (!recording) return null;
+    
+    const recordingData = recording.toJSON();
+    await recording.destroy();
+    return recordingData;
   }
 }
 
-module.exports = VoiceRecordingModel;
+export default VoiceRecordingModel;

@@ -1,139 +1,165 @@
-const pool = require('../config/database');
+import { FocusSession, ProductivityStreak, Achievement, Task, sequelize } from './orm/index.js';
+import { Op } from 'sequelize';
 
 class ProductivityModel {
   static async createFocusSession(userId, sessionData) {
-    const { timer_duration, ambient_sound, sound_volume } = sessionData;
-    const result = await pool.query(
-      `INSERT INTO focus_sessions (user_id, timer_duration, ambient_sound, sound_volume, status) 
-       VALUES ($1, $2, $3, $4, 'active') 
-       RETURNING *`,
-      [userId, timer_duration || 25, ambient_sound || null, sound_volume || 50]
-    );
-    return result.rows[0];
+    const session = await FocusSession.create({
+      user_id: userId,
+      timer_duration: sessionData.timer_duration || 25,
+      ambient_sound: sessionData.ambient_sound || null,
+      sound_volume: sessionData.sound_volume || 50,
+      status: 'active',
+      ...sessionData
+    });
+    return session.toJSON();
   }
 
   static async updateFocusSession(sessionId, userId, updates) {
-    const fields = [];
-    const values = [];
-    let index = 1;
-
-    Object.keys(updates).forEach(key => {
-      fields.push(`${key} = $${index}`);
-      values.push(updates[key]);
-      index++;
+    const session = await FocusSession.findOne({
+      where: { session_id: sessionId, user_id: userId }
     });
-
-    values.push(sessionId, userId);
-    const result = await pool.query(
-      `UPDATE focus_sessions 
-       SET ${fields.join(', ')} 
-       WHERE session_id = $${index} AND user_id = $${index + 1}
-       RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    
+    if (!session) return null;
+    
+    await session.update(updates);
+    return session.toJSON();
   }
 
   static async endFocusSession(sessionId, userId) {
-    const result = await pool.query(
-      `UPDATE focus_sessions 
-       SET status = 'completed', end_time = CURRENT_TIMESTAMP 
-       WHERE session_id = $1 AND user_id = $2
-       RETURNING *`,
-      [sessionId, userId]
-    );
-    return result.rows[0];
+    const session = await FocusSession.findOne({
+      where: { session_id: sessionId, user_id: userId }
+    });
+    
+    if (!session) return null;
+    
+    await session.update({
+      status: 'completed',
+      ended_at: new Date()
+    });
+    return session.toJSON();
   }
 
   static async findFocusSessions(userId, options = {}) {
     const { page = 1, limit = 20, start_date, end_date } = options;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM focus_sessions WHERE user_id = $1';
-    const params = [userId];
+    const where = { user_id: userId };
 
     if (start_date) {
-      params.push(start_date);
-      query += ` AND DATE(start_time) >= $${params.length}`;
+      where.started_at = { [Op.gte]: new Date(start_date) };
     }
 
     if (end_date) {
-      params.push(end_date);
-      query += ` AND DATE(start_time) <= $${params.length}`;
+      if (where.started_at) {
+        where.started_at[Op.lte] = new Date(end_date);
+      } else {
+        where.started_at = { [Op.lte]: new Date(end_date) };
+      }
     }
 
-    query += ` ORDER BY start_time DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
-
-    const result = await pool.query(query, params);
-    return result.rows;
+    const sessions = await FocusSession.findAll({
+      where,
+      order: [['started_at', 'DESC']],
+      limit,
+      offset
+    });
+    
+    return sessions.map(s => s.toJSON());
   }
 
   static async getStreak(userId) {
-    const result = await pool.query(
-      `SELECT * FROM productivity_streaks 
-       WHERE user_id = $1 
-       ORDER BY streak_date DESC 
-       LIMIT 1`,
-      [userId]
-    );
-    return result.rows[0];
+    const streak = await ProductivityStreak.findOne({
+      where: { user_id: userId },
+      order: [['streak_date', 'DESC']]
+    });
+    return streak ? streak.toJSON() : null;
   }
 
   static async updateStreak(userId) {
-    // Check if there's activity today
     const today = new Date().toISOString().split('T')[0];
     
-    const result = await pool.query(
-      `INSERT INTO productivity_streaks (user_id, streak_date, current_streak, longest_streak)
-       VALUES ($1, $2, 1, 1)
-       ON CONFLICT (user_id, streak_date)
-       DO UPDATE SET current_streak = productivity_streaks.current_streak + 1
-       RETURNING *`,
-      [userId, today]
-    );
-    return result.rows[0];
+    const [streak, created] = await ProductivityStreak.findOrCreate({
+      where: { user_id: userId, streak_date: today },
+      defaults: {
+        user_id: userId,
+        streak_date: today,
+        current_streak: 1,
+        longest_streak: 1,
+        last_activity_date: today,
+        total_points: 10
+      }
+    });
+
+    if (!created) {
+      await streak.update({
+        current_streak: streak.current_streak + 1,
+        longest_streak: Math.max(streak.longest_streak, streak.current_streak + 1),
+        last_activity_date: today,
+        total_points: streak.total_points + 10
+      });
+    }
+
+    return streak.toJSON();
   }
 
   static async getAchievements(userId) {
-    const result = await pool.query(
-      `SELECT * FROM achievements 
-       WHERE user_id = $1 
-       ORDER BY earned_at DESC`,
-      [userId]
-    );
-    return result.rows;
+    const achievements = await Achievement.findAll({
+      where: { user_id: userId },
+      order: [['earned_at', 'DESC']]
+    });
+    return achievements.map(a => a.toJSON());
   }
 
   static async createAchievement(userId, achievementData) {
-    const { title, description, icon } = achievementData;
-    const result = await pool.query(
-      `INSERT INTO achievements (user_id, title, description, icon) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING *`,
-      [userId, title, description, icon || null]
-    );
-    return result.rows[0];
+    const achievement = await Achievement.create({
+      user_id: userId,
+      ...achievementData
+    });
+    return achievement.toJSON();
   }
 
   static async getProductivitySummary(userId, startDate, endDate) {
-    const result = await pool.query(
-      `SELECT 
-         COUNT(DISTINCT DATE(fs.start_time)) as focus_days,
-         SUM(fs.elapsed_time) as total_focus_minutes,
-         COUNT(fs.session_id) as total_sessions,
-         AVG(fs.elapsed_time) as avg_session_minutes,
-         (SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND status = 'completed' 
-          AND DATE(completed_at) BETWEEN $2 AND $3) as tasks_completed,
-         (SELECT current_streak FROM productivity_streaks WHERE user_id = $1 
-          ORDER BY streak_date DESC LIMIT 1) as current_streak
-       FROM focus_sessions fs
-       WHERE fs.user_id = $1 
-       AND DATE(fs.start_time) BETWEEN $2 AND $3`,
-      [userId, startDate, endDate]
-    );
-    return result.rows[0];
+    const sessions = await FocusSession.findAll({
+      where: {
+        user_id: userId,
+        started_at: {
+          [Op.between]: [new Date(startDate), new Date(endDate)]
+        }
+      },
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.fn('DATE', sequelize.col('started_at')))), 'focus_days'],
+        [sequelize.fn('SUM', sequelize.col('elapsed_time')), 'total_focus_minutes'],
+        [sequelize.fn('COUNT', sequelize.col('session_id')), 'total_sessions'],
+        [sequelize.fn('AVG', sequelize.col('elapsed_time')), 'avg_session_minutes']
+      ],
+      raw: true
+    });
+
+    const tasksCompleted = await Task.count({
+      where: {
+        user_id: userId,
+        status: 'completed',
+        completed_at: {
+          [Op.between]: [new Date(startDate), new Date(endDate)]
+        }
+      }
+    });
+
+    const currentStreak = await ProductivityStreak.findOne({
+      where: { user_id: userId },
+      order: [['streak_date', 'DESC']],
+      attributes: ['current_streak']
+    });
+
+    return {
+      focus_days: parseInt(sessions[0]?.focus_days || 0),
+      total_focus_minutes: parseInt(sessions[0]?.total_focus_minutes || 0),
+      total_sessions: parseInt(sessions[0]?.total_sessions || 0),
+      avg_session_minutes: parseFloat(sessions[0]?.avg_session_minutes || 0).toFixed(2),
+      tasks_completed: tasksCompleted,
+      current_streak: currentStreak?.current_streak || 0
+    };
   }
 }
 
-module.exports = ProductivityModel;
+export default ProductivityModel;

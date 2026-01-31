@@ -1,13 +1,13 @@
-const express = require('express');
+import express from 'express';
+import ReminderController from '../controllers/reminder.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const ReminderController = require('../controllers/reminder.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   createReminderValidator,
   updateReminderValidator,
   reminderIdValidator,
   snoozeReminderValidator
-} = require('../validators/reminder.validator');
+} from '../validators/reminder.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -21,4 +21,4 @@ router.put('/:id/snooze', snoozeReminderValidator, ReminderController.snoozeRemi
 router.put('/:id/dismiss', reminderIdValidator, ReminderController.dismissReminder);
 router.delete('/:id', reminderIdValidator, ReminderController.deleteReminder);
 
-module.exports = router;
+export default router;

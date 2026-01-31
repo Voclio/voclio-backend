@@ -1,8 +1,7 @@
-const ReminderModel = require('../models/reminder.model');
-const { validationResult } = require('express-validator');
-const { successResponse, paginatedResponse } = require('../utils/responses');
-const { ValidationError, NotFoundError } = require('../utils/errors');
-
+import ReminderModel from '../models/reminder.model.js';
+import { validationResult } from 'express-validator';
+import { successResponse, paginatedResponse } from '../utils/responses.js';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
 class ReminderController {
   static async getAllReminders(req, res, next) {
     try {
@@ -144,4 +143,4 @@ class ReminderController {
   }
 }
 
-module.exports = ReminderController;
+export default ReminderController;

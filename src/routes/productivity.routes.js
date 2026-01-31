@@ -1,12 +1,12 @@
-const express = require('express');
+import express from 'express';
+import ProductivityController from '../controllers/productivity.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 const router = express.Router();
-const ProductivityController = require('../controllers/productivity.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
-const {
+import {
   createFocusSessionValidator,
   updateFocusSessionValidator,
   getSummaryValidator
-} = require('../validators/productivity.validator');
+} from '../validators/productivity.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -25,4 +25,4 @@ router.get('/summary', getSummaryValidator, ProductivityController.getProductivi
 // AI Suggestions
 router.get('/suggestions', ProductivityController.getAISuggestions);
 
-module.exports = router;
+export default router;

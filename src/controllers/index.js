@@ -2,7 +2,7 @@
  * Controllers index - Export all controllers for easy importing
  */
 
-module.exports = {
+export {
   AuthController: require('./auth.controller'),
   NoteController: require('./note.controller'),
   TaskController: require('./task.controller'),

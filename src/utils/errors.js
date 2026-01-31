@@ -43,7 +43,7 @@ class ConflictError extends AppError {
   }
 }
 
-module.exports = {
+export {
   AppError,
   ValidationError,
   UnauthorizedError,

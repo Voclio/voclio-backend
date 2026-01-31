@@ -1,17 +1,33 @@
-const express = require('express');
+import express from 'express';
+import authRoutes from './auth.routes.js';
+import noteRoutes from './note.routes.js';
+import taskRoutes from './task.routes.js';
+import voiceRoutes from './voice.routes.js';
+import tagRoutes from './tag.routes.js';
+import reminderRoutes from './reminder.routes.js';
+import notificationRoutes from './notification.routes.js';
+import settingsRoutes from './settings.routes.js';
+import productivityRoutes from './productivity.routes.js';
+import calendarRoutes from './calendar.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import adminRoutes from './admin.routes.js';
+import categoryRoutes from './category.routes.js';
 const router = express.Router();
 
 // Main routes aggregator
-router.use('/auth', require('./auth.routes'));
-router.use('/notes', require('./note.routes'));
-router.use('/tasks', require('./task.routes'));
-router.use('/voice', require('./voice.routes'));
-router.use('/tags', require('./tag.routes'));
-router.use('/reminders', require('./reminder.routes'));
-router.use('/notifications', require('./notification.routes'));
-router.use('/settings', require('./settings.routes'));
-router.use('/productivity', require('./productivity.routes'));
-router.use('/admin', require('./admin.routes'));
+router.use('/auth', authRoutes);
+router.use('/notes', noteRoutes);
+router.use('/tasks', taskRoutes);
+router.use('/voice', voiceRoutes);
+router.use('/tags', tagRoutes);
+router.use('/reminders', reminderRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/productivity', productivityRoutes);
+router.use('/calendar', calendarRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/admin', adminRoutes);
+router.use('/categories', categoryRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
@@ -39,4 +55,4 @@ router.get('/', (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

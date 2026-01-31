@@ -1,6 +1,5 @@
-const { errorResponse } = require('../utils/responses');
-const { AppError } = require('../utils/errors');
-
+import { errorResponse } from '../utils/responses.js';
+import { AppError } from '../utils/errors.js';
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
 
@@ -42,4 +41,4 @@ const errorHandler = (err, req, res, next) => {
   }, 500);
 };
 
-module.exports = errorHandler;
+export default errorHandler;

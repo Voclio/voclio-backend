@@ -1,19 +1,25 @@
-require('dotenv').config();
-const app = require('./src/app');
-const config = require('./src/config');
-const pool = require('./src/config/database');
+import 'dotenv/config';
+import app from './src/app.js';
+import config from './src/config/index.js';
+import { syncDatabase } from './src/models/orm/index.js';
+import cronService from './src/services/cron.service.js';
+import emailService from './src/services/email.service.js';
 
 const PORT = config.port;
 
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ Database connection failed:', err.message);
-    console.error('Please ensure PostgreSQL is running and configured correctly.');
-  } else {
-    console.log('✅ Database connected successfully');
-  }
+// Sync database with ORM
+syncDatabase(false).then(() => {
+  console.log('✅ Database models synchronized');
+}).catch(err => {
+  console.error('❌ Database sync error:', err.message);
+  console.log('💡 Server will continue running. Fix database credentials in .env');
 });
+
+// Verify email service
+emailService.verifyConnection();
+
+// Start cron jobs
+cronService.start();
 
 const server = app.listen(PORT, () => {
   console.log('\n🚀 Voclio API Server');
@@ -29,23 +35,19 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('\n⚠️  SIGTERM signal received: closing HTTP server');
+  cronService.stop();
   server.close(() => {
     console.log('✅ HTTP server closed');
-    pool.end(() => {
-      console.log('✅ Database pool closed');
-      process.exit(0);
-    });
+    process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
   console.log('\n⚠️  SIGINT signal received: closing HTTP server');
+  cronService.stop();
   server.close(() => {
     console.log('✅ HTTP server closed');
-    pool.end(() => {
-      console.log('✅ Database pool closed');
-      process.exit(0);
-    });
+    process.exit(0);
   });
 });
 

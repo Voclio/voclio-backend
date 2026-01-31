@@ -2,16 +2,14 @@
  * Models index - Export all models for easy importing
  */
 
-module.exports = {
-  UserModel: require('./user.model'),
-  SessionModel: require('./session.model'),
-  OTPModel: require('./otp.model'),
-  NoteModel: require('./note.model'),
-  TaskModel: require('./task.model'),
-  TagModel: require('./tag.model'),
-  ReminderModel: require('./reminder.model'),
-  VoiceRecordingModel: require('./voice.model'),
-  NotificationModel: require('./notification.model'),
-  SettingsModel: require('./settings.model'),
-  ProductivityModel: require('./productivity.model')
-};
+export { default as UserModel } from './user.model.js';
+export { default as SessionModel } from './session.model.js';
+export { default as OTPModel } from './otp.model.js';
+export { default as NoteModel } from './note.model.js';
+export { default as TaskModel } from './task.model.js';
+export { default as TagModel } from './tag.model.js';
+export { default as ReminderModel } from './reminder.model.js';
+export { default as VoiceRecordingModel } from './voice.model.js';
+export { default as NotificationModel } from './notification.model.js';
+export { default as SettingsModel } from './settings.model.js';
+export { default as ProductivityModel } from './productivity.model.js';
