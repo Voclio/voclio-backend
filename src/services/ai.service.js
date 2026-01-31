@@ -1,11 +1,16 @@
-import config from '../config/index.js';
+import config from "../config/index.js";
 
 class AIService {
   constructor() {
     this.openRouterKey = process.env.OPENROUTER_API_KEY;
     this.geminiKey = process.env.GEMINI_API_KEY;
     this.assemblyAIKey = process.env.ASSEMBLYAI_API_KEY;
-    this.provider = this.openRouterKey ? 'openrouter' : 'gemini';
+    // Prefer OpenRouter (User requested)
+    this.provider = this.openRouterKey
+      ? "openrouter"
+      : this.geminiKey
+        ? "gemini"
+        : "assemblyai";
   }
 
   /**
@@ -13,13 +18,13 @@ class AIService {
    */
   async summarizeText(text) {
     try {
-      if (this.provider === 'openrouter') {
+      if (this.provider === "openrouter") {
         return await this.summarizeWithOpenRouter(text);
       } else {
         return await this.summarizeWithGemini(text);
       }
     } catch (error) {
-      console.error('Error summarizing text:', error);
+      console.error("Error summarizing text:", error);
       throw error;
     }
   }
@@ -27,15 +32,23 @@ class AIService {
   /**
    * Extract tasks from text using AI
    */
-  async extractTasks(text) {
+  async extractTasks(input) {
     try {
-      if (this.provider === 'openrouter') {
+      // Handle both text string and object input
+      const text =
+        typeof input === "string"
+          ? input
+          : input.transcription_text || input.text || "";
+
+      if (this.provider === "assemblyai") {
+        return await this.extractTasksWithAssemblyAI(input);
+      } else if (this.provider === "openrouter") {
         return await this.extractTasksWithOpenRouter(text);
       } else {
         return await this.extractTasksWithGemini(text);
       }
     } catch (error) {
-      console.error('Error extracting tasks:', error);
+      console.error("Error extracting tasks:", error);
       throw error;
     }
   }
@@ -43,15 +56,23 @@ class AIService {
   /**
    * Extract tasks AND notes from text using AI (Smart extraction)
    */
-  async extractTasksAndNotes(text) {
+  async extractTasksAndNotes(input) {
     try {
-      if (this.provider === 'openrouter') {
+      // Handle both text string and object input
+      const text =
+        typeof input === "string"
+          ? input
+          : input.transcription_text || input.text || "";
+
+      if (this.provider === "assemblyai") {
+        return await this.extractTasksAndNotesWithAssemblyAI(input);
+      } else if (this.provider === "openrouter") {
         return await this.extractTasksAndNotesWithOpenRouter(text);
       } else {
         return await this.extractTasksAndNotesWithGemini(text);
       }
     } catch (error) {
-      console.error('Error extracting tasks and notes:', error);
+      console.error("Error extracting tasks and notes:", error);
       throw error;
     }
   }
@@ -61,13 +82,13 @@ class AIService {
    */
   async generateProductivitySuggestions(userData) {
     try {
-      if (this.provider === 'openrouter') {
+      if (this.provider === "openrouter") {
         return await this.generateSuggestionsWithOpenRouter(userData);
       } else {
         return await this.generateSuggestionsWithGemini(userData);
       }
     } catch (error) {
-      console.error('Error generating suggestions:', error);
+      console.error("Error generating suggestions:", error);
       throw error;
     }
   }
@@ -75,15 +96,15 @@ class AIService {
   /**
    * Transcribe audio to text using AssemblyAI
    */
-  async transcribeAudio(audioFilePath, language = 'ar') {
+  async transcribeAudio(audioFilePath, language = "ar") {
     try {
       if (!this.assemblyAIKey) {
-        throw new Error('AssemblyAI API key not configured');
+        throw new Error("AssemblyAI API key not configured");
       }
-      
+
       return await this.transcribeWithAssemblyAI(audioFilePath, language);
     } catch (error) {
-      console.error('Error transcribing audio:', error);
+      console.error("Error transcribing audio:", error);
       throw error;
     }
   }
@@ -97,26 +118,29 @@ ${text}
 
 التلخيص:`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://voclio.app',
-        'X-Title': 'Voclio'
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://voclio.app",
+          "X-Title": "Voclio",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 500,
+        }),
       },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      })
-    });
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -128,7 +152,7 @@ ${text}
   }
 
   async extractTasksWithOpenRouter(text) {
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = new Date().toISOString().split("T")[0];
     const prompt = `أنت مساعد ذكي لاستخراج المهام من النصوص العربية. التاريخ الحالي: ${currentDate}
 
 استخرج جميع المهام القابلة للتنفيذ من النص التالي. أرجع النتيجة كـ JSON array فقط بدون أي نص إضافي.
@@ -152,33 +176,37 @@ ${text}
 1. إذا ذكر اليوزر قائمة أشياء، اجعلها subtasks
 2. إذا كانت المهمة فيها كلمات مثل "مهم، ضروري، لازم، عاجل" = priority: high
 3. إذا لم يذكر تاريخ محدد، اترك due_date = null
-4. كن ذكياً في فهم السياق العربي
+4. كن ذكياً في فهم السياق العربي (اللهجة المصرية والسعودية وغيرها)
+5. **مهم جداً**: الجمل التي تبدأ بـ "عايز"، "أريد"، "محتاج"، "ناوي"، "أبغى" أو تعبر عن رغبة في فعل شيء تعتبر مهام ويجب استخراجها.
 
 النص:
 ${text}
 
 JSON:`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://voclio.app',
-        'X-Title': 'Voclio'
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://voclio.app",
+          "X-Title": "Voclio",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+        }),
       },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000
-      })
-    });
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -187,18 +215,18 @@ JSON:`;
 
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
-    
+
     // Extract JSON from response
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return [];
   }
 
   async extractTasksAndNotesWithOpenRouter(text) {
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = new Date().toISOString().split("T")[0];
     const prompt = `أنت مساعد ذكي لتحليل النصوص العربية واستخراج المهام والملاحظات. التاريخ الحالي: ${currentDate}
 
 حلل النص التالي واستخرج:
@@ -238,6 +266,8 @@ JSON:`;
 - إذا ذكر قائمة أشياء، اجعلها subtasks
 - الكلمات "مهم، ضروري، لازم، عاجل" = priority: high
 - الكلمات "ممكن، لو فاضي" = priority: low
+- **مهم جداً**: الجمل التي تبدأ بـ "عايز"، "أريد"، "محتاج"، "ناوي"، "أبغى" أو تعبر عن نية فعل شيء تعتبر مهام (Tasks).
+- مثال: "عايز أشتغل من ساعة كذا لكذا" -> هذه مهمة بعنوان "العمل من ساعة كذا لكذا"
 
 قواعد استخراج الملاحظات:
 - إذا قال "نوت" أو "ملاحظة" أو "فكرة" أو "محتاج أكتب"
@@ -249,26 +279,29 @@ ${text}
 
 JSON:`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://voclio.app',
-        'X-Title': 'Voclio'
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://voclio.app",
+          "X-Title": "Voclio",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 2500,
+        }),
       },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2500
-      })
-    });
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -277,13 +310,13 @@ JSON:`;
 
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
-    
+
     // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return { tasks: [], notes: [] };
   }
 
@@ -295,26 +328,29 @@ ${JSON.stringify(userData, null, 2)}
 
 الاقتراحات (JSON array):`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://voclio.app',
-        'X-Title': 'Voclio'
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://voclio.app",
+          "X-Title": "Voclio",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.8,
+          max_tokens: 800,
+        }),
       },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 800
-      })
-    });
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -323,44 +359,49 @@ ${JSON.stringify(userData, null, 2)}
 
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
-    
+
     // Extract JSON from response
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return [];
   }
 
-  async transcribeWithOpenRouter(audioBuffer, language = 'ar') {
+  async transcribeWithOpenRouter(audioBuffer, language = "ar") {
     // Note: OpenRouter doesn't directly support audio transcription
     // You would need to use Whisper API or Google Cloud Speech-to-Text
     // This is a placeholder for future implementation
-    throw new Error('Audio transcription via OpenRouter is not yet implemented. Please use AssemblyAI.');
+    throw new Error(
+      "Audio transcription via OpenRouter is not yet implemented. Please use AssemblyAI.",
+    );
   }
 
   // ============= AssemblyAI Methods =============
 
-  async transcribeWithAssemblyAI(audioFilePath, language = 'ar') {
+  async transcribeWithAssemblyAI(audioFilePath, language = "ar") {
     try {
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      console.log('🎤 Starting audio transcription with AssemblyAI...');
-      
+      const fs = await import("fs");
+      const path = await import("path");
+
+      console.log("🎤 Starting audio transcription with AssemblyAI...");
+
       // Step 1: Upload audio file to AssemblyAI
-      console.log('📤 Uploading audio file...');
+      console.log("📤 Uploading audio file...");
       const audioData = fs.readFileSync(audioFilePath);
-      
-      const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-        method: 'POST',
-        headers: {
-          'authorization': this.assemblyAIKey,
-          'Content-Type': 'application/octet-stream'
+
+      const uploadResponse = await fetch(
+        "https://api.assemblyai.com/v2/upload",
+        {
+          method: "POST",
+          headers: {
+            authorization: this.assemblyAIKey,
+            "Content-Type": "application/octet-stream",
+          },
+          body: audioData,
         },
-        body: audioData
-      });
+      );
 
       if (!uploadResponse.ok) {
         const error = await uploadResponse.text();
@@ -368,27 +409,30 @@ ${JSON.stringify(userData, null, 2)}
       }
 
       const { upload_url } = await uploadResponse.json();
-      console.log('✅ Audio file uploaded successfully');
+      console.log("✅ Audio file uploaded successfully");
 
       // Step 2: Request transcription
-      console.log('🔄 Requesting transcription...');
-      
+      console.log("🔄 Requesting transcription...");
+
       // Map language codes
-      const languageCode = language === 'ar' ? 'ar' : 'en';
-      
-      const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-        method: 'POST',
-        headers: {
-          'authorization': this.assemblyAIKey,
-          'Content-Type': 'application/json'
+      const languageCode = language === "ar" ? "ar" : "en";
+
+      const transcriptResponse = await fetch(
+        "https://api.assemblyai.com/v2/transcript",
+        {
+          method: "POST",
+          headers: {
+            authorization: this.assemblyAIKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            audio_url: upload_url,
+            language_code: languageCode,
+            punctuate: true,
+            format_text: true,
+          }),
         },
-        body: JSON.stringify({
-          audio_url: upload_url,
-          language_code: languageCode,
-          punctuate: true,
-          format_text: true
-        })
-      });
+      );
 
       if (!transcriptResponse.ok) {
         const error = await transcriptResponse.text();
@@ -399,7 +443,7 @@ ${JSON.stringify(userData, null, 2)}
       console.log(`📝 Transcription job created: ${transcriptId}`);
 
       // Step 3: Poll for completion
-      console.log('⏳ Waiting for transcription to complete...');
+      console.log("⏳ Waiting for transcription to complete...");
       let transcript;
       let attempts = 0;
       const maxAttempts = 60; // 5 minutes max (5 seconds * 60)
@@ -409,9 +453,9 @@ ${JSON.stringify(userData, null, 2)}
           `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
           {
             headers: {
-              'authorization': this.assemblyAIKey
-            }
-          }
+              authorization: this.assemblyAIKey,
+            },
+          },
         );
 
         if (!pollingResponse.ok) {
@@ -421,26 +465,25 @@ ${JSON.stringify(userData, null, 2)}
 
         transcript = await pollingResponse.json();
 
-        if (transcript.status === 'completed') {
-          console.log('✅ Transcription completed successfully!');
-          return transcript.text;
-        } else if (transcript.status === 'error') {
+        if (transcript.status === "completed") {
+          console.log("✅ Transcription completed successfully!");
+          return { text: transcript.text, id: transcript.id };
+        } else if (transcript.status === "error") {
           throw new Error(`Transcription failed: ${transcript.error}`);
         }
 
         // Wait 5 seconds before next poll
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         attempts++;
-        
+
         if (attempts % 6 === 0) {
           console.log(`⏳ Still processing... (${attempts * 5}s elapsed)`);
         }
       }
 
-      throw new Error('Transcription timeout - took longer than 5 minutes');
-
+      throw new Error("Transcription timeout - took longer than 5 minutes");
     } catch (error) {
-      console.error('❌ AssemblyAI transcription error:', error);
+      console.error("❌ AssemblyAI transcription error:", error);
       throw error;
     }
   }
@@ -448,9 +491,9 @@ ${JSON.stringify(userData, null, 2)}
   // ============= Gemini Methods (Fallback) =============
 
   async summarizeWithGemini(text) {
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `Please provide a concise summary of the following text:\n\n${text}`;
     const result = await model.generateContent(prompt);
@@ -459,11 +502,11 @@ ${JSON.stringify(userData, null, 2)}
   }
 
   async extractTasksWithGemini(text) {
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = new Date().toISOString().split("T")[0];
     const prompt = `You are a smart assistant for extracting tasks from Arabic text. Current date: ${currentDate}
 
 Extract all actionable tasks from the following text. Return as JSON array only.
@@ -486,25 +529,25 @@ Text:
 ${text}
 
 JSON:`;
-    
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
-    
+
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return [];
   }
 
   async extractTasksAndNotesWithGemini(text) {
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = new Date().toISOString().split("T")[0];
     const prompt = `You are a smart assistant for analyzing Arabic text and extracting tasks and notes. Current date: ${currentDate}
 
 Analyze the following text and extract:
@@ -551,36 +594,172 @@ Text:
 ${text}
 
 JSON:`;
-    
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
-    
+
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return { tasks: [], notes: [] };
   }
 
   async generateSuggestionsWithGemini(userData) {
-    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `Based on the following user productivity data, provide 3-5 actionable suggestions to improve their productivity. Return as a JSON array of strings.\n\nData:\n${JSON.stringify(userData, null, 2)}`;
-    
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
-    
+
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
+
     return [];
+  }
+
+  // ============= AssemblyAI LeMUR Methods =============
+
+  async extractTasksWithAssemblyAI(input) {
+    try {
+      const { id } = await this.ensureTranscript(input);
+
+      const prompt = `Extract all actionable tasks from the text. Return as valid JSON array.
+Each task should have:
+- title: task title (short and clear)
+- description: task description (optional)
+- priority: priority (low, medium, high) - infer from context
+- due_date: due date in ISO format (YYYY-MM-DD) or null if not mentioned
+- subtasks: array of subtasks (objects with title property)
+
+Text context provided by transcript.`;
+
+      const response = await this.runLemurTask([id], prompt);
+
+      try {
+        // LeMUR returns text, we need to parse JSON
+        // Sometimes it wraps in markdown code blocks
+        let cleanJson = response
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
+        return JSON.parse(cleanJson);
+      } catch (e) {
+        console.error("Failed to parse LeMUR task response:", response);
+        return [];
+      }
+    } catch (error) {
+      console.error("AssemblyAI Task Extraction Error:", error);
+      throw error;
+    }
+  }
+
+  async extractTasksAndNotesWithAssemblyAI(input) {
+    try {
+      const { id } = await this.ensureTranscript(input);
+
+      const prompt = `Analyze the text and extract:
+1. Actionable tasks
+2. Notes or ideas
+
+Return as a valid JSON object ONLY:
+{
+  "tasks": [
+    {
+      "title": "task title",
+      "description": "description",
+      "priority": "high/medium/low",
+      "due_date": "YYYY-MM-DD or null",
+      "subtasks": [{"title": "subtask"}]
+    }
+  ],
+  "notes": [
+    {
+      "title": "note title",
+      "content": "note content",
+      "tags": ["tag1", "tag2"]
+    }
+  ]
+}`;
+
+      const response = await this.runLemurTask([id], prompt);
+
+      try {
+        let cleanJson = response
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
+        const parsed = JSON.parse(cleanJson);
+        return {
+          tasks: parsed.tasks || [],
+          notes: parsed.notes || [],
+        };
+      } catch (e) {
+        console.error("Failed to parse LeMUR tasks/notes response:", response);
+        return { tasks: [], notes: [] };
+      }
+    } catch (error) {
+      console.error("AssemblyAI Notes Extraction Error:", error);
+      throw error;
+    }
+  }
+
+  async ensureTranscript(input) {
+    // If we already have a transcript ID, use it
+    if (input.transcriptId) {
+      console.log("Using existing transcript ID:", input.transcriptId);
+      return { id: input.transcriptId };
+    }
+
+    // If we have a file path, we might need to re-transcribe to get an ID (since we don't store it yet)
+    // NOTE: This incurs cost. Ideally we should store transcript_id in DB.
+    if (input.file_path) {
+      console.log("No transcript ID found, re-transcribing for LeMUR...");
+      return await this.transcribeWithAssemblyAI(input.file_path);
+    }
+
+    throw new Error(
+      "AssemblyAI LeMUR requires a transcript ID or file path to process.",
+    );
+  }
+
+  async runLemurTask(transcriptIds, prompt) {
+    try {
+      const response = await fetch(
+        "https://api.assemblyai.com/lemur/v3/generate/task",
+        {
+          method: "POST",
+          headers: {
+            authorization: this.assemblyAIKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            transcript_ids: transcriptIds,
+            prompt: prompt,
+            final_model: "default",
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`LeMUR capabilities error: ${error}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error("LeMUR Request Failed:", error);
+      throw error;
+    }
   }
 }
 
