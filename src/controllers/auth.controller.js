@@ -367,8 +367,26 @@ class AuthController {
       // Mark OTP as used
       await otp.update({ verified: true });
 
+      // If this was a password reset OTP, generate a reset token
+      let reset_token = null;
+      if (type === "password_reset") {
+        const user = await User.findOne({ where: { email } });
+        if (user) {
+          reset_token = jwt.sign(
+            {
+              userId: user.user_id,
+              purpose: "password_reset",
+              otpId: otp.otp_id,
+            },
+            config.jwt.secret,
+            { expiresIn: "1h" },
+          );
+        }
+      }
+
       return successResponse(res, {
         verified: true,
+        reset_token, // Will be null for other types
         message: "OTP verified successfully",
       });
     } catch (error) {
@@ -423,35 +441,36 @@ class AuthController {
         return successResponse(
           res,
           null,
-          "If the email exists, a password reset link has been sent",
+          "If the email exists, a verification code has been sent",
         );
       }
 
-      // Generate reset token (JWT with 1 hour expiry)
-      const resetToken = jwt.sign(
-        { userId: user.user_id, purpose: "password_reset" },
-        config.jwt.secret,
-        { expiresIn: "1h" },
-      );
+      // Generate 6-digit OTP instead of link
+      const otpCode = crypto.randomInt(100000, 999999).toString();
+      const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Send reset email
+      await OTP.create({
+        otp_id: otpId,
+        email,
+        otp_code: otpCode,
+        type: "password_reset",
+        expires_at: expiresAt,
+      });
+
+      // Send OTP via email
       try {
-        const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${resetToken}`;
-        await emailService.sendPasswordReset(email, resetUrl, user.name);
+        await emailService.sendOTP(email, otpCode, "password_reset");
       } catch (emailError) {
         console.error("Email service error:", emailError);
         if (config.nodeEnv !== "development") {
           throw emailError;
         }
-        // In development, log the token
-        console.log(`Reset token for ${email}: ${resetToken}`);
+        // In development, log the code
+        console.log(`Reset code for ${email}: ${otpCode}`);
       }
 
-      return successResponse(
-        res,
-        null,
-        "Password reset instructions sent to your email",
-      );
+      return successResponse(res, null, "Verification code sent to your email");
     } catch (error) {
       next(error);
     }
@@ -681,7 +700,19 @@ class AuthController {
         if (decoded.purpose !== "password_reset") {
           throw new UnauthorizedError("Invalid reset token");
         }
+
+        // --- SINGLE USE CHECK ---
+        // If token has otpId, check if it still exists
+        if (decoded.otpId) {
+          const otp = await OTP.findByPk(decoded.otpId);
+          if (!otp) {
+            throw new UnauthorizedError(
+              "This reset token has already been used or expired",
+            );
+          }
+        }
       } catch (err) {
+        if (err instanceof UnauthorizedError) throw err;
         throw new UnauthorizedError("Invalid or expired reset token");
       }
 
@@ -699,6 +730,12 @@ class AuthController {
 
       // Invalidate all existing sessions for security
       await Session.destroy({ where: { user_id: decoded.userId } });
+
+      // --- REVOKE TOKEN ---
+      // Delete the OTP record so the token cannot be used again
+      if (decoded.otpId) {
+        await OTP.destroy({ where: { otp_id: decoded.otpId } });
+      }
 
       return successResponse(
         res,
