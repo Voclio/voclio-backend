@@ -53,7 +53,7 @@ const upload = multer({
 });
 
 class VoiceController {
-  static uploadMiddleware = upload.single("audio");
+  static uploadMiddleware = upload.single("audio_file");
 
   static async getAllRecordings(req, res, next) {
     try {
@@ -274,7 +274,21 @@ class VoiceController {
       }
 
       // Extract tasks using AI
-      const extractedTasks = await aiService.extractTasks(recording);
+      let extractedTasks = await aiService.extractTasks(recording);
+
+      // FALLBACK: If no tasks found (e.g. it's a note), create one generic task
+      if (!extractedTasks || extractedTasks.length === 0) {
+        console.log(
+          "⚠️ No tasks extracted. Creating generic task from transcription.",
+        );
+        extractedTasks = [
+          {
+            title: "New Voice Task",
+            description: recording.transcription_text,
+            priority: "medium",
+          },
+        ];
+      }
 
       if (!auto_create) {
         return successResponse(res, {
