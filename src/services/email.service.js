@@ -1,20 +1,12 @@
-import pkg from "nodemailer";
-const { createTransport } = pkg;
+import { Resend } from "resend";
 import config from "../config/index.js";
 
 const baseUrl = process.env.API_URL || "http://localhost:3000";
 
 class EmailService {
   constructor() {
-    // Create transporter - configured for Gmail App Password
-    // Generates app password at: https://myaccount.google.com/apppasswords
-    this.transporter = createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // Your Gmail address
-        pass: process.env.EMAIL_APP_PASSWORD, // Your 16-digit App Password
-      },
-    });
+    this.resend = new Resend(process.env.RESEND_API_KEY);
+    this.fromEmail = process.env.EMAIL_FROM || "noreply@build8.dev";
   }
 
   /**
@@ -107,14 +99,18 @@ class EmailService {
 
       const html = this.getTemplate("Verification Code", content);
 
-      const info = await this.transporter.sendMail({
-        from: `"Voclio" <${process.env.EMAIL_USER}>`,
+      const { data, error } = await this.resend.emails.send({
+        from: `Voclio <${this.fromEmail}>`,
         to: email,
         subject: subject,
         html: html,
       });
 
-      console.log("✅ OTP email sent:", info.messageId);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log("✅ OTP email sent:", data.id);
       return true;
     } catch (error) {
       console.error("❌ Error sending OTP email:", error);
@@ -155,17 +151,21 @@ class EmailService {
 
       const html = this.getTemplate("Password Reset", content);
 
-      const info = await this.transporter.sendMail({
-        from: `"Voclio" <${process.env.EMAIL_USER}>`,
+      const { data, error } = await this.resend.emails.send({
+        from: `Voclio <${this.fromEmail}>`,
         to: email,
         subject: "Reset Your Password - Voclio",
         html: html,
       });
 
-      console.log("Password reset email sent:", info.messageId);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log("✅ Password reset email sent:", data.id);
       return true;
     } catch (error) {
-      console.error("Error sending password reset email:", error);
+      console.error("❌ Error sending password reset email:", error);
       if (config.nodeEnv === "development") {
         console.log(`\n📧 Reset link for ${email}: ${resetUrl}\n`);
       }
@@ -192,17 +192,21 @@ class EmailService {
 
       const html = this.getTemplate("Reminder", content);
 
-      const info = await this.transporter.sendMail({
-        from: `"Voclio" <${process.env.EMAIL_USER}>`,
+      const { data, error } = await this.resend.emails.send({
+        from: `Voclio <${this.fromEmail}>`,
         to: email,
         subject: `Reminder: ${title}`,
         html: html,
       });
 
-      console.log("Reminder email sent:", info.messageId);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log("✅ Reminder email sent:", data.id);
       return true;
     } catch (error) {
-      console.error("Error sending reminder email:", error);
+      console.error("❌ Error sending reminder email:", error);
       throw error;
     }
   }
@@ -219,8 +223,12 @@ class EmailService {
 
   async verifyConnection() {
     try {
-      await this.transporter.verify();
-      console.log("✅ Email service is ready");
+      // Resend doesn't require connection verification like SMTP
+      // Just check if API key is configured
+      if (!process.env.RESEND_API_KEY) {
+        throw new Error("RESEND_API_KEY is not configured");
+      }
+      console.log("✅ Email service (Resend) is ready");
       return true;
     } catch (error) {
       console.warn("⚠️  Email service not configured:", error.message);

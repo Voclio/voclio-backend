@@ -66,33 +66,7 @@ class AuthController {
         // Continue but log error - user can request resend later
       }
 
-      // Send welcome notification
-      await NotificationService.notifyWelcome(
-        user.user_id,
-        user.name || "مستخدم جديد",
-      );
-
-      // Generate tokens
-      const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn,
-      });
-
-      const refreshToken = jwt.sign(
-        { userId: user.user_id },
-        config.jwt.refreshSecret,
-        {
-          expiresIn: config.jwt.refreshExpiresIn,
-        },
-      );
-
-      // Create session
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      await Session.create({
-        user_id: user.user_id,
-        refresh_token: refreshToken,
-        expires_at: expiresAt,
-      });
-
+      // Return success - user needs to verify OTP before getting tokens
       return successResponse(
         res,
         {
@@ -101,14 +75,12 @@ class AuthController {
             email: user.email,
             name: user.name,
             phone_number: user.phone_number,
+            email_verified: false,
           },
-          tokens: {
-            access_token: token,
-            refresh_token: refreshToken,
-            expires_in: 86400,
-          },
+          message:
+            "Please verify your email with the OTP sent to complete registration.",
         },
-        "User registered successfully",
+        "Registration initiated. Please verify your email.",
         201,
       );
     } catch (error) {
@@ -320,7 +292,7 @@ class AuthController {
               [Op.gt]: new Date(),
             },
           },
-        }
+        },
       );
 
       // Generate 6-digit OTP
@@ -383,26 +355,84 @@ class AuthController {
       // Mark OTP as used
       await otp.update({ verified: true });
 
-      // If this was a password reset OTP, generate a reset token
-      let reset_token = null;
-      if (type === "password_reset") {
-        const user = await User.findOne({ where: { email } });
-        if (user) {
-          reset_token = jwt.sign(
-            {
-              userId: user.user_id,
-              purpose: "password_reset",
-              otpId: otp.otp_id,
-            },
-            config.jwt.secret,
-            { expiresIn: "1h" },
-          );
-        }
+      // Find the user
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        throw new NotFoundError("User not found");
       }
 
+      // Handle different OTP types
+      if (type === "registration") {
+        // Mark email as verified
+        await user.update({ email_verified: true });
+
+        // Send welcome notification
+        await NotificationService.notifyWelcome(
+          user.user_id,
+          user.name || "New User",
+        );
+
+        // Generate tokens
+        const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
+          expiresIn: config.jwt.expiresIn,
+        });
+
+        const refreshToken = jwt.sign(
+          { userId: user.user_id },
+          config.jwt.refreshSecret,
+          {
+            expiresIn: config.jwt.refreshExpiresIn,
+          },
+        );
+
+        // Create session
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await Session.create({
+          user_id: user.user_id,
+          refresh_token: refreshToken,
+          expires_at: expiresAt,
+        });
+
+        return successResponse(res, {
+          verified: true,
+          user: {
+            user_id: user.user_id,
+            email: user.email,
+            name: user.name,
+            phone_number: user.phone_number,
+            email_verified: true,
+          },
+          tokens: {
+            access_token: token,
+            refresh_token: refreshToken,
+            expires_in: 86400,
+          },
+          message: "Email verified successfully. Welcome to Voclio!",
+        });
+      }
+
+      // If this was a password reset OTP, generate a reset token
+      if (type === "password_reset") {
+        const reset_token = jwt.sign(
+          {
+            userId: user.user_id,
+            purpose: "password_reset",
+            otpId: otp.otp_id,
+          },
+          config.jwt.secret,
+          { expiresIn: "1h" },
+        );
+
+        return successResponse(res, {
+          verified: true,
+          reset_token,
+          message: "OTP verified successfully",
+        });
+      }
+
+      // For other OTP types (login, email_verification, etc.)
       return successResponse(res, {
         verified: true,
-        reset_token, // Will be null for other types
         message: "OTP verified successfully",
       });
     } catch (error) {
@@ -426,7 +456,7 @@ class AuthController {
               [Op.gt]: new Date(),
             },
           },
-        }
+        },
       );
 
       // Generate new OTP
@@ -454,7 +484,8 @@ class AuthController {
 
       return successResponse(res, {
         otp_id: otp.otp_id,
-        message: "New OTP sent successfully. Previous codes have been invalidated.",
+        message:
+          "New OTP sent successfully. Previous codes have been invalidated.",
         expires_in: 600, // 10 minutes in seconds
         otp_code: process.env.NODE_ENV === "development" ? otpCode : undefined,
       });
@@ -489,7 +520,7 @@ class AuthController {
               [Op.gt]: new Date(),
             },
           },
-        }
+        },
       );
 
       // Generate 6-digit OTP instead of link
