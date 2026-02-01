@@ -1,18 +1,17 @@
-import pkg from 'nodemailer';
+import pkg from "nodemailer";
 const { createTransport } = pkg;
-import config from '../config/index.js';
+import config from "../config/index.js";
 
 class EmailService {
   constructor() {
-    // Create transporter - configure with your email service
+    // Create transporter - configured for Gmail App Password
+    // Generates app password at: https://myaccount.google.com/apppasswords
     this.transporter = createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: false, // true for 465, false for other ports
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
+        user: process.env.EMAIL_USER, // Your Gmail address
+        pass: process.env.EMAIL_APP_PASSWORD, // Your 16-digit App Password
+      },
     });
   }
 
@@ -25,15 +24,15 @@ class EmailService {
         from: `"Voclio" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: subject,
-        html: html
+        html: html,
       });
 
-      console.log('OTP email sent:', info.messageId);
+      console.log("OTP email sent:", info.messageId);
       return true;
     } catch (error) {
-      console.error('Error sending OTP email:', error);
+      console.error("Error sending OTP email:", error);
       // In development, log OTP to console
-      if (config.nodeEnv === 'development') {
+      if (config.nodeEnv === "development") {
         console.log(`\n📧 OTP for ${email}: ${otpCode}\n`);
       }
       throw error;
@@ -45,7 +44,7 @@ class EmailService {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
-          <p>Hi ${userName || 'there'},</p>
+          <p>Hi ${userName || "there"},</p>
           <p>You requested to reset your password. Click the button below to reset it:</p>
           <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0;">Reset Password</a>
           <p>Or copy and paste this link into your browser:</p>
@@ -60,15 +59,15 @@ class EmailService {
       const info = await this.transporter.sendMail({
         from: `"Voclio" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: 'Password Reset Request - Voclio',
-        html: html
+        subject: "Password Reset Request - Voclio",
+        html: html,
       });
 
-      console.log('Password reset email sent:', info.messageId);
+      console.log("Password reset email sent:", info.messageId);
       return true;
     } catch (error) {
-      console.error('Error sending password reset email:', error);
-      if (config.nodeEnv === 'development') {
+      console.error("Error sending password reset email:", error);
+      if (config.nodeEnv === "development") {
         console.log(`\n📧 Reset link for ${email}: ${resetUrl}\n`);
       }
       throw error;
@@ -78,7 +77,7 @@ class EmailService {
   async sendReminder(email, reminderData) {
     try {
       const { title, message, reminder_time } = reminderData;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">⏰ Reminder: ${title}</h2>
@@ -93,25 +92,25 @@ class EmailService {
         from: `"Voclio" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: `Reminder: ${title}`,
-        html: html
+        html: html,
       });
 
-      console.log('Reminder email sent:', info.messageId);
+      console.log("Reminder email sent:", info.messageId);
       return true;
     } catch (error) {
-      console.error('Error sending reminder email:', error);
+      console.error("Error sending reminder email:", error);
       throw error;
     }
   }
 
   getOTPSubject(type) {
     const subjects = {
-      login: 'Your Login OTP - Voclio',
-      registration: 'Verify Your Email - Voclio',
-      password_reset: 'Password Reset OTP - Voclio',
-      phone_verification: 'Phone Verification OTP - Voclio'
+      login: "Your Login OTP - Voclio",
+      registration: "Verify Your Email - Voclio",
+      password_reset: "Password Reset OTP - Voclio",
+      phone_verification: "Phone Verification OTP - Voclio",
     };
-    return subjects[type] || 'Your OTP Code - Voclio';
+    return subjects[type] || "Your OTP Code - Voclio";
   }
 
   getOTPTemplate(otpCode, type) {
@@ -139,10 +138,10 @@ class EmailService {
   async verifyConnection() {
     try {
       await this.transporter.verify();
-      console.log('✅ Email service is ready');
+      console.log("✅ Email service is ready");
       return true;
     } catch (error) {
-      console.warn('⚠️  Email service not configured:', error.message);
+      console.warn("⚠️  Email service not configured:", error.message);
       return false;
     }
   }
