@@ -66,6 +66,9 @@ Task.hasMany(Reminder, { foreignKey: 'task_id', as: 'reminders' });
 Note.belongsTo(VoiceRecording, { foreignKey: 'voice_recording_id', as: 'recording' });
 VoiceRecording.hasMany(Note, { foreignKey: 'voice_recording_id', as: 'notes' });
 
+Task.belongsTo(VoiceRecording, { foreignKey: 'voice_recording_id', as: 'voice_recording' });
+VoiceRecording.hasMany(Task, { foreignKey: 'voice_recording_id', as: 'tasks' });
+
 // Many-to-many relationship between Notes and Tags
 Note.belongsToMany(Tag, { through: 'note_tags', foreignKey: 'note_id', otherKey: 'tag_id', as: 'tags' });
 Tag.belongsToMany(Note, { through: 'note_tags', foreignKey: 'tag_id', otherKey: 'note_id', as: 'notes' });

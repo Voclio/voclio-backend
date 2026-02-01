@@ -307,13 +307,34 @@ ${text}
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
 
-    // Extract JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+    console.log('🤖 AI Response for extractTasksWithOpenRouter:', content);
 
-    return [];
+    // Try multiple JSON extraction patterns
+    try {
+      // Pattern 1: Direct JSON array
+      if (content.startsWith('[')) {
+        return JSON.parse(content);
+      }
+
+      // Pattern 2: JSON in code block
+      const codeBlockMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+      if (codeBlockMatch) {
+        return JSON.parse(codeBlockMatch[1]);
+      }
+
+      // Pattern 3: JSON anywhere in text
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      console.warn('⚠️ No JSON array found in AI response');
+      return [];
+    } catch (error) {
+      console.error('❌ Failed to parse AI response:', error.message);
+      console.error('Response content:', content);
+      return [];
+    }
   }
 
   async extractTasksAndNotesWithOpenRouter(text) {
