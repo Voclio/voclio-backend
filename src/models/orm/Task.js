@@ -23,6 +23,14 @@ const Task = sequelize.define('Task', {
       key: 'note_id'
     }
   },
+  voice_recording_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'voice_recordings',
+      key: 'recording_id'
+    }
+  },
   category_id: {
     type: DataTypes.INTEGER,
     allowNull: true,

@@ -45,6 +45,12 @@ router.get('/analytics/ai-usage', [
   query('userId').optional().isInt()
 ], AdminController.getAIUsageStats);
 
+router.get('/analytics/ai-usage-per-user', [
+  query('startDate').optional().isISO8601(),
+  query('endDate').optional().isISO8601(),
+  query('limit').optional().isInt({ min: 1, max: 200 })
+], AdminController.getAIUsagePerUser);
+
 router.get('/analytics/content', AdminController.getContentStats);
 
 // ==================== SYSTEM MANAGEMENT ====================
