@@ -51,6 +51,9 @@ app.use("/api/", limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files
+app.use("/public", express.static("public"));
+
 // Request logging in development
 if (config.nodeEnv === "development") {
   app.use((req, res, next) => {
