@@ -18,47 +18,91 @@ class EmailService {
   }
 
   /**
-   * Common Email Template with Branding
+   * Modern Email Template with Enhanced Design
    */
   getTemplate(title, content) {
     return `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); padding: 40px 20px; min-height: 100vh;">
-        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden;">
+      <!DOCTYPE html>
+      <html lang="en" dir="ltr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <div style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); padding: 40px 20px; min-height: 100vh;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden;">
+            
+            <!-- Header with Modern Gradient -->
+            <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%); padding: 50px 30px; text-align: center; position: relative;">
+              <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; display: inline-block;">
+                <h1 style="margin: 0; color: white; font-size: 36px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">VOCLIO</h1>
+                <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; font-weight: 500; letter-spacing: 1px;">Voice Notes & Task Management</p>
+              </div>
+            </div>
+
+            <!-- Body Content -->
+            <div style="padding: 50px 40px; text-align: center;">
+              <h2 style="margin: 0 0 16px; color: #111827; font-size: 28px; font-weight: 700;">${title}</h2>
+              ${content}
+            </div>
+
+            <!-- Footer -->
+            <div style="background: linear-gradient(to bottom, #fafafa 0%, #f3f4f6 100%); padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-size: 13px; font-weight: 500;">&copy; ${new Date().getFullYear()} Voclio. All rights reserved.</p>
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">This is an automated message, please do not reply.</p>
+            </div>
+          </div>
           
-          <!-- Header with Logo & Gradient -->
-          <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); padding: 40px 20px; text-align: center;">
-            <img src="${baseUrl}/public/voclio-logo.png" alt="Voclio" style="height: 60px; width: auto; display: block; margin: 0 auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
-          </div>
-
-          <!-- Body Content -->
-          <div style="padding: 40px 30px; text-align: left; color: #374151; font-size: 16px; line-height: 1.6;">
-            <h1 style="margin-top: 0; margin-bottom: 24px; color: #111827; font-size: 24px; font-weight: 700; text-align: center;">${title}</h1>
-            ${content}
-          </div>
-
-          <!-- Footer -->
-          <div style="background-color: #f9fafb; padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #f3f4f6;">
-            <p style="margin: 0;">&copy; ${new Date().getFullYear()} Voclio. All rights reserved.</p>
-            <p style="margin: 8px 0 0;">Voice Notes & Task Management</p>
-          </div>
+          <!-- Bottom Spacing -->
+          <div style="height: 40px;"></div>
         </div>
-      </div>
+      </body>
+      </html>
     `;
   }
 
   async sendOTP(email, otpCode, type) {
     try {
       const subject = this.getOTPSubject(type);
+      const typeLabel = this.getOTPTypeLabel(type);
 
       const content = `
-        <p style="margin-bottom: 24px; text-align: center;">Please use the verification code below to complete your ${type.replace("_", " ")}:</p>
-        
-        <div style="background-color: #f3f4f6; border-radius: 12px; padding: 20px; text-align: center; margin: 30px 0; border: 1px dashed #d1d5db;">
-          <span style="font-family: 'Courier New', monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #7c3aed; display: block;">${otpCode}</span>
+        <div style="margin-bottom: 32px;">
+          <p style="margin: 0 0 24px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+            Please use the verification code below to complete your <strong>${typeLabel}</strong>:
+          </p>
         </div>
         
-        <p style="font-size: 14px; text-align: center; color: #6b7280;">This code will expire in 10 minutes.</p>
-        <p style="font-size: 14px; text-align: center; color: #6b7280; margin-bottom: 0;">If you didn't request this code, please ignore this email.</p>
+        <!-- OTP Code Box with Modern Design -->
+        <div style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 2px dashed #d1d5db; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <div style="background: white; border-radius: 12px; padding: 28px 20px; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
+            <p style="margin: 0 0 16px; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; text-align: center;">Your Verification Code</p>
+            <div style="font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace; font-size: 44px; font-weight: 900; letter-spacing: 8px; color: #7c3aed; text-align: center; padding: 8px 0; text-shadow: 0 2px 8px rgba(124, 58, 237, 0.15); white-space: nowrap; overflow-x: auto;">
+              ${otpCode}
+            </div>
+            <p style="margin: 12px 0 0; color: #9ca3af; font-size: 11px; text-align: center; font-style: italic;">Select and copy the code above</p>
+          </div>
+        </div>
+        
+        <!-- Info Box -->
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+          <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 500;">
+            ⏱️ This code will expire in <strong>10 minutes</strong>
+          </p>
+        </div>
+        
+        <!-- Security Notice -->
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+          <p style="margin: 0 0 8px; color: #374151; font-size: 14px; font-weight: 600;">🔒 Security Notice</p>
+          <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
+            Never share this code with anyone. Voclio will never ask for your verification code via phone or email.
+          </p>
+        </div>
+        
+        <p style="margin: 24px 0 0; color: #9ca3af; font-size: 13px; text-align: center;">
+          If you didn't request this code, please ignore this email or contact support if you have concerns.
+        </p>
       `;
 
       const html = this.getTemplate("Verification Code", content);
@@ -70,15 +114,26 @@ class EmailService {
         html: html,
       });
 
-      console.log("OTP email sent:", info.messageId);
+      console.log("✅ OTP email sent:", info.messageId);
       return true;
     } catch (error) {
-      console.error("Error sending OTP email:", error);
+      console.error("❌ Error sending OTP email:", error);
       if (config.nodeEnv === "development") {
-        console.log(`\n📧 OTP for ${email}: ${otpCode}\n`);
+        console.log(`\n📧 Development Mode - OTP for ${email}: ${otpCode}\n`);
       }
       throw error;
     }
+  }
+
+  getOTPTypeLabel(type) {
+    const labels = {
+      login: "Login",
+      registration: "Registration",
+      password_reset: "Password Reset",
+      email_verification: "Email Verification",
+      phone_verification: "Phone Verification",
+    };
+    return labels[type] || "Verification";
   }
 
   async sendPasswordReset(email, resetUrl, userName) {

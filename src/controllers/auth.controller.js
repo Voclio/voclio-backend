@@ -308,6 +308,21 @@ class AuthController {
     try {
       const { email, type } = req.body;
 
+      // Invalidate any existing unverified OTPs for this email and type
+      await OTP.update(
+        { verified: true }, // Mark as verified to invalidate
+        {
+          where: {
+            email,
+            type,
+            verified: false,
+            expires_at: {
+              [Op.gt]: new Date(),
+            },
+          },
+        }
+      );
+
       // Generate 6-digit OTP
       const otpCode = crypto.randomInt(100000, 999999).toString();
       const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -335,7 +350,8 @@ class AuthController {
 
       return successResponse(res, {
         otp_id: otp.otp_id,
-        message: "OTP sent successfully",
+        message: "OTP sent successfully. Please check your email.",
+        expires_in: 600, // 10 minutes in seconds
         // For testing purposes only - remove in production
         otp_code: process.env.NODE_ENV === "development" ? otpCode : undefined,
       });
@@ -398,6 +414,21 @@ class AuthController {
     try {
       const { email, type } = req.body;
 
+      // Invalidate any existing unverified OTPs for this email and type
+      await OTP.update(
+        { verified: true }, // Mark as verified to invalidate
+        {
+          where: {
+            email,
+            type,
+            verified: false,
+            expires_at: {
+              [Op.gt]: new Date(),
+            },
+          },
+        }
+      );
+
       // Generate new OTP
       const otpCode = crypto.randomInt(100000, 999999).toString();
       const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -423,7 +454,8 @@ class AuthController {
 
       return successResponse(res, {
         otp_id: otp.otp_id,
-        message: "OTP resent successfully",
+        message: "New OTP sent successfully. Previous codes have been invalidated.",
+        expires_in: 600, // 10 minutes in seconds
         otp_code: process.env.NODE_ENV === "development" ? otpCode : undefined,
       });
     } catch (error) {
@@ -444,6 +476,21 @@ class AuthController {
           "If the email exists, a verification code has been sent",
         );
       }
+
+      // Invalidate any existing unverified password reset OTPs
+      await OTP.update(
+        { verified: true },
+        {
+          where: {
+            email,
+            type: "password_reset",
+            verified: false,
+            expires_at: {
+              [Op.gt]: new Date(),
+            },
+          },
+        }
+      );
 
       // Generate 6-digit OTP instead of link
       const otpCode = crypto.randomInt(100000, 999999).toString();
