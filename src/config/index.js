@@ -30,6 +30,13 @@ export default {
     redirectUri: process.env.GOOGLE_REDIRECT_URI || `http://localhost:${process.env.PORT || 3000}/api/calendar/google/callback`
   },
   
+  webex: {
+    clientId: process.env.WEBEX_CLIENT_ID,
+    clientSecret: process.env.WEBEX_CLIENT_SECRET,
+    redirectUri: process.env.WEBEX_REDIRECT_URI || `http://localhost:${process.env.PORT || 3000}/api/webex/callback`,
+    apiUrl: process.env.WEBEX_API_URL || 'https://webexapis.com/v1'
+  },
+  
   upload: {
     maxFileSize: 10 * 1024 * 1024, // 10MB
     allowedFormats: ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/webm']
