@@ -24,6 +24,12 @@ export default {
     googleApiKey: process.env.GOOGLE_API_KEY
   },
   
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || `http://localhost:${process.env.PORT || 3000}/api/calendar/google/callback`
+  },
+  
   upload: {
     maxFileSize: 10 * 1024 * 1024, // 10MB
     allowedFormats: ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/webm']
