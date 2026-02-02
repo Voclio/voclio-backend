@@ -42,6 +42,14 @@ const FocusSession = sequelize.define('FocusSession', {
   end_time: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  started_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  ended_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'focus_sessions',

@@ -126,10 +126,36 @@ class ProductivityController {
 
   static async getProductivitySummary(req, res, next) {
     try {
-      const { start_date, end_date } = req.query;
+      let { start_date, end_date, period } = req.query;
+
+      // Handle period-based queries
+      if (period && !start_date && !end_date) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (period) {
+          case 'today':
+            start_date = today.toISOString().split('T')[0];
+            end_date = today.toISOString().split('T')[0];
+            break;
+          case 'week':
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            start_date = weekStart.toISOString().split('T')[0];
+            end_date = today.toISOString().split('T')[0];
+            break;
+          case 'month':
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            start_date = monthStart.toISOString().split('T')[0];
+            end_date = today.toISOString().split('T')[0];
+            break;
+          default:
+            throw new ValidationError('Invalid period. Use: today, week, or month');
+        }
+      }
 
       if (!start_date || !end_date) {
-        throw new ValidationError('start_date and end_date are required');
+        throw new ValidationError('start_date and end_date are required, or use period parameter (today, week, month)');
       }
 
       const summary = await ProductivityModel.getProductivitySummary(
