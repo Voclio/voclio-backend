@@ -1,0 +1,810 @@
+{
+	"info": {
+		"_postman_id": "calendar-apis-collection",
+		"name": "Voclio Calendar APIs - Google & Webex",
+		"description": "Complete collection for Google Calendar and Webex Calendar integration APIs in Voclio system",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "voclio-calendar-apis"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to get JWT token for authenticated requests"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints to get JWT tokens"
+		},
+		{
+			"name": "Google Calendar",
+			"item": [
+				{
+					"name": "Connect Google Calendar",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/connect",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"connect"
+							]
+						},
+						"description": "Get Google OAuth authorization URL to connect Google Calendar"
+					},
+					"response": []
+				},
+				{
+					"name": "Connect Google Calendar (Mobile)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/connect/mobile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"connect",
+								"mobile"
+							]
+						},
+						"description": "Get Google OAuth authorization URL for mobile applications"
+					},
+					"response": []
+				},
+				{
+					"name": "Test with Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"access_token\": \"google_access_token_here\",\n  \"refresh_token\": \"google_refresh_token_here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/test-token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"test-token"
+							]
+						},
+						"description": "Test Google Calendar connection with provided tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Link OAuth Session",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"session_id\": \"oauth_session_id_here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/link-session",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"link-session"
+							]
+						},
+						"description": "Link OAuth session for Google Calendar integration"
+					},
+					"response": []
+				},
+				{
+					"name": "Handle Mobile Callback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"authorization_code_from_google\",\n  \"state\": \"state_parameter\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/callback/mobile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"callback",
+								"mobile"
+							]
+						},
+						"description": "Handle Google OAuth callback for mobile applications"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Google Calendar Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"status"
+							]
+						},
+						"description": "Check Google Calendar connection status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Google Calendar Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/events?start_date=2024-01-01&end_date=2024-01-31",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"events"
+							],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2024-01-01",
+									"description": "Start date (YYYY-MM-DD)"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31",
+									"description": "End date (YYYY-MM-DD)"
+								}
+							]
+						},
+						"description": "Get Google Calendar events for specified date range"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's Google Meetings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/today",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"today"
+							]
+						},
+						"description": "Get today's Google Calendar meetings"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Upcoming Google Meetings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/upcoming?days=7",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"upcoming"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "7",
+									"description": "Number of days to look ahead (default: 7)"
+								}
+							]
+						},
+						"description": "Get upcoming Google Calendar meetings"
+					},
+					"response": []
+				},
+				{
+					"name": "Disconnect Google Calendar",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/google/disconnect",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"google",
+								"disconnect"
+							]
+						},
+						"description": "Disconnect Google Calendar integration"
+					},
+					"response": []
+				}
+			],
+			"description": "Google Calendar integration endpoints"
+		},
+		{
+			"name": "Webex Calendar",
+			"item": [
+				{
+					"name": "Get Webex Auth URL",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/auth",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"auth"
+							]
+						},
+						"description": "Get Webex OAuth authorization URL to connect Webex Calendar"
+					},
+					"response": []
+				},
+				{
+					"name": "Webex OAuth Callback",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/callback?code=authorization_code&state=random_state",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"callback"
+							],
+							"query": [
+								{
+									"key": "code",
+									"value": "authorization_code",
+									"description": "Authorization code from Webex"
+								},
+								{
+									"key": "state",
+									"value": "random_state",
+									"description": "State parameter for security"
+								}
+							]
+						},
+						"description": "Handle Webex OAuth callback (usually called by Webex redirect)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Webex Connection Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"status"
+							]
+						},
+						"description": "Check Webex Calendar connection status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Webex Meetings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings?days=7",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "7",
+									"description": "Number of days to look ahead (default: 7)"
+								},
+								{
+									"key": "from",
+									"value": "2024-01-01T00:00:00Z",
+									"description": "Start date (ISO 8601 format)",
+									"disabled": true
+								},
+								{
+									"key": "to",
+									"value": "2024-01-31T23:59:59Z",
+									"description": "End date (ISO 8601 format)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get Webex meetings for specified period"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Today's Webex Meetings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings/today",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings",
+								"today"
+							]
+						},
+						"description": "Get today's Webex meetings"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Webex Meeting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Team Weekly Meeting\",\n  \"agenda\": \"Discuss project progress and upcoming tasks\",\n  \"start\": \"2024-02-15T10:00:00Z\",\n  \"end\": \"2024-02-15T11:00:00Z\",\n  \"timezone\": \"Asia/Riyadh\",\n  \"password\": \"meeting123\",\n  \"enabledAutoRecordMeeting\": false,\n  \"allowAnyUserToBeCoHost\": true,\n  \"enabledJoinBeforeHost\": true,\n  \"publicMeeting\": false,\n  \"sendEmail\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings"
+							]
+						},
+						"description": "Create a new Webex meeting"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Webex Meeting by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings/{{meeting_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings",
+								"{{meeting_id}}"
+							]
+						},
+						"description": "Get specific Webex meeting details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Webex Meeting",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Team Meeting\",\n  \"agenda\": \"Updated agenda for the meeting\",\n  \"start\": \"2024-02-15T14:00:00Z\",\n  \"end\": \"2024-02-15T15:00:00Z\",\n  \"timezone\": \"Asia/Riyadh\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings/{{meeting_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings",
+								"{{meeting_id}}"
+							]
+						},
+						"description": "Update an existing Webex meeting"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Webex Meeting",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/meetings/{{meeting_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"meetings",
+								"{{meeting_id}}"
+							]
+						},
+						"description": "Delete a Webex meeting"
+					},
+					"response": []
+				},
+				{
+					"name": "Disconnect Webex Calendar",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webex/disconnect",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"webex",
+								"disconnect"
+							]
+						},
+						"description": "Disconnect Webex Calendar integration"
+					},
+					"response": []
+				}
+			],
+			"description": "Webex Calendar integration endpoints"
+		},
+		{
+			"name": "Combined Calendar",
+			"item": [
+				{
+					"name": "Get All Calendar Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/events?start_date=2024-01-01&end_date=2024-01-31&include_google=true&include_webex=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"events"
+							],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2024-01-01",
+									"description": "Start date (YYYY-MM-DD)"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31",
+									"description": "End date (YYYY-MM-DD)"
+								},
+								{
+									"key": "include_google",
+									"value": "true",
+									"description": "Include Google Calendar events"
+								},
+								{
+									"key": "include_webex",
+									"value": "true",
+									"description": "Include Webex meetings"
+								}
+							]
+						},
+						"description": "Get combined calendar events from all sources (Voclio, Google, Webex)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Month Calendar",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/month/2024/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"month",
+								"2024",
+								"2"
+							]
+						},
+						"description": "Get calendar events for a specific month"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Day Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/calendar/day/2024-02-15",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"calendar",
+								"day",
+								"2024-02-15"
+							]
+						},
+						"description": "Get all events for a specific day"
+					},
+					"response": []
+				}
+			],
+			"description": "Combined calendar endpoints that aggregate data from all sources"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://voclio-backend.build8.dev",
+			"type": "string",
+			"description": "Base URL for the Voclio API"
+		},
+		{
+			"key": "jwt_token",
+			"value": "your_jwt_token_here",
+			"type": "string",
+			"description": "JWT token obtained from login endpoint"
+		},
+		{
+			"key": "meeting_id",
+			"value": "meeting_id_here",
+			"type": "string",
+			"description": "Webex meeting ID for specific meeting operations"
+		}
+	]
+}

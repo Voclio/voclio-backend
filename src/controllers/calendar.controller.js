@@ -2,12 +2,14 @@ import TaskModel from '../models/task.model.js';
 import ReminderModel from '../models/reminder.model.js';
 import GoogleCalendarSyncModel from '../models/googleCalendarSync.model.js';
 import GoogleCalendarService from '../services/googleCalendar.service.js';
+import WebexCalendarService from '../services/webexCalendar.service.js';
+import { WebexSync } from '../models/orm/index.js';
 import { successResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 class CalendarController {
   static async getCalendarEvents(req, res, next) {
     try {
-      const { start_date, end_date, include_google = 'true' } = req.query;
+      const { start_date, end_date, include_google = 'true', include_webex = 'true' } = req.query;
 
       if (!start_date || !end_date) {
         throw new ValidationError('start_date and end_date are required');
@@ -49,6 +51,47 @@ class CalendarController {
         }
       }
 
+      // Get Webex meetings if enabled
+      let webexMeetings = [];
+      if (include_webex === 'true') {
+        try {
+          const webexSync = await WebexSync.findOne({
+            where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
+          });
+          
+          if (webexSync) {
+            const webexService = new WebexCalendarService();
+            let accessToken = webexSync.accessToken;
+            
+            // Check if token is expired and refresh if needed
+            if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
+              try {
+                const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
+                const newExpiresAt = new Date();
+                newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
+                
+                await webexSync.update({
+                  accessToken: newTokens.access_token,
+                  refreshToken: newTokens.refresh_token || webexSync.refreshToken,
+                  expiresIn: newTokens.expires_in,
+                  expiresAt: newExpiresAt
+                });
+                
+                accessToken = newTokens.access_token;
+              } catch (refreshError) {
+                console.error('Error refreshing Webex token:', refreshError);
+              }
+            }
+
+            webexMeetings = await webexService.getMeetingsInRange(accessToken, start_date, end_date);
+            await webexSync.update({ lastSyncAt: new Date() });
+          }
+        } catch (error) {
+          console.error('Error fetching Webex meetings:', error);
+          // Continue without Webex meetings if there's an error
+        }
+      }
+
       // Format events for calendar
       const events = [
         ...filteredTasks.map(task => ({
@@ -85,6 +128,22 @@ class CalendarController {
           allDay: event.isAllDay,
           source: 'google_calendar',
           htmlLink: event.htmlLink
+        })),
+        ...webexMeetings.map(meeting => ({
+          id: `webex-${meeting.id}`,
+          type: 'meeting',
+          title: meeting.title,
+          description: meeting.description,
+          date: meeting.start,
+          end_date: meeting.end,
+          location: meeting.joinUrl,
+          meetingNumber: meeting.meetingNumber,
+          password: meeting.password,
+          hostEmail: meeting.hostEmail,
+          allDay: false,
+          source: 'webex',
+          joinUrl: meeting.joinUrl,
+          sipAddress: meeting.sipAddress
         }))
       ];
 
@@ -98,7 +157,9 @@ class CalendarController {
         tasks_count: filteredTasks.length,
         reminders_count: filteredReminders.length,
         google_events_count: googleEvents.length,
-        google_sync_enabled: googleEvents.length > 0
+        webex_meetings_count: webexMeetings.length,
+        google_sync_enabled: googleEvents.length > 0,
+        webex_sync_enabled: webexMeetings.length > 0
       });
 
     } catch (error) {
@@ -613,31 +674,89 @@ class CalendarController {
 
   static async getUpcomingMeetings(req, res, next) {
     try {
-      const { days = 7 } = req.query;
+      const { days = 7, include_google = 'true', include_webex = 'true' } = req.query;
 
-      const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-      
-      if (!googleSync) {
-        return successResponse(res, {
-          meetings: [],
-          count: 0,
-          message: 'Google Calendar not connected'
-        });
+      let allMeetings = [];
+
+      // Get Google Calendar meetings
+      if (include_google === 'true') {
+        try {
+          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          
+          if (googleSync) {
+            const calendarService = new GoogleCalendarService();
+            calendarService.setCredentials({
+              access_token: googleSync.google_access_token,
+              refresh_token: googleSync.google_refresh_token,
+              expiry_date: googleSync.google_token_expiry
+            });
+
+            const googleMeetings = await calendarService.getUpcomingEvents(parseInt(days));
+            allMeetings.push(...googleMeetings.map(meeting => ({
+              ...meeting,
+              source: 'google_calendar',
+              platform: 'Google Calendar'
+            })));
+          }
+        } catch (error) {
+          console.error('Error fetching Google Calendar meetings:', error);
+        }
       }
 
-      const calendarService = new GoogleCalendarService();
-      calendarService.setCredentials({
-        access_token: googleSync.google_access_token,
-        refresh_token: googleSync.google_refresh_token,
-        expiry_date: googleSync.google_token_expiry
-      });
+      // Get Webex meetings
+      if (include_webex === 'true') {
+        try {
+          const webexSync = await WebexSync.findOne({
+            where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
+          });
+          
+          if (webexSync) {
+            const webexService = new WebexCalendarService();
+            let accessToken = webexSync.accessToken;
+            
+            // Check if token is expired and refresh if needed
+            if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
+              try {
+                const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
+                const newExpiresAt = new Date();
+                newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
+                
+                await webexSync.update({
+                  accessToken: newTokens.access_token,
+                  refreshToken: newTokens.refresh_token || webexSync.refreshToken,
+                  expiresIn: newTokens.expires_in,
+                  expiresAt: newExpiresAt
+                });
+                
+                accessToken = newTokens.access_token;
+              } catch (refreshError) {
+                console.error('Error refreshing Webex token:', refreshError);
+              }
+            }
 
-      const meetings = await calendarService.getUpcomingEvents(parseInt(days));
+            const webexMeetings = await webexService.getUpcomingMeetings(accessToken, parseInt(days));
+            allMeetings.push(...webexMeetings.map(meeting => ({
+              ...meeting,
+              source: 'webex',
+              platform: 'Webex'
+            })));
+            
+            await webexSync.update({ lastSyncAt: new Date() });
+          }
+        } catch (error) {
+          console.error('Error fetching Webex meetings:', error);
+        }
+      }
+
+      // Sort by start time
+      allMeetings.sort((a, b) => new Date(a.start) - new Date(b.start));
 
       return successResponse(res, {
-        meetings,
-        count: meetings.length,
-        days: parseInt(days)
+        meetings: allMeetings,
+        count: allMeetings.length,
+        days: parseInt(days),
+        google_meetings_count: allMeetings.filter(m => m.source === 'google_calendar').length,
+        webex_meetings_count: allMeetings.filter(m => m.source === 'webex').length
       });
 
     } catch (error) {

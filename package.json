@@ -12,6 +12,7 @@
     "migrate:fix": "node database/migrations/run_fix_schema.js",
     "migrate:notifications": "node database/migrations/run_notification_fix.js",
     "migrate:google-calendar": "node database/migrations/run_google_calendar_sync.js",
+    "migrate:webex": "node database/migrations/run_add_webex_sync.js",
     "migrate:enums": "node fix-all-enums.js",
     "fix:enums": "node fix-all-enums.js",
     "fix:timestamps": "node fix-all-timestamps.js",
@@ -23,6 +24,7 @@
     "test": "node test-voice-to-everything.js",
     "test:voice": "node test-voice-to-everything.js",
     "test:google-calendar": "node test-google-calendar.js",
+    "test:webex": "node test-webex-integration.js",
     "test:notifications": "node test-notifications.js",
     "test:unit": "echo \"Unit tests not configured yet\"",
     "test:integration": "echo \"Integration tests not configured yet\"",
@@ -48,6 +50,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
