@@ -13,6 +13,10 @@ import Notification from './Notification.js';
 import Tag from './Tag.js';
 import ProductivityStreak from './ProductivityStreak.js';
 import OTP from './OTP.js';
+import GoogleCalendarSyncModel from './GoogleCalendarSync.js';
+
+// Initialize models
+const GoogleCalendarSync = GoogleCalendarSyncModel(sequelize);
 
 // Define relationships
 User.hasMany(Task, { foreignKey: 'user_id', as: 'tasks' });
@@ -50,6 +54,9 @@ Tag.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(ProductivityStreak, { foreignKey: 'user_id', as: 'streaks' });
 ProductivityStreak.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(GoogleCalendarSync, { foreignKey: 'user_id', as: 'googleCalendarSyncs' });
+GoogleCalendarSync.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 Task.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 Category.hasMany(Task, { foreignKey: 'category_id', as: 'tasks' });
@@ -99,5 +106,6 @@ export {
   Tag,
   ProductivityStreak,
   OTP,
+  GoogleCalendarSync,
   syncDatabase
 };
