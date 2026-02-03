@@ -5,7 +5,14 @@ const baseUrl = process.env.API_URL || "http://localhost:3000";
 
 class EmailService {
   constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // Only initialize Resend if API key is provided
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'your_resend_api_key_here') {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      this.useResend = true;
+    } else {
+      this.useResend = false;
+      console.warn("⚠️  Resend API key not configured. Email service will run in development mode.");
+    }
     this.fromEmail = process.env.EMAIL_FROM || "noreply@build8.dev";
   }
 
@@ -140,6 +147,11 @@ class EmailService {
 
   async sendOTP(email, otpCode, type) {
     try {
+      if (!this.useResend) {
+        console.log(`\n📧 Development Mode - OTP for ${email}: ${otpCode}\n`);
+        return true;
+      }
+
       const subject = this.getOTPSubject(type);
       const typeLabel = this.getOTPTypeLabel(type);
 
@@ -242,6 +254,11 @@ class EmailService {
 
   async sendPasswordReset(email, resetUrl, userName) {
     try {
+      if (!this.useResend) {
+        console.log(`\n📧 Development Mode - Password reset for ${email}: ${resetUrl}\n`);
+        return true;
+      }
+
       const content = `
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr>
@@ -308,6 +325,11 @@ class EmailService {
 
   async sendReminder(email, reminderData) {
     try {
+      if (!this.useResend) {
+        console.log(`\n📧 Development Mode - Reminder for ${email}: ${reminderData.title}\n`);
+        return true;
+      }
+
       const { title, message, reminder_time } = reminderData;
 
       const content = `
@@ -370,10 +392,10 @@ class EmailService {
 
   async verifyConnection() {
     try {
-      // Resend doesn't require connection verification like SMTP
-      // Just check if API key is configured
-      if (!process.env.RESEND_API_KEY) {
-        throw new Error("RESEND_API_KEY is not configured");
+      // Check if Resend API key is configured
+      if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key_here') {
+        console.log("⚠️  Email service running in development mode (Resend not configured)");
+        return true; // Allow server to start
       }
       console.log("✅ Email service (Resend) is ready");
       return true;
