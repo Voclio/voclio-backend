@@ -57,8 +57,32 @@ const getSummaryValidator = [
   })
 ];
 
+const getAISuggestionsValidator = [
+  query('days')
+    .optional()
+    .isInt({ min: 1, max: 30 })
+    .withMessage('Days must be between 1 and 30'),
+  query('focus_area')
+    .optional()
+    .isIn(['time_management', 'task_organization', 'focus_improvement', 'stress_reduction', 'general'])
+    .withMessage('Invalid focus area'),
+  query('tone')
+    .optional()
+    .isIn(['professional', 'motivational', 'casual', 'direct'])
+    .withMessage('Invalid tone'),
+  query('count')
+    .optional()
+    .isInt({ min: 1, max: 10 })
+    .withMessage('Count must be between 1 and 10'),
+  query('language')
+    .optional()
+    .isIn(['ar', 'en'])
+    .withMessage('Language must be ar or en')
+];
+
 export {
   createFocusSessionValidator,
   updateFocusSessionValidator,
-  getSummaryValidator
+  getSummaryValidator,
+  getAISuggestionsValidator
 };

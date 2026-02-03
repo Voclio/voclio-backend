@@ -80,12 +80,12 @@ class AIService {
   /**
    * Generate productivity suggestions
    */
-  async generateProductivitySuggestions(userData) {
+  async generateProductivitySuggestions(userData, options = {}) {
     try {
       if (this.provider === "openrouter") {
-        return await this.generateSuggestionsWithOpenRouter(userData);
+        return await this.generateSuggestionsWithOpenRouter(userData, options);
       } else {
-        return await this.generateSuggestionsWithGemini(userData);
+        return await this.generateSuggestionsWithGemini(userData, options);
       }
     } catch (error) {
       console.error("Error generating suggestions:", error);
@@ -545,13 +545,86 @@ ${text}
     return { tasks: [], notes: [] };
   }
 
-  async generateSuggestionsWithOpenRouter(userData) {
-    const prompt = `بناءً على بيانات الإنتاجية التالية، قدم 3-5 اقتراحات عملية لتحسين الإنتاجية. أرجع النتيجة كـ JSON array من strings فقط.
+  async generateSuggestionsWithOpenRouter(userData, options = {}) {
+    const { 
+      focus_area = 'general', 
+      tone = 'professional', 
+      count = 5, 
+      language = 'ar' 
+    } = options;
 
-البيانات:
+    const focusAreaPrompts = {
+      'time_management': 'إدارة الوقت وتنظيم الجدول اليومي',
+      'task_organization': 'تنظيم المهام وترتيب الأولويات',
+      'focus_improvement': 'تحسين التركيز وزيادة الإنتاجية',
+      'stress_reduction': 'تقليل التوتر وتحسين التوازن',
+      'general': 'تحسين الإنتاجية العامة'
+    };
+
+    const toneStyles = {
+      'professional': 'مهني ومباشر',
+      'motivational': 'محفز وإيجابي',
+      'casual': 'ودود وبسيط',
+      'direct': 'مختصر وواضح'
+    };
+
+    const prompt = `أنت مستشار إنتاجية خبير متخصص في تحليل أنماط العمل وتقديم اقتراحات شخصية مبنية على البيانات الفعلية.
+
+📊 **تحليل بيانات المستخدم:**
 ${JSON.stringify(userData, null, 2)}
 
-الاقتراحات (JSON array):`;
+🎯 **المطلوب:**
+- عدد الاقتراحات: ${count}
+- التركيز على: ${focusAreaPrompts[focus_area]}
+- نبرة الاقتراحات: ${toneStyles[tone]}
+- اللغة: ${language === 'ar' ? 'العربية' : 'English'}
+
+📋 **قواعد الاقتراحات الذكية:**
+
+1. **تحليل البيانات أولاً:**
+   - معدل الإنجاز: ${userData.tasks_analysis?.completion_rate || 0}%
+   - المهام المتأخرة: ${userData.tasks_analysis?.overdue_tasks || 0}
+   - جلسات التركيز: ${userData.productivity_patterns?.focus_sessions_count || 0}
+   - مؤشرات التوتر: ${userData.stress_indicators?.overdue_percentage || 0}%
+
+2. **اقتراحات مخصصة:**
+   - إذا كان معدل الإنجاز أقل من 70%: ركز على تنظيم المهام
+   - إذا كانت المهام المتأخرة > 20%: ركز على إدارة الوقت
+   - إذا كانت جلسات التركيز قليلة: ركز على تحسين التركيز
+   - إذا كانت مؤشرات التوتر عالية: ركز على تقليل الضغط
+
+3. **اقتراحات قابلة للتطبيق:**
+   - خطوات عملية واضحة
+   - قابلة للقياس والمتابعة
+   - مناسبة لنمط حياة المستخدم
+   - تدريجية وليست جذرية
+
+🎨 **هيكل الإخراج المطلوب (JSON فقط):**
+\`\`\`json
+[
+  {
+    "suggestion": "نص الاقتراح بالتفصيل (${language === 'ar' ? 'بالعربية' : 'in English'})",
+    "category": "${focus_area}",
+    "priority": "high | medium | low",
+    "estimated_impact": "high | medium | low",
+    "implementation_time": "immediate | daily | weekly | monthly",
+    "steps": [
+      "خطوة عملية محددة 1",
+      "خطوة عملية محددة 2", 
+      "خطوة عملية محددة 3"
+    ],
+    "reasoning": "سبب هذا الاقتراح بناءً على بيانات المستخدم"
+  }
+]
+\`\`\`
+
+⚠️ **ملاحظات مهمة:**
+- أرجع JSON صحيح فقط بدون أي نص إضافي
+- كل اقتراح يجب أن يكون مبني على البيانات الفعلية
+- اجعل الاقتراحات عملية وقابلة للتطبيق فوراً
+- استخدم نبرة ${toneStyles[tone]} في كل الاقتراحات
+
+📄 **ابدأ التحليل والاقتراحات:**`;
 
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -567,12 +640,16 @@ ${JSON.stringify(userData, null, 2)}
           model: "openai/gpt-4o",
           messages: [
             {
+              role: "system",
+              content: "أنت مستشار إنتاجية خبير متخصص في تحليل البيانات وتقديم اقتراحات مخصصة. تفهم السياق العربي وأنماط العمل المختلفة. ترجع دائماً JSON صحيح بدون أي نص إضافي."
+            },
+            {
               role: "user",
               content: prompt,
             },
           ],
-          temperature: 0.8,
-          max_tokens: 800,
+          temperature: 0.3, // Lower for more consistent suggestions
+          max_tokens: 4000,
         }),
       },
     );
@@ -585,13 +662,43 @@ ${JSON.stringify(userData, null, 2)}
     const data = await response.json();
     const content = data.choices[0].message.content.trim();
 
-    // Extract JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+    console.log('🤖 AI Response for generateSuggestionsWithOpenRouter:', content);
 
-    return [];
+    // Try multiple JSON extraction patterns
+    try {
+      // Pattern 1: Direct JSON array
+      if (content.startsWith('[')) {
+        return JSON.parse(content);
+      }
+
+      // Pattern 2: JSON in code block
+      const codeBlockMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+      if (codeBlockMatch) {
+        return JSON.parse(codeBlockMatch[1]);
+      }
+
+      // Pattern 3: JSON anywhere in text
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      console.warn('⚠️ No JSON array found in AI response, returning simple format');
+      // Fallback: convert text to simple suggestions
+      const lines = content.split('\n').filter(line => line.trim());
+      return lines.slice(0, count).map((line, index) => ({
+        suggestion: line.replace(/^\d+\.?\s*/, '').trim(),
+        category: focus_area,
+        priority: 'medium',
+        estimated_impact: 'medium',
+        implementation_time: 'daily',
+        steps: []
+      }));
+    } catch (error) {
+      console.error('❌ Failed to parse AI response:', error.message);
+      console.error('Response content:', content);
+      return [];
+    }
   }
 
   async transcribeWithOpenRouter(audioBuffer, language = "ar") {
@@ -832,12 +939,38 @@ JSON:`;
     return { tasks: [], notes: [] };
   }
 
-  async generateSuggestionsWithGemini(userData) {
+  async generateSuggestionsWithGemini(userData, options = {}) {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(this.geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const prompt = `Based on the following user productivity data, provide 3-5 actionable suggestions to improve their productivity. Return as a JSON array of strings.\n\nData:\n${JSON.stringify(userData, null, 2)}`;
+    const { 
+      focus_area = 'general', 
+      tone = 'professional', 
+      count = 5, 
+      language = 'ar' 
+    } = options;
+
+    const prompt = `You are an expert productivity consultant. Analyze the following user data and provide ${count} personalized productivity suggestions.
+
+User Data:
+${JSON.stringify(userData, null, 2)}
+
+Requirements:
+- Focus area: ${focus_area}
+- Tone: ${tone}
+- Language: ${language === 'ar' ? 'Arabic' : 'English'}
+- Return as JSON array only
+
+Each suggestion should have:
+- suggestion: detailed suggestion text
+- category: ${focus_area}
+- priority: high/medium/low
+- estimated_impact: high/medium/low
+- implementation_time: immediate/daily/weekly/monthly
+- steps: array of actionable steps
+
+Base suggestions on actual user data patterns. Return JSON only:`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -845,10 +978,23 @@ JSON:`;
 
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        console.error('Gemini JSON parse error:', e);
+      }
     }
 
-    return [];
+    // Fallback to simple format
+    const lines = responseText.split('\n').filter(line => line.trim());
+    return lines.slice(0, count).map((line, index) => ({
+      suggestion: line.replace(/^\d+\.?\s*/, '').trim(),
+      category: focus_area,
+      priority: 'medium',
+      estimated_impact: 'medium',
+      implementation_time: 'daily',
+      steps: []
+    }));
   }
 
   // ============= AssemblyAI LeMUR Methods =============
