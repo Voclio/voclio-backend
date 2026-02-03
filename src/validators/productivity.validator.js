@@ -36,13 +36,25 @@ const updateFocusSessionValidator = [
 
 const getSummaryValidator = [
   query('start_date')
-    .notEmpty()
+    .optional()
     .isISO8601()
     .withMessage('start_date must be a valid ISO 8601 date'),
   query('end_date')
-    .notEmpty()
+    .optional()
     .isISO8601()
-    .withMessage('end_date must be a valid ISO 8601 date')
+    .withMessage('end_date must be a valid ISO 8601 date'),
+  query('period')
+    .optional()
+    .isIn(['today', 'week', 'month'])
+    .withMessage('period must be: today, week, or month'),
+  // Custom validation to ensure either dates or period is provided
+  query().custom((value, { req }) => {
+    const { start_date, end_date, period } = req.query;
+    if (!period && (!start_date || !end_date)) {
+      throw new Error('Either provide start_date and end_date, or use period parameter');
+    }
+    return true;
+  })
 ];
 
 export {

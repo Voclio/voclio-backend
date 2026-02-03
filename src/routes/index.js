@@ -9,6 +9,7 @@ import notificationRoutes from './notification.routes.js';
 import settingsRoutes from './settings.routes.js';
 import productivityRoutes from './productivity.routes.js';
 import calendarRoutes from './calendar.routes.js';
+import webexCalendarRoutes from './webexCalendar.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import adminRoutes from './admin.routes.js';
 import categoryRoutes from './category.routes.js';
@@ -25,6 +26,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/productivity', productivityRoutes);
 router.use('/calendar', calendarRoutes);
+router.use('/webex', webexCalendarRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/categories', categoryRoutes);
@@ -50,7 +52,9 @@ router.get('/', (req, res) => {
       tasks: '/api/tasks',
       voice: '/api/voice',
       tags: '/api/tags',
-      reminders: '/api/reminders'
+      reminders: '/api/reminders',
+      calendar: '/api/calendar',
+      webex: '/api/webex'
     }
   });
 });

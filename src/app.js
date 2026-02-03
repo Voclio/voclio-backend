@@ -8,7 +8,21 @@ import errorHandler from "./middleware/error.middleware.js";
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"],
+    },
+  },
+}));
 app.use(cors());
 
 // Rate limiting for auth endpoints (stricter)
@@ -53,6 +67,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use("/public", express.static("public"));
+app.use(express.static("public")); // Also serve directly from root
 
 // Request logging in development
 if (config.nodeEnv === "development") {
@@ -73,6 +88,11 @@ app.get("/", (req, res) => {
     status: "running",
     documentation: "/api",
   });
+});
+
+// Webex test page
+app.get("/webex-test", (req, res) => {
+  res.sendFile("webex-test.html", { root: "public" });
 });
 
 // 404 handler

@@ -1,0 +1,497 @@
+{
+  "info": {
+    "_postman_id": "google-calendar-apis-voclio",
+    "name": "Google Calendar APIs - Voclio",
+    "description": "Complete collection of Google Calendar APIs for Voclio application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/calendar",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "YOUR_JWT_TOKEN",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "OAuth Setup & Connection",
+      "description": "APIs for setting up OAuth and connecting Google Calendar",
+      "item": [
+        {
+          "name": "Check Connection Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "status"]
+            },
+            "description": "Check if Google Calendar is connected and get sync status"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/google/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["google", "status"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"connected\": true,\n    \"sync_enabled\": true,\n    \"sync_status\": \"active\",\n    \"calendar_name\": \"Primary Calendar\",\n    \"last_sync_at\": \"2024-12-25T10:00:00Z\",\n    \"error_message\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get OAuth URL (Web)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/connect",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "connect"]
+            },
+            "description": "Generate OAuth URL for web browser authentication"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/google/connect",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["google", "connect"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"auth_url\": \"https://accounts.google.com/oauth/authorize?...\",\n    \"message\": \"Visit the auth_url to authorize Google Calendar access\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get OAuth URL (Mobile)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/connect/mobile?custom_scheme=com.voclio.app",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "connect", "mobile"],
+              "query": [
+                {
+                  "key": "custom_scheme",
+                  "value": "com.voclio.app",
+                  "description": "Custom URL scheme for mobile app"
+                }
+              ]
+            },
+            "description": "Generate OAuth URL for mobile/Flutter authentication"
+          }
+        },
+        {
+          "name": "Link OAuth Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"session_id_from_oauth_callback\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/google/link-session",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "link-session"]
+            },
+            "description": "Link OAuth session to user account after successful authentication"
+          }
+        },
+        {
+          "name": "Mobile OAuth Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"authorization_code_from_google\",\n  \"custom_scheme\": \"com.voclio.app\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/google/callback/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "callback", "mobile"]
+            },
+            "description": "Handle OAuth callback for mobile applications"
+          }
+        },
+        {
+          "name": "Test with Direct Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"access_token\": \"google_access_token\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/google/test-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "test-token"]
+            },
+            "description": "Test Google Calendar API with direct access token"
+          }
+        },
+        {
+          "name": "Disconnect Google Calendar",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "disconnect"]
+            },
+            "description": "Disconnect Google Calendar from user account"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integrated Calendar Events",
+      "description": "APIs for getting integrated calendar events (tasks + reminders + Google Calendar)",
+      "item": [
+        {
+          "name": "Get All Calendar Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events?start_date=2024-01-01&end_date=2024-01-31&include_google=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "description": "Start date (ISO 8601 format)"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-01-31",
+                  "description": "End date (ISO 8601 format)"
+                },
+                {
+                  "key": "include_google",
+                  "value": "true",
+                  "description": "Include Google Calendar events (default: true)"
+                }
+              ]
+            },
+            "description": "Get all calendar events including tasks, reminders, and Google Calendar events"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/events?start_date=2024-01-01&end_date=2024-01-31&include_google=true",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["events"],
+                  "query": [
+                    {
+                      "key": "start_date",
+                      "value": "2024-01-01"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2024-01-31"
+                    },
+                    {
+                      "key": "include_google",
+                      "value": "true"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"events\": [\n      {\n        \"id\": \"task-123\",\n        \"type\": \"task\",\n        \"title\": \"Complete Project\",\n        \"description\": \"Task description\",\n        \"date\": \"2024-01-15T10:00:00Z\",\n        \"priority\": \"high\",\n        \"status\": \"pending\",\n        \"source\": \"voclio\"\n      },\n      {\n        \"id\": \"google-456\",\n        \"type\": \"meeting\",\n        \"title\": \"Team Meeting\",\n        \"date\": \"2024-01-15T14:00:00Z\",\n        \"end_date\": \"2024-01-15T15:00:00Z\",\n        \"location\": \"Conference Room\",\n        \"source\": \"google_calendar\"\n      }\n    ],\n    \"period\": {\n      \"start_date\": \"2024-01-01\",\n      \"end_date\": \"2024-01-31\"\n    },\n    \"count\": 25,\n    \"tasks_count\": 10,\n    \"reminders_count\": 5,\n    \"google_events_count\": 10,\n    \"google_sync_enabled\": true\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Month Calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/month/2024/12",
+              "host": ["{{baseUrl}}"],
+              "path": ["month", "2024", "12"]
+            },
+            "description": "Get calendar events organized by days for a specific month"
+          }
+        },
+        {
+          "name": "Get Day Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/day/2024-12-25?include_google=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["day", "2024-12-25"],
+              "query": [
+                {
+                  "key": "include_google",
+                  "value": "true",
+                  "description": "Include Google Calendar events"
+                }
+              ]
+            },
+            "description": "Get all events for a specific day"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google Calendar Events Only",
+      "description": "APIs for getting Google Calendar events only",
+      "item": [
+        {
+          "name": "Get Google Calendar Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/events?start_date=2024-01-01&end_date=2024-01-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "events"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "description": "Start date (ISO 8601 format)"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-01-31",
+                  "description": "End date (ISO 8601 format)"
+                }
+              ]
+            },
+            "description": "Get Google Calendar events only for a specific date range"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meetings & Events",
+      "description": "APIs for getting meetings and events from Google Calendar",
+      "item": [
+        {
+          "name": "Get Today's Meetings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/today",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "today"]
+            },
+            "description": "Get all meetings for today from Google Calendar"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/google/today",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["google", "today"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"meetings\": [\n      {\n        \"id\": \"meeting_id\",\n        \"title\": \"Team Meeting\",\n        \"start\": \"2024-12-25T10:00:00Z\",\n        \"end\": \"2024-12-25T11:00:00Z\",\n        \"location\": \"Main Conference Room\",\n        \"attendees\": [\"colleague@company.com\"],\n        \"htmlLink\": \"https://calendar.google.com/...\"\n      }\n    ],\n    \"count\": 3,\n    \"date\": \"2024-12-25\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Upcoming Meetings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/google/upcoming?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["google", "upcoming"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "Number of days to look ahead (default: 7)"
+                }
+              ]
+            },
+            "description": "Get upcoming meetings from Google Calendar"
+          }
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values if not already set",
+          "if (!pm.collectionVariables.get('baseUrl')) {",
+          "    pm.collectionVariables.set('baseUrl', 'http://localhost:3001/api/calendar');",
+          "}",
+          "",
+          "if (!pm.collectionVariables.get('authToken')) {",
+          "    pm.collectionVariables.set('authToken', 'YOUR_JWT_TOKEN');",
+          "}"
+        ]
+      }
+    }
+  ]
+}
