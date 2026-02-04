@@ -28,10 +28,85 @@ class AuthController {
 
       // Check if user exists
       const existingUser = await User.findOne({ where: { email } });
+
       if (existingUser) {
-        throw new ConflictError("Email already registered");
+        // If email is already verified, they need to login instead
+        if (existingUser.email_verified) {
+          throw new ConflictError(
+            "Email already registered. Please login instead.",
+          );
+        }
+
+        // User exists but hasn't verified email - allow re-registration
+        // This handles the case where user started registration but didn't complete it
+
+        // Invalidate any existing OTPs for this email
+        await OTP.update(
+          { verified: true },
+          {
+            where: {
+              email,
+              type: "registration",
+              verified: false,
+              expires_at: {
+                [Op.gt]: new Date(),
+              },
+            },
+          },
+        );
+
+        // Update user information with new data
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await existingUser.update({
+          password: hashedPassword,
+          name,
+          phone_number: phone_number || existingUser.phone_number,
+        });
+
+        // Generate & Send new Registration OTP
+        const otpCode = crypto.randomInt(100000, 999999).toString();
+        const otpId = `otp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await OTP.create({
+          otp_id: otpId,
+          email: existingUser.email,
+          otp_code: otpCode,
+          type: "registration",
+          expires_at: otpExpiresAt,
+        });
+
+        try {
+          await emailService.sendOTP(
+            existingUser.email,
+            otpCode,
+            "registration",
+          );
+        } catch (emailError) {
+          console.error("Registration OTP email failed:", emailError);
+          // Continue but log error - user can request resend later
+        }
+
+        // Return success
+        return successResponse(
+          res,
+          {
+            user: {
+              user_id: existingUser.user_id,
+              email: existingUser.email,
+              name: existingUser.name,
+              phone_number: existingUser.phone_number,
+              email_verified: false,
+            },
+            message:
+              "A new verification code has been sent to your email. Previous codes have been invalidated.",
+          },
+          "Registration updated. Please verify your email.",
+          200,
+        );
       }
 
+      // New user registration flow
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
