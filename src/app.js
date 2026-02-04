@@ -28,7 +28,7 @@ app.use(cors());
 // Rate limiting for auth endpoints (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 5 requests per 15 minutes
+  max: config.nodeEnv === 'development' ? 1000 : 50, // More lenient in dev
   message: {
     success: false,
     error: {
@@ -41,7 +41,7 @@ const authLimiter = rateLimit({
 // Rate limiting for general API
 const limiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max,
+  max: config.nodeEnv === 'development' ? 10000 : config.rateLimit.max, // More lenient in dev
   message: {
     success: false,
     error: {
