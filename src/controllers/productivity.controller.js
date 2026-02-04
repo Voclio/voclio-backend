@@ -173,9 +173,20 @@ class ProductivityController {
 
   static async getAISuggestions(req, res, next) {
     try {
-      // Get user's recent productivity data
+      const startTime = Date.now();
+      
+      // Extract query parameters with defaults
+      const { 
+        days = 7,
+        focus_area = 'general', 
+        tone = 'professional', 
+        count = 5,
+        language = 'ar'
+      } = req.query;
+
+      // Get user's productivity data for specified period
       const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const summary = await ProductivityModel.getProductivitySummary(
         req.user.user_id,
@@ -184,24 +195,70 @@ class ProductivityController {
       );
 
       const tasks = await TaskModel.findAll(req.user.user_id, {});
+      const completedTasks = tasks.filter(t => t.status === 'completed');
+      const pendingTasks = tasks.filter(t => t.status !== 'completed');
+      const overdueTasks = tasks.filter(t => 
+        t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
+      );
 
+      // Enhanced user data with more context
       const userData = {
+        period: { start_date: startDate, end_date: endDate, days },
         summary,
-        total_tasks: tasks.length,
-        pending_tasks: tasks.filter(t => t.status !== 'completed').length,
-        overdue_tasks: tasks.filter(t => 
-          t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
-        ).length
+        tasks_analysis: {
+          total_tasks: tasks.length,
+          completed_tasks: completedTasks.length,
+          pending_tasks: pendingTasks.length,
+          overdue_tasks: overdueTasks.length,
+          completion_rate: tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0,
+          average_tasks_per_day: Math.round(tasks.length / days)
+        },
+        productivity_patterns: {
+          most_productive_day: summary.most_productive_day || null,
+          total_focus_time: summary.total_focus_time || 0,
+          focus_sessions_count: summary.focus_sessions_count || 0,
+          average_focus_duration: summary.average_focus_duration || 0
+        },
+        stress_indicators: {
+          overdue_percentage: tasks.length > 0 ? Math.round((overdueTasks.length / tasks.length) * 100) : 0,
+          high_priority_pending: pendingTasks.filter(t => t.priority === 'high').length,
+          tasks_without_due_date: pendingTasks.filter(t => !t.due_date).length
+        }
       };
 
-      const suggestions = await aiService.generateProductivitySuggestions(userData);
-
-      return successResponse(res, {
-        suggestions,
-        based_on: userData
+      // Generate AI suggestions with enhanced options
+      const suggestions = await aiService.generateProductivitySuggestions(userData, {
+        focus_area,
+        tone,
+        count: parseInt(count),
+        language
       });
 
+      // Enhanced response structure
+      const response = {
+        suggestions: suggestions.map((suggestion, index) => ({
+          id: index + 1,
+          text: suggestion.suggestion || suggestion,
+          category: suggestion.category || focus_area,
+          priority: suggestion.priority || 'medium',
+          estimated_impact: suggestion.estimated_impact || 'medium',
+          implementation_time: suggestion.implementation_time || 'daily',
+          steps: suggestion.steps || []
+        })),
+        metadata: {
+          generated_at: new Date().toISOString(),
+          data_period: { start_date: startDate, end_date: endDate, days },
+          ai_provider: aiService.provider,
+          parameters: { focus_area, tone, count, language },
+          response_time_ms: Date.now() - startTime
+        },
+        based_on: userData
+      };
+
+      return successResponse(res, response);
+
     } catch (error) {
+      console.error('AI Suggestions Error:', error);
       next(error);
     }
   }
