@@ -449,7 +449,7 @@ class VoiceController {
               priority: taskData.priority || "medium",
               due_date: taskData.due_date || null,
               category_id: category_id || null,
-              voice_recording_id: recordingId, // Link to voice recording
+              voice_recording_id: recording.recording_id, // Link to voice recording
             });
 
             // Create subtasks if any
@@ -670,7 +670,7 @@ class VoiceController {
               priority: taskData.priority || "medium",
               due_date: taskData.due_date || null,
               category_id: category_id || null,
-              voice_recording_id: recordingId, // Link to voice recording
+              voice_recording_id: recording.recording_id, // Link to voice recording
             });
 
             // Send notification for task created from voice

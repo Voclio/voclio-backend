@@ -23,6 +23,8 @@
     "docs": "echo Available docs: ALL_APIS_COMPLETE.md, POSTMAN_GUIDE.md, API_COMPLETE_REFERENCE.md",
     "test": "node test-voice-to-everything.js",
     "test:voice": "node test-voice-to-everything.js",
+    "test:voice-apis": "node test-voice-apis.js",
+    "test:ai": "node test-ai-suggestions.js",
     "test:google-calendar": "node test-google-calendar.js",
     "test:webex": "node test-webex-integration.js",
     "test:notifications": "node test-notifications.js",
