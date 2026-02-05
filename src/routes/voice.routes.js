@@ -7,20 +7,25 @@ import {
   voiceIdValidator,
   transcribeVoiceValidator,
   createNoteFromVoiceValidator,
-  createTasksFromVoiceValidator
+  createTasksFromVoiceValidator,
+  previewExtractionValidator,
+  createFromPreviewValidator,
+  updateTranscriptionValidator,
+  processVoiceCompleteValidator
 } from '../validators/voice.validator.js';
 
 // All routes require authentication
 router.use(authMiddleware);
 
 // ONE-CLICK: Complete voice processing (Upload + Transcribe + Extract + Create)
-router.post('/process-complete', VoiceController.uploadMiddleware, VoiceController.processVoiceComplete);
+router.post('/process-complete', VoiceController.uploadMiddleware, processVoiceCompleteValidator, VoiceController.processVoiceComplete);
 
 // STEP-BY-STEP WORKFLOW (for mobile app with preview)
-router.post('/preview-extraction', VoiceController.previewExtraction);
-router.post('/create-from-preview', VoiceController.createFromPreview);
-router.put('/update-transcription', VoiceController.updateTranscription);
+router.post('/preview-extraction', previewExtractionValidator, VoiceController.previewExtraction);
+router.post('/create-from-preview', createFromPreviewValidator, VoiceController.createFromPreview);
+router.put('/update-transcription', updateTranscriptionValidator, VoiceController.updateTranscription);
 
+// BASIC OPERATIONS
 router.get('/', VoiceController.getAllRecordings);
 router.post('/upload', VoiceController.uploadMiddleware, uploadVoiceValidator, VoiceController.uploadRecording);
 router.post('/transcribe', transcribeVoiceValidator, VoiceController.transcribeRecording);
