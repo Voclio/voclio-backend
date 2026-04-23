@@ -29,6 +29,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3001}
@@ -39,6 +41,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
+      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY}
@@ -50,14 +63,50 @@ services:
     ports:
       - "${PORT:-3001}:3001"
     volumes:
-      - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./temp:/app/temp
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Voclio Queue Worker
+  worker:
+    build: .
+    container_name: voclio-worker
+    restart: unless-stopped
+    command: node workers/queue.worker.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-voclio_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
+      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ./logs:/app/logs
+      - ./temp:/app/temp
 
   # Redis (Optional - for caching)
   redis:

@@ -6,11 +6,16 @@ import NotificationService from '../services/notification.service.js';
 class TaskController {
   static async getAllTasks(req, res, next) {
     try {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+      
       const filters = {
         status: req.query.status,
         priority: req.query.priority,
         category_id: req.query.category_id,
-        due_date: req.query.due_date
+        due_date: req.query.due_date,
+        page,
+        limit
       };
 
       // Remove undefined filters
@@ -20,7 +25,14 @@ class TaskController {
 
       const tasks = await TaskModel.findAll(req.user.user_id, filters);
 
-      return successResponse(res, { tasks });
+      return successResponse(res, { 
+        tasks,
+        pagination: {
+          page,
+          limit,
+          max_limit: 100
+        }
+      });
 
     } catch (error) {
       next(error);

@@ -13,6 +13,8 @@ import webexCalendarRoutes from './webexCalendar.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import adminRoutes from './admin.routes.js';
 import categoryRoutes from './category.routes.js';
+import queueRoutes from './queue.routes.js';
+
 const router = express.Router();
 
 // Main routes aggregator
@@ -30,6 +32,7 @@ router.use('/webex', webexCalendarRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/categories', categoryRoutes);
+router.use('/queue', queueRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

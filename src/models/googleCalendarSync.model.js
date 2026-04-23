@@ -1,30 +1,47 @@
 import { GoogleCalendarSync } from './orm/index.js';
+import encryptionService from '../services/encryption.service.js';
+
+/**
+ * Encrypt tokens before persisting to DB
+ */
+function encryptRecord(data) {
+  const out = { ...data };
+  if (out.google_access_token)  out.google_access_token  = encryptionService.encryptField(out.google_access_token);
+  if (out.google_refresh_token) out.google_refresh_token = encryptionService.encryptField(out.google_refresh_token);
+  return out;
+}
+
+/**
+ * Decrypt tokens after reading from DB
+ */
+function decryptRecord(record) {
+  if (!record) return null;
+  return {
+    ...record,
+    google_access_token:  encryptionService.decryptField(record.google_access_token),
+    google_refresh_token: encryptionService.decryptField(record.google_refresh_token)
+  };
+}
 
 class GoogleCalendarSyncModel {
   static async create(userId, syncData) {
     const sync = await GoogleCalendarSync.create({
       user_id: userId,
-      ...syncData
+      ...encryptRecord(syncData)
     });
-    return sync.toJSON();
+    return decryptRecord(sync.toJSON());
   }
 
   static async findByUserId(userId) {
-    const sync = await GoogleCalendarSync.findOne({
-      where: { user_id: userId }
-    });
-    return sync ? sync.toJSON() : null;
+    const sync = await GoogleCalendarSync.findOne({ where: { user_id: userId } });
+    return decryptRecord(sync?.toJSON() ?? null);
   }
 
   static async update(userId, updates) {
-    const sync = await GoogleCalendarSync.findOne({
-      where: { user_id: userId }
-    });
-    
+    const sync = await GoogleCalendarSync.findOne({ where: { user_id: userId } });
     if (!sync) return null;
-    
-    await sync.update(updates);
-    return sync.toJSON();
+    await sync.update(encryptRecord(updates));
+    return decryptRecord(sync.toJSON());
   }
 
   static async updateTokens(userId, tokens) {
@@ -34,11 +51,7 @@ class GoogleCalendarSyncModel {
       sync_status: 'active',
       error_message: null
     };
-
-    if (tokens.refresh_token) {
-      updates.google_refresh_token = tokens.refresh_token;
-    }
-
+    if (tokens.refresh_token) updates.google_refresh_token = tokens.refresh_token;
     return await this.update(userId, updates);
   }
 
@@ -51,36 +64,25 @@ class GoogleCalendarSyncModel {
   }
 
   static async delete(userId) {
-    const sync = await GoogleCalendarSync.findOne({
-      where: { user_id: userId }
-    });
-    
+    const sync = await GoogleCalendarSync.findOne({ where: { user_id: userId } });
     if (!sync) return null;
-    
-    const syncData = sync.toJSON();
+    const data = decryptRecord(sync.toJSON());
     await sync.destroy();
-    return syncData;
+    return data;
   }
 
   static async findActiveSync(userId) {
     const sync = await GoogleCalendarSync.findOne({
-      where: { 
-        user_id: userId,
-        sync_enabled: true,
-        sync_status: 'active'
-      }
+      where: { user_id: userId, sync_enabled: true, sync_status: 'active' }
     });
-    return sync ? sync.toJSON() : null;
+    return decryptRecord(sync?.toJSON() ?? null);
   }
 
   static async getAllActiveSyncs() {
     const syncs = await GoogleCalendarSync.findAll({
-      where: {
-        sync_enabled: true,
-        sync_status: 'active'
-      }
+      where: { sync_enabled: true, sync_status: 'active' }
     });
-    return syncs.map(sync => sync.toJSON());
+    return syncs.map(s => decryptRecord(s.toJSON()));
   }
 }
 

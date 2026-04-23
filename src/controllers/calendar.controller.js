@@ -36,14 +36,13 @@ class CalendarController {
         try {
           const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
           if (googleSync) {
-            const calendarService = new GoogleCalendarService();
-            calendarService.setCredentials({
+            const tokens = {
               access_token: googleSync.google_access_token,
               refresh_token: googleSync.google_refresh_token,
               expiry_date: googleSync.google_token_expiry
-            });
+            };
 
-            googleEvents = await calendarService.getEventsInRange(start_date, end_date);
+            googleEvents = await GoogleCalendarService.getEventsInRange(tokens, start_date, end_date);
           }
         } catch (error) {
           console.error('Error fetching Google Calendar events:', error);
@@ -286,14 +285,13 @@ class CalendarController {
         try {
           const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
           if (googleSync) {
-            const calendarService = new GoogleCalendarService();
-            calendarService.setCredentials({
+            const tokens = {
               access_token: googleSync.google_access_token,
               refresh_token: googleSync.google_refresh_token,
               expiry_date: googleSync.google_token_expiry
-            });
+            };
 
-            googleEvents = await calendarService.getEventsInRange(startOfDay, endOfDay);
+            googleEvents = await GoogleCalendarService.getEventsInRange(tokens, startOfDay, endOfDay);
           }
         } catch (error) {
           console.error('Error fetching Google Calendar events for day:', error);
@@ -317,8 +315,7 @@ class CalendarController {
   // Google Calendar Integration Methods
   static async connectGoogleCalendar(req, res, next) {
     try {
-      const calendarService = new GoogleCalendarService();
-      const authUrl = calendarService.generateAuthUrl();
+      const authUrl = GoogleCalendarService.generateAuthUrl();
 
       return successResponse(res, {
         auth_url: authUrl,
@@ -334,8 +331,7 @@ class CalendarController {
   static async connectGoogleCalendarMobile(req, res, next) {
     try {
       const { custom_scheme = 'com.voclio.app' } = req.query;
-      const calendarService = new GoogleCalendarService();
-      const authUrl = calendarService.generateMobileAuthUrl(custom_scheme);
+      const authUrl = GoogleCalendarService.generateMobileAuthUrl(custom_scheme);
 
       return successResponse(res, {
         auth_url: authUrl,
@@ -351,18 +347,13 @@ class CalendarController {
   // Handle mobile OAuth callback with authorization code
   static async handleMobileCallback(req, res, next) {
     try {
-      const { code, custom_scheme = 'com.voclio.app' } = req.body;
+      const { code } = req.body;
 
       if (!code) {
         throw new ValidationError('Authorization code is required');
       }
 
-      const calendarService = new GoogleCalendarService();
-      
-      // Temporarily set the redirect URI for token exchange
-      calendarService.oauth2Client.redirectUri = `${custom_scheme}://oauth/callback`;
-      
-      const tokens = await calendarService.getTokens(code);
+      const tokens = await GoogleCalendarService.getTokens(code);
 
       // Save or update sync configuration
       const existingSync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);
@@ -404,11 +395,10 @@ class CalendarController {
         throw new ValidationError('Access token is required');
       }
 
-      const calendarService = new GoogleCalendarService();
-      calendarService.setCredentials({ access_token });
+      const tokens = { access_token };
 
       // Test API call
-      const events = await calendarService.getTodayEvents();
+      const events = await GoogleCalendarService.getTodayEvents(tokens);
 
       return successResponse(res, {
         message: 'Google Calendar API test successful',
@@ -481,7 +471,7 @@ class CalendarController {
 
   static async handleGoogleCallback(req, res, next) {
     try {
-      const { code, state } = req.query;
+      const { code } = req.query;
 
       if (!code) {
         return res.status(400).send(`
@@ -496,8 +486,7 @@ class CalendarController {
         `);
       }
 
-      const calendarService = new GoogleCalendarService();
-      const tokens = await calendarService.getTokens(code);
+      const tokens = await GoogleCalendarService.getTokens(code);
 
       // Store tokens temporarily with a session ID
       const sessionId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -620,14 +609,13 @@ class CalendarController {
         throw new NotFoundError('Google Calendar not connected');
       }
 
-      const calendarService = new GoogleCalendarService();
-      calendarService.setCredentials({
+      const tokens = {
         access_token: googleSync.google_access_token,
         refresh_token: googleSync.google_refresh_token,
         expiry_date: googleSync.google_token_expiry
-      });
+      };
 
-      const events = await calendarService.getEventsInRange(start_date, end_date);
+      const events = await GoogleCalendarService.getEventsInRange(tokens, start_date, end_date);
 
       return successResponse(res, {
         events,
@@ -652,14 +640,13 @@ class CalendarController {
         });
       }
 
-      const calendarService = new GoogleCalendarService();
-      calendarService.setCredentials({
+      const tokens = {
         access_token: googleSync.google_access_token,
         refresh_token: googleSync.google_refresh_token,
         expiry_date: googleSync.google_token_expiry
-      });
+      };
 
-      const meetings = await calendarService.getTodayEvents();
+      const meetings = await GoogleCalendarService.getTodayEvents(tokens);
 
       return successResponse(res, {
         meetings,
@@ -684,14 +671,13 @@ class CalendarController {
           const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
           
           if (googleSync) {
-            const calendarService = new GoogleCalendarService();
-            calendarService.setCredentials({
+            const tokens = {
               access_token: googleSync.google_access_token,
               refresh_token: googleSync.google_refresh_token,
               expiry_date: googleSync.google_token_expiry
-            });
+            };
 
-            const googleMeetings = await calendarService.getUpcomingEvents(parseInt(days));
+            const googleMeetings = await GoogleCalendarService.getUpcomingEvents(tokens, parseInt(days));
             allMeetings.push(...googleMeetings.map(meeting => ({
               ...meeting,
               source: 'google_calendar',

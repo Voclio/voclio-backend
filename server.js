@@ -4,15 +4,39 @@ import config from './src/config/index.js';
 import { syncDatabase } from './src/models/orm/index.js';
 import cronService from './src/services/cron.service.js';
 import emailService from './src/services/email.service.js';
+import redisClient from './src/config/redis.js';
+import queueManager from './src/config/queue.js';
+import cacheService from './src/services/cache.service.js';
+import logger from './src/utils/logger.js';
+import fs from 'fs';
 
 const PORT = config.port;
 
+// Ensure required directories exist
+['logs', 'temp'].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
+
+// Initialize Redis
+redisClient.connect();
+
+// Initialize Queue Manager (after Redis)
+setTimeout(() => {
+  try {
+    queueManager.initialize();
+    cacheService.initialize();
+    logger.info('✅ Queue and cache services initialized');
+  } catch (err) {
+    logger.warn('⚠️  Queue/cache init failed (Redis may not be available):', err.message);
+  }
+}, 1000);
+
 // Sync database with ORM
 syncDatabase(false).then(() => {
-  console.log('✅ Database models synchronized');
+  logger.info('✅ Database models synchronized');
 }).catch(err => {
-  console.error('❌ Database sync error:', err.message);
-  console.log('💡 Server will continue running. Fix database credentials in .env');
+  logger.error('❌ Database sync error:', { error: err.message });
+  logger.info('💡 Server will continue running. Fix database credentials in .env');
 });
 
 // Verify email service
@@ -22,43 +46,38 @@ emailService.verifyConnection();
 cronService.start();
 
 const server = app.listen(PORT, () => {
-  console.log('\n🚀 Voclio API Server');
-  console.log('━'.repeat(50));
-  console.log(`📡 Server running on: http://localhost:${PORT}`);
-  console.log(`🌍 Environment: ${config.nodeEnv}`);
-  console.log(`📚 API Documentation: http://localhost:${PORT}/api`);
-  console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
-  console.log('━'.repeat(50));
-  console.log('\n✨ Server is ready to accept requests\n');
+  logger.info('\n🚀 Voclio API Server v2.0');
+  logger.info('━'.repeat(50));
+  logger.info(`📡 Server running on: http://localhost:${PORT}`);
+  logger.info(`🌍 Environment: ${config.nodeEnv}`);
+  logger.info(`📚 API Docs (Swagger): http://localhost:${PORT}/api-docs`);
+  logger.info(`💚 Health Check: http://localhost:${PORT}/api/health`);
+  logger.info('━'.repeat(50));
+  logger.info('\n✨ Server is ready to accept requests\n');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('\n⚠️  SIGTERM signal received: closing HTTP server');
+const shutdown = async (signal) => {
+  logger.info(`\n⚠️  ${signal} received: shutting down gracefully`);
   cronService.stop();
+  await queueManager.closeAll().catch(() => {});
+  await redisClient.disconnect().catch(() => {});
   server.close(() => {
-    console.log('✅ HTTP server closed');
+    logger.info('✅ HTTP server closed');
     process.exit(0);
   });
-});
+};
 
-process.on('SIGINT', () => {
-  console.log('\n⚠️  SIGINT signal received: closing HTTP server');
-  cronService.stop();
-  server.close(() => {
-    console.log('✅ HTTP server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  logger.error('❌ Uncaught Exception:', { error: error.message, stack: error.stack });
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('❌ Unhandled Rejection:', { reason, promise });
   process.exit(1);
 });
 

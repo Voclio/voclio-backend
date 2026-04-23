@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pool from '../../src/config/database.js';
+import { executeMigration, closeConnection } from './migrationHelper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,14 +15,15 @@ async function runMigration() {
       'utf8'
     );
     
-    await pool.query(migrationSQL);
+    await executeMigration(migrationSQL);
     
     console.log('Focus session timestamps migration completed successfully!');
+    
+    await closeConnection();
   } catch (error) {
     console.error('Migration failed:', error);
+    await closeConnection();
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 
