@@ -2,27 +2,36 @@ import { google } from 'googleapis';
 import config from '../config/index.js';
 
 class GoogleCalendarService {
-  constructor() {
-    this.oauth2Client = new google.auth.OAuth2(
+  /**
+   * Create a new OAuth2 client instance with credentials
+   * This should be called per-request to avoid race conditions
+   */
+  static createClient(tokens = null) {
+    const oauth2Client = new google.auth.OAuth2(
       config.google.clientId,
       config.google.clientSecret,
       config.google.redirectUri
     );
     
-    this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+    if (tokens) {
+      oauth2Client.setCredentials(tokens);
+    }
+    
+    return oauth2Client;
   }
 
   /**
    * Generate OAuth URL for user to authorize Google Calendar access
    */
-  generateAuthUrl() {
+  static generateAuthUrl() {
+    const oauth2Client = this.createClient();
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/calendar.readonly'
     ];
 
-    return this.oauth2Client.generateAuthUrl({
+    return oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
       prompt: 'consent'
@@ -32,14 +41,15 @@ class GoogleCalendarService {
   /**
    * Generate OAuth URL for mobile apps (Flutter)
    */
-  generateMobileAuthUrl(customScheme = 'com.voclio.app') {
+  static generateMobileAuthUrl(customScheme = 'com.voclio.app') {
+    const oauth2Client = this.createClient();
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/calendar.readonly'
     ];
 
-    return this.oauth2Client.generateAuthUrl({
+    return oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
       prompt: 'consent',
@@ -50,9 +60,10 @@ class GoogleCalendarService {
   /**
    * Exchange authorization code for tokens
    */
-  async getTokens(code) {
+  static async getTokens(code) {
     try {
-      const { tokens } = await this.oauth2Client.getToken(code);
+      const oauth2Client = this.createClient();
+      const { tokens } = await oauth2Client.getToken(code);
       return tokens;
     } catch (error) {
       console.error('Error getting tokens:', error);
@@ -61,22 +72,15 @@ class GoogleCalendarService {
   }
 
   /**
-   * Set credentials for API calls
-   */
-  setCredentials(tokens) {
-    this.oauth2Client.setCredentials(tokens);
-  }
-
-  /**
    * Refresh access token using refresh token
    */
-  async refreshAccessToken(refreshToken) {
+  static async refreshAccessToken(refreshToken) {
     try {
-      this.oauth2Client.setCredentials({
+      const oauth2Client = this.createClient({
         refresh_token: refreshToken
       });
       
-      const { credentials } = await this.oauth2Client.refreshAccessToken();
+      const { credentials } = await oauth2Client.refreshAccessToken();
       return credentials;
     } catch (error) {
       console.error('Error refreshing token:', error);
@@ -87,8 +91,11 @@ class GoogleCalendarService {
   /**
    * Get user's calendar events
    */
-  async getEvents(options = {}) {
+  static async getEvents(tokens, options = {}) {
     try {
+      const oauth2Client = this.createClient(tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      
       const {
         calendarId = 'primary',
         timeMin = new Date().toISOString(),
@@ -98,7 +105,7 @@ class GoogleCalendarService {
         orderBy = 'startTime'
       } = options;
 
-      const response = await this.calendar.events.list({
+      const response = await calendar.events.list({
         calendarId,
         timeMin,
         timeMax,
@@ -117,9 +124,9 @@ class GoogleCalendarService {
   /**
    * Get events for a specific date range
    */
-  async getEventsInRange(startDate, endDate) {
+  static async getEventsInRange(tokens, startDate, endDate) {
     try {
-      const events = await this.getEvents({
+      const events = await this.getEvents(tokens, {
         timeMin: new Date(startDate).toISOString(),
         timeMax: new Date(endDate).toISOString(),
         maxResults: 100
@@ -149,31 +156,34 @@ class GoogleCalendarService {
   /**
    * Get today's events
    */
-  async getTodayEvents() {
+  static async getTodayEvents(tokens) {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-    return await this.getEventsInRange(startOfDay, endOfDay);
+    return await this.getEventsInRange(tokens, startOfDay, endOfDay);
   }
 
   /**
    * Get upcoming events (next 7 days)
    */
-  async getUpcomingEvents(days = 7) {
+  static async getUpcomingEvents(tokens, days = 7) {
     const now = new Date();
     const futureDate = new Date();
     futureDate.setDate(now.getDate() + days);
 
-    return await this.getEventsInRange(now, futureDate);
+    return await this.getEventsInRange(tokens, now, futureDate);
   }
 
   /**
    * Get user's calendars list
    */
-  async getCalendarsList() {
+  static async getCalendarsList(tokens) {
     try {
-      const response = await this.calendar.calendarList.list();
+      const oauth2Client = this.createClient(tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      
+      const response = await calendar.calendarList.list();
       return response.data.items || [];
     } catch (error) {
       console.error('Error fetching calendars list:', error);
@@ -184,8 +194,11 @@ class GoogleCalendarService {
   /**
    * Create a new event in Google Calendar
    */
-  async createEvent(eventData) {
+  static async createEvent(tokens, eventData, userTimezone = 'UTC') {
     try {
+      const oauth2Client = this.createClient(tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      
       const {
         title,
         description,
@@ -202,16 +215,16 @@ class GoogleCalendarService {
         location,
         start: {
           dateTime: startDateTime,
-          timeZone: 'Asia/Riyadh'
+          timeZone: userTimezone
         },
         end: {
           dateTime: endDateTime,
-          timeZone: 'Asia/Riyadh'
+          timeZone: userTimezone
         },
         attendees: attendees.map(email => ({ email }))
       };
 
-      const response = await this.calendar.events.insert({
+      const response = await calendar.events.insert({
         calendarId,
         resource: event
       });
@@ -221,14 +234,6 @@ class GoogleCalendarService {
       console.error('Error creating calendar event:', error);
       throw error;
     }
-  }
-
-  /**
-   * Check if user has valid credentials
-   */
-  hasValidCredentials() {
-    const credentials = this.oauth2Client.credentials;
-    return credentials && (credentials.access_token || credentials.refresh_token);
   }
 }
 

@@ -283,8 +283,13 @@ class AuthController {
 
   static async logout(req, res, next) {
     try {
-      const token = req.headers.authorization.substring(7);
-      await Session.destroy({ where: { refresh_token: token } });
+      const { refresh_token } = req.body;
+      
+      if (!refresh_token) {
+        throw new ValidationError("Refresh token is required");
+      }
+
+      await Session.destroy({ where: { refresh_token } });
 
       return successResponse(res, null, "Logged out successfully");
     } catch (error) {

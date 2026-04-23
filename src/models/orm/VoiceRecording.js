@@ -10,14 +10,17 @@ const VoiceRecording = sequelize.define('VoiceRecording', {
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: {
-      model: 'users',
-      key: 'user_id'
-    }
+    references: { model: 'users', key: 'user_id' }
   },
   file_path: {
     type: DataTypes.STRING(500),
-    allowNull: true
+    allowNull: true,
+    comment: 'Cloud storage URL or legacy local path'
+  },
+  storage_key: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'S3/R2 object key for cloud storage operations'
   },
   file_size: {
     type: DataTypes.INTEGER,
@@ -41,7 +44,8 @@ const VoiceRecording = sequelize.define('VoiceRecording', {
   },
   status: {
     type: DataTypes.STRING(50),
-    defaultValue: 'uploaded'
+    defaultValue: 'uploaded',
+    comment: 'uploaded | processing | transcribed | completed | failed'
   }
 }, {
   tableName: 'voice_recordings',
@@ -49,7 +53,8 @@ const VoiceRecording = sequelize.define('VoiceRecording', {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
   indexes: [
-    { fields: ['user_id'] }
+    { fields: ['user_id'] },
+    { fields: ['storage_key'] }
   ]
 });
 

@@ -1,7 +1,17 @@
 import { errorResponse } from '../utils/responses.js';
 import { AppError } from '../utils/errors.js';
+import logger from '../utils/logger.js';
+
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  // Log error with context
+  logger.error('Error occurred', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    userId: req.user?.user_id
+  });
 
   if (err instanceof AppError) {
     return errorResponse(res, err, err.statusCode);

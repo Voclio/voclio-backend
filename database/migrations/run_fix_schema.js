@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pool from '../../src/config/database.js';
+import { executeMigration, closeConnection } from './migrationHelper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +15,7 @@ async function runMigration() {
     const sql = fs.readFileSync(sqlFile, 'utf8');
 
     // Execute the migration
-    await pool.query(sql);
+    await executeMigration(sql);
 
     console.log('✅ Schema fixes applied successfully!\n');
     console.log('Fixed issues:');
@@ -26,9 +26,11 @@ async function runMigration() {
     console.log('  - Added title column to achievements table');
     console.log('  - Created performance indexes\n');
 
+    await closeConnection();
     process.exit(0);
   } catch (error) {
     console.error('❌ Migration failed:', error);
+    await closeConnection();
     process.exit(1);
   }
 }

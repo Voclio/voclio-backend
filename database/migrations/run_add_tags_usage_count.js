@@ -1,14 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pool from '../../src/config/database.js';
+import { executeMigration, closeConnection } from './migrationHelper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function runMigration() {
-  const client = await pool.connect();
-  
   try {
     console.log('Starting migration: add_tags_usage_count...');
     
@@ -17,17 +15,16 @@ async function runMigration() {
       'utf8'
     );
     
-    await client.query(migrationSQL);
+    await executeMigration(migrationSQL);
     
     console.log('✓ Migration completed successfully!');
     console.log('✓ Added usage_count column to tags table');
     
+    await closeConnection();
   } catch (error) {
     console.error('Migration failed:', error.message);
+    await closeConnection();
     throw error;
-  } finally {
-    client.release();
-    await pool.end();
   }
 }
 

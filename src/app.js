@@ -1,10 +1,15 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import rateLimit from "express-rate-limit";
 import config from "./config/index.js";
 import routes from "./routes/index.js";
 import errorHandler from "./middleware/error.middleware.js";
+import defaultTimeoutMiddleware from "./middleware/timeout.middleware.js";
+import { swaggerUi, swaggerSpec } from "./config/swagger.js";
+import logger from "./utils/logger.js";
+
 const app = express();
 
 // Security middleware
@@ -23,7 +28,29 @@ app.use(helmet({
     },
   },
 }));
-app.use(cors());
+
+// Response compression
+app.use(compression());
+
+// CORS configuration with allowed origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 // Rate limiting for auth endpoints (stricter)
 const authLimiter = rateLimit({
@@ -36,6 +63,18 @@ const authLimiter = rateLimit({
       message: "Too many authentication attempts, please try again later.",
     },
   },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Rate limit exceeded for auth endpoint: ${req.ip} - ${req.path}`);
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many authentication attempts, please try again later.",
+      },
+    });
+  }
 });
 
 // Rate limiting for general API
@@ -49,6 +88,18 @@ const limiter = rateLimit({
       message: "Too many requests from this IP, please try again later.",
     },
   },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Rate limit exceeded: ${req.ip} - ${req.path}`);
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many requests from this IP, please try again later.",
+      },
+    });
+  }
 });
 
 // Apply stricter rate limiting to auth endpoints
@@ -61,24 +112,40 @@ app.use("/api/auth/forgot-password", authLimiter);
 // Apply general rate limiting to all API routes
 app.use("/api/", limiter);
 
+// Request timeout middleware (30 seconds default)
+app.use(defaultTimeoutMiddleware);
+
 // Body parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files
 app.use("/public", express.static("public"));
 app.use(express.static("public")); // Also serve directly from root
 
-// Request logging in development
+// Request logging
 if (config.nodeEnv === "development") {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
+    logger.debug(`${req.method} ${req.path}`);
     next();
   });
 }
 
 // API routes
 app.use("/api", routes);
+
+// Swagger API documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: "Voclio API Docs",
+  customCss: ".swagger-ui .topbar { display: none }",
+  swaggerOptions: { persistAuthorization: true }
+}));
+
+// Expose raw swagger JSON
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -97,6 +164,7 @@ app.get("/webex-test", (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
+  logger.warn(`404 Not Found: ${req.method} ${req.path}`);
   res.status(404).json({
     success: false,
     error: {
