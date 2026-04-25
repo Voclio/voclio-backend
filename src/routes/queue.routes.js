@@ -1,7 +1,7 @@
 import express from 'express';
 import queueManager, { QUEUE_NAMES } from '../config/queue.js';
 import { successResponse } from '../utils/responses.js';
-import authMiddleware from '../middleware/auth.middleware.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 

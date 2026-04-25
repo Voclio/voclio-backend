@@ -5,11 +5,6 @@ import {
   uploadVoiceValidator,
   voiceIdValidator,
   transcribeVoiceValidator,
-  createNoteFromVoiceValidator,
-  createTasksFromVoiceValidator,
-  previewExtractionValidator,
-  createFromPreviewValidator,
-  updateTranscriptionValidator,
   processVoiceCompleteValidator
 } from '../validators/voice.validator.js';
 
@@ -106,11 +101,6 @@ router.post('/process-complete',
  */
 router.get('/job-status/:jobId', VoiceController.getJobStatus);
 
-// Step-by-step workflow
-router.post('/preview-extraction', previewExtractionValidator, VoiceController.previewExtraction);
-router.post('/create-from-preview', createFromPreviewValidator, VoiceController.createFromPreview);
-router.put('/update-transcription', updateTranscriptionValidator, VoiceController.updateTranscription);
-
 /**
  * @swagger
  * /api/voice/upload:
@@ -150,9 +140,6 @@ router.post('/upload',
  *       - bearerAuth: []
  */
 router.post('/transcribe', transcribeVoiceValidator, VoiceController.transcribeRecording);
-
-router.post('/:id/create-note', createNoteFromVoiceValidator, VoiceController.createNoteFromRecording);
-router.post('/:id/create-tasks', createTasksFromVoiceValidator, VoiceController.createTasksFromRecording);
 
 /**
  * @swagger
