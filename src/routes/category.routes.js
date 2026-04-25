@@ -9,19 +9,23 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // Validators
-const categoryIdValidator = [
-  param('id').isInt().withMessage('Invalid category ID')
-];
+const categoryIdValidator = [param('id').isInt().withMessage('Invalid category ID')];
 
 const createCategoryValidator = [
   body('name').notEmpty().trim().withMessage('Category name is required'),
-  body('color').optional().matches(/^#[0-9A-F]{6}$/i).withMessage('Invalid color format'),
+  body('color')
+    .optional()
+    .matches(/^#[0-9A-F]{6}$/i)
+    .withMessage('Invalid color format'),
   body('description').optional().trim()
 ];
 
 const updateCategoryValidator = [
   body('name').optional().notEmpty().trim().withMessage('Category name cannot be empty'),
-  body('color').optional().matches(/^#[0-9A-F]{6}$/i).withMessage('Invalid color format'),
+  body('color')
+    .optional()
+    .matches(/^#[0-9A-F]{6}$/i)
+    .withMessage('Invalid color format'),
   body('description').optional().trim()
 ];
 

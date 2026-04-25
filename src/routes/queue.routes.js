@@ -20,9 +20,7 @@ const router = express.Router();
 router.get('/stats', authMiddleware, async (req, res, next) => {
   try {
     const stats = await Promise.all(
-      Object.values(QUEUE_NAMES).map(queueName => 
-        queueManager.getQueueStats(queueName)
-      )
+      Object.values(QUEUE_NAMES).map(queueName => queueManager.getQueueStats(queueName))
     );
 
     return successResponse(res, { queues: stats });

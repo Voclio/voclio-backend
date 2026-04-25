@@ -23,19 +23,24 @@ router.get('/status', authMiddleware, getWebexConnectionStatus);
 router.post('/disconnect', authMiddleware, disconnectWebexCalendar);
 
 // Webex meetings routes
-router.get('/meetings', 
+router.get(
+  '/meetings',
   authMiddleware,
   [
     query('from').optional().isISO8601().withMessage('From date must be a valid ISO 8601 date'),
     query('to').optional().isISO8601().withMessage('To date must be a valid ISO 8601 date'),
-    query('days').optional().isInt({ min: 1, max: 365 }).withMessage('Days must be between 1 and 365')
+    query('days')
+      .optional()
+      .isInt({ min: 1, max: 365 })
+      .withMessage('Days must be between 1 and 365')
   ],
   getWebexMeetings
 );
 
 router.get('/meetings/today', authMiddleware, getTodayWebexMeetings);
 
-router.post('/meetings',
+router.post(
+  '/meetings',
   authMiddleware,
   [
     body('title').notEmpty().withMessage('Meeting title is required'),
@@ -44,24 +49,33 @@ router.post('/meetings',
     body('agenda').optional().isString().withMessage('Agenda must be a string'),
     body('password').optional().isString().withMessage('Password must be a string'),
     body('timezone').optional().isString().withMessage('Timezone must be a string'),
-    body('enabledAutoRecordMeeting').optional().isBoolean().withMessage('Auto record must be boolean'),
-    body('allowAnyUserToBeCoHost').optional().isBoolean().withMessage('Allow co-host must be boolean'),
-    body('enabledJoinBeforeHost').optional().isBoolean().withMessage('Join before host must be boolean'),
+    body('enabledAutoRecordMeeting')
+      .optional()
+      .isBoolean()
+      .withMessage('Auto record must be boolean'),
+    body('allowAnyUserToBeCoHost')
+      .optional()
+      .isBoolean()
+      .withMessage('Allow co-host must be boolean'),
+    body('enabledJoinBeforeHost')
+      .optional()
+      .isBoolean()
+      .withMessage('Join before host must be boolean'),
     body('publicMeeting').optional().isBoolean().withMessage('Public meeting must be boolean'),
     body('sendEmail').optional().isBoolean().withMessage('Send email must be boolean')
   ],
   createWebexMeeting
 );
 
-router.get('/meetings/:meetingId',
+router.get(
+  '/meetings/:meetingId',
   authMiddleware,
-  [
-    param('meetingId').notEmpty().withMessage('Meeting ID is required')
-  ],
+  [param('meetingId').notEmpty().withMessage('Meeting ID is required')],
   getWebexMeetingById
 );
 
-router.put('/meetings/:meetingId',
+router.put(
+  '/meetings/:meetingId',
   authMiddleware,
   [
     param('meetingId').notEmpty().withMessage('Meeting ID is required'),
@@ -75,11 +89,10 @@ router.put('/meetings/:meetingId',
   updateWebexMeeting
 );
 
-router.delete('/meetings/:meetingId',
+router.delete(
+  '/meetings/:meetingId',
   authMiddleware,
-  [
-    param('meetingId').notEmpty().withMessage('Meeting ID is required')
-  ],
+  [param('meetingId').notEmpty().withMessage('Meeting ID is required')],
   deleteWebexMeeting
 );
 

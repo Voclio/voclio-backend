@@ -1,27 +1,27 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { validationResult } from "express-validator";
-import { Op } from "sequelize";
-import { User, Session, OTP, UserSettings } from "../models/orm/index.js";
-import { verifyGoogleToken, verifyFacebookToken } from "../config/oauth.js";
-import config from "../config/index.js";
-import emailService from "../services/email.service.js";
-import { successResponse } from "../utils/responses.js";
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { validationResult } from 'express-validator';
+import { Op } from 'sequelize';
+import { User, Session, OTP, UserSettings } from '../models/orm/index.js';
+import { verifyGoogleToken, verifyFacebookToken } from '../config/oauth.js';
+import config from '../config/index.js';
+import emailService from '../services/email.service.js';
+import { successResponse } from '../utils/responses.js';
 import {
   ValidationError,
   UnauthorizedError,
   NotFoundError,
-  ConflictError,
-} from "../utils/errors.js";
-import NotificationService from "../services/notification.service.js";
+  ConflictError
+} from '../utils/errors.js';
+import NotificationService from '../services/notification.service.js';
 
 class AuthController {
   static async register(req, res, next) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        throw new ValidationError("Invalid request data", errors.mapped());
+        throw new ValidationError('Invalid request data', errors.mapped());
       }
 
       const { email, password, name, phone_number } = req.body;
@@ -32,9 +32,7 @@ class AuthController {
       if (existingUser) {
         // If email is already verified, they need to login instead
         if (existingUser.email_verified) {
-          throw new ConflictError(
-            "Email already registered. Please login instead.",
-          );
+          throw new ConflictError('Email already registered. Please login instead.');
         }
 
         // User exists but hasn't verified email - allow re-registration
@@ -46,13 +44,13 @@ class AuthController {
           {
             where: {
               email,
-              type: "registration",
+              type: 'registration',
               verified: false,
               expires_at: {
-                [Op.gt]: new Date(),
-              },
-            },
-          },
+                [Op.gt]: new Date()
+              }
+            }
+          }
         );
 
         // Update user information with new data
@@ -60,7 +58,7 @@ class AuthController {
         await existingUser.update({
           password: hashedPassword,
           name,
-          phone_number: phone_number || existingUser.phone_number,
+          phone_number: phone_number || existingUser.phone_number
         });
 
         // Generate & Send new Registration OTP
@@ -72,18 +70,14 @@ class AuthController {
           otp_id: otpId,
           email: existingUser.email,
           otp_code: otpCode,
-          type: "registration",
-          expires_at: otpExpiresAt,
+          type: 'registration',
+          expires_at: otpExpiresAt
         });
 
         try {
-          await emailService.sendOTP(
-            existingUser.email,
-            otpCode,
-            "registration",
-          );
+          await emailService.sendOTP(existingUser.email, otpCode, 'registration');
         } catch (emailError) {
-          console.error("Registration OTP email failed:", emailError);
+          console.error('Registration OTP email failed:', emailError);
           // Continue but log error - user can request resend later
         }
 
@@ -96,13 +90,13 @@ class AuthController {
               email: existingUser.email,
               name: existingUser.name,
               phone_number: existingUser.phone_number,
-              email_verified: false,
+              email_verified: false
             },
             message:
-              "A new verification code has been sent to your email. Previous codes have been invalidated.",
+              'A new verification code has been sent to your email. Previous codes have been invalidated.'
           },
-          "Registration updated. Please verify your email.",
-          200,
+          'Registration updated. Please verify your email.',
+          200
         );
       }
 
@@ -115,7 +109,7 @@ class AuthController {
         email,
         password: hashedPassword,
         name,
-        phone_number,
+        phone_number
       });
 
       // Create default settings
@@ -130,14 +124,14 @@ class AuthController {
         otp_id: otpId,
         email: user.email,
         otp_code: otpCode,
-        type: "registration",
-        expires_at: otpExpiresAt,
+        type: 'registration',
+        expires_at: otpExpiresAt
       });
 
       try {
-        await emailService.sendOTP(user.email, otpCode, "registration");
+        await emailService.sendOTP(user.email, otpCode, 'registration');
       } catch (emailError) {
-        console.error("Registration OTP email failed:", emailError);
+        console.error('Registration OTP email failed:', emailError);
         // Continue but log error - user can request resend later
       }
 
@@ -150,13 +144,12 @@ class AuthController {
             email: user.email,
             name: user.name,
             phone_number: user.phone_number,
-            email_verified: false,
+            email_verified: false
           },
-          message:
-            "Please verify your email with the OTP sent to complete registration.",
+          message: 'Please verify your email with the OTP sent to complete registration.'
         },
-        "Registration initiated. Please verify your email.",
-        201,
+        'Registration initiated. Please verify your email.',
+        201
       );
     } catch (error) {
       next(error);
@@ -167,7 +160,7 @@ class AuthController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        throw new ValidationError("Invalid request data", errors.mapped());
+        throw new ValidationError('Invalid request data', errors.mapped());
       }
 
       const { email, password } = req.body;
@@ -175,34 +168,30 @@ class AuthController {
       // Find user
       const user = await User.findOne({ where: { email } });
       if (!user) {
-        throw new UnauthorizedError("Invalid credentials");
+        throw new UnauthorizedError('Invalid credentials');
       }
 
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        throw new UnauthorizedError("Invalid credentials");
+        throw new UnauthorizedError('Invalid credentials');
       }
 
       // Generate tokens
       const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn,
+        expiresIn: config.jwt.expiresIn
       });
 
-      const refreshToken = jwt.sign(
-        { userId: user.user_id },
-        config.jwt.refreshSecret,
-        {
-          expiresIn: config.jwt.refreshExpiresIn,
-        },
-      );
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
 
       // Create session
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
       await Session.create({
         user_id: user.user_id,
         refresh_token: refreshToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       return successResponse(
@@ -211,15 +200,15 @@ class AuthController {
           user: {
             user_id: user.user_id,
             email: user.email,
-            name: user.name,
+            name: user.name
           },
           tokens: {
             access_token: token,
             refresh_token: refreshToken,
-            expires_in: 86400,
-          },
+            expires_in: 86400
+          }
         },
-        "Login successful",
+        'Login successful'
       );
     } catch (error) {
       next(error);
@@ -231,18 +220,18 @@ class AuthController {
       const user = await User.findOne({
         where: { user_id: req.user.user_id },
         attributes: [
-          "user_id",
-          "email",
-          "name",
-          "phone_number",
-          "is_active",
-          "oauth_provider",
-          "created_at",
-        ],
+          'user_id',
+          'email',
+          'name',
+          'phone_number',
+          'is_active',
+          'oauth_provider',
+          'created_at'
+        ]
       });
 
       if (!user) {
-        throw new NotFoundError("User not found");
+        throw new NotFoundError('User not found');
       }
 
       return successResponse(res, { user: user.toJSON() });
@@ -255,7 +244,7 @@ class AuthController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        throw new ValidationError("Invalid request data", errors.mapped());
+        throw new ValidationError('Invalid request data', errors.mapped());
       }
 
       const updates = {};
@@ -263,19 +252,15 @@ class AuthController {
       if (req.body.phone_number) updates.phone_number = req.body.phone_number;
 
       await User.update(updates, {
-        where: { user_id: req.user.user_id },
+        where: { user_id: req.user.user_id }
       });
 
       const user = await User.findOne({
         where: { user_id: req.user.user_id },
-        attributes: ["user_id", "email", "name", "phone_number"],
+        attributes: ['user_id', 'email', 'name', 'phone_number']
       });
 
-      return successResponse(
-        res,
-        { user: user.toJSON() },
-        "Profile updated successfully",
-      );
+      return successResponse(res, { user: user.toJSON() }, 'Profile updated successfully');
     } catch (error) {
       next(error);
     }
@@ -284,14 +269,14 @@ class AuthController {
   static async logout(req, res, next) {
     try {
       const { refresh_token } = req.body;
-      
+
       if (!refresh_token) {
-        throw new ValidationError("Refresh token is required");
+        throw new ValidationError('Refresh token is required');
       }
 
       await Session.destroy({ where: { refresh_token } });
 
-      return successResponse(res, null, "Logged out successfully");
+      return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
       next(error);
     }
@@ -302,7 +287,7 @@ class AuthController {
       const { refresh_token } = req.body;
 
       if (!refresh_token) {
-        throw new ValidationError("Refresh token is required");
+        throw new ValidationError('Refresh token is required');
       }
 
       // Verify refresh token
@@ -311,21 +296,17 @@ class AuthController {
       // Check if session exists
       const session = await Session.findOne({ where: { refresh_token } });
       if (!session) {
-        throw new UnauthorizedError("Invalid refresh token");
+        throw new UnauthorizedError('Invalid refresh token');
       }
 
       // Generate new tokens
       const newToken = jwt.sign({ userId: decoded.userId }, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn,
+        expiresIn: config.jwt.expiresIn
       });
 
-      const newRefreshToken = jwt.sign(
-        { userId: decoded.userId },
-        config.jwt.refreshSecret,
-        {
-          expiresIn: config.jwt.refreshExpiresIn,
-        },
-      );
+      const newRefreshToken = jwt.sign({ userId: decoded.userId }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
 
       // Invalidate old session and create new one
       await Session.destroy({ where: { refresh_token } });
@@ -333,7 +314,7 @@ class AuthController {
       await Session.create({
         user_id: decoded.userId,
         refresh_token: newRefreshToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       return successResponse(
@@ -341,16 +322,13 @@ class AuthController {
         {
           access_token: newToken,
           refresh_token: newRefreshToken,
-          expires_in: 86400,
+          expires_in: 86400
         },
-        "Token refreshed successfully",
+        'Token refreshed successfully'
       );
     } catch (error) {
-      if (
-        error.name === "JsonWebTokenError" ||
-        error.name === "TokenExpiredError"
-      ) {
-        return next(new UnauthorizedError("Invalid or expired refresh token"));
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        return next(new UnauthorizedError('Invalid or expired refresh token'));
       }
       next(error);
     }
@@ -369,10 +347,10 @@ class AuthController {
             type,
             verified: false,
             expires_at: {
-              [Op.gt]: new Date(),
-            },
-          },
-        },
+              [Op.gt]: new Date()
+            }
+          }
+        }
       );
 
       // Generate 6-digit OTP
@@ -386,26 +364,26 @@ class AuthController {
         email,
         otp_code: otpCode,
         type,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       // Send OTP via email
       try {
         await emailService.sendOTP(email, otpCode, type);
       } catch (emailError) {
-        console.error("Email service error:", emailError);
+        console.error('Email service error:', emailError);
         // Continue even if email fails in development
-        if (config.nodeEnv !== "development") {
+        if (config.nodeEnv !== 'development') {
           throw emailError;
         }
       }
 
       return successResponse(res, {
         otp_id: otp.otp_id,
-        message: "OTP sent successfully. Please check your email.",
+        message: 'OTP sent successfully. Please check your email.',
         expires_in: 600, // 10 minutes in seconds
         // For testing purposes only - remove in production
-        otp_code: process.env.NODE_ENV === "development" ? otpCode : undefined,
+        otp_code: process.env.NODE_ENV === 'development' ? otpCode : undefined
       });
     } catch (error) {
       next(error);
@@ -423,13 +401,13 @@ class AuthController {
           type,
           verified: false,
           expires_at: {
-            [Op.gt]: new Date(),
-          },
-        },
+            [Op.gt]: new Date()
+          }
+        }
       });
 
       if (!otp) {
-        throw new UnauthorizedError("Invalid or expired OTP");
+        throw new UnauthorizedError('Invalid or expired OTP');
       }
 
       // Mark OTP as used
@@ -438,39 +416,32 @@ class AuthController {
       // Find the user
       const user = await User.findOne({ where: { email } });
       if (!user) {
-        throw new NotFoundError("User not found");
+        throw new NotFoundError('User not found');
       }
 
       // Handle different OTP types
-      if (type === "registration") {
+      if (type === 'registration') {
         // Mark email as verified
         await user.update({ email_verified: true });
 
         // Send welcome notification
-        await NotificationService.notifyWelcome(
-          user.user_id,
-          user.name || "New User",
-        );
+        await NotificationService.notifyWelcome(user.user_id, user.name || 'New User');
 
         // Generate tokens
         const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
-          expiresIn: config.jwt.expiresIn,
+          expiresIn: config.jwt.expiresIn
         });
 
-        const refreshToken = jwt.sign(
-          { userId: user.user_id },
-          config.jwt.refreshSecret,
-          {
-            expiresIn: config.jwt.refreshExpiresIn,
-          },
-        );
+        const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+          expiresIn: config.jwt.refreshExpiresIn
+        });
 
         // Create session
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
         await Session.create({
           user_id: user.user_id,
           refresh_token: refreshToken,
-          expires_at: expiresAt,
+          expires_at: expiresAt
         });
 
         return successResponse(res, {
@@ -480,40 +451,40 @@ class AuthController {
             email: user.email,
             name: user.name,
             phone_number: user.phone_number,
-            email_verified: true,
+            email_verified: true
           },
           tokens: {
             access_token: token,
             refresh_token: refreshToken,
-            expires_in: 86400,
+            expires_in: 86400
           },
-          message: "Email verified successfully. Welcome to Voclio!",
+          message: 'Email verified successfully. Welcome to Voclio!'
         });
       }
 
       // If this was a password reset OTP, generate a reset token
-      if (type === "password_reset") {
+      if (type === 'password_reset') {
         const reset_token = jwt.sign(
           {
             userId: user.user_id,
-            purpose: "password_reset",
-            otpId: otp.otp_id,
+            purpose: 'password_reset',
+            otpId: otp.otp_id
           },
           config.jwt.secret,
-          { expiresIn: "1h" },
+          { expiresIn: '1h' }
         );
 
         return successResponse(res, {
           verified: true,
           reset_token,
-          message: "OTP verified successfully",
+          message: 'OTP verified successfully'
         });
       }
 
       // For other OTP types (login, email_verification, etc.)
       return successResponse(res, {
         verified: true,
-        message: "OTP verified successfully",
+        message: 'OTP verified successfully'
       });
     } catch (error) {
       next(error);
@@ -533,10 +504,10 @@ class AuthController {
             type,
             verified: false,
             expires_at: {
-              [Op.gt]: new Date(),
-            },
-          },
-        },
+              [Op.gt]: new Date()
+            }
+          }
+        }
       );
 
       // Generate new OTP
@@ -549,25 +520,24 @@ class AuthController {
         email,
         otp_code: otpCode,
         type,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       // Send OTP via email
       try {
         await emailService.sendOTP(email, otpCode, type);
       } catch (emailError) {
-        console.error("Email service error:", emailError);
-        if (config.nodeEnv !== "development") {
+        console.error('Email service error:', emailError);
+        if (config.nodeEnv !== 'development') {
           throw emailError;
         }
       }
 
       return successResponse(res, {
         otp_id: otp.otp_id,
-        message:
-          "New OTP sent successfully. Previous codes have been invalidated.",
+        message: 'New OTP sent successfully. Previous codes have been invalidated.',
         expires_in: 600, // 10 minutes in seconds
-        otp_code: process.env.NODE_ENV === "development" ? otpCode : undefined,
+        otp_code: process.env.NODE_ENV === 'development' ? otpCode : undefined
       });
     } catch (error) {
       next(error);
@@ -581,11 +551,7 @@ class AuthController {
       const user = await User.findOne({ where: { email } });
       if (!user) {
         // Don't reveal if email exists
-        return successResponse(
-          res,
-          null,
-          "If the email exists, a verification code has been sent",
-        );
+        return successResponse(res, null, 'If the email exists, a verification code has been sent');
       }
 
       // Invalidate any existing unverified password reset OTPs
@@ -594,13 +560,13 @@ class AuthController {
         {
           where: {
             email,
-            type: "password_reset",
+            type: 'password_reset',
             verified: false,
             expires_at: {
-              [Op.gt]: new Date(),
-            },
-          },
-        },
+              [Op.gt]: new Date()
+            }
+          }
+        }
       );
 
       // Generate 6-digit OTP instead of link
@@ -612,23 +578,23 @@ class AuthController {
         otp_id: otpId,
         email,
         otp_code: otpCode,
-        type: "password_reset",
-        expires_at: expiresAt,
+        type: 'password_reset',
+        expires_at: expiresAt
       });
 
       // Send OTP via email
       try {
-        await emailService.sendOTP(email, otpCode, "password_reset");
+        await emailService.sendOTP(email, otpCode, 'password_reset');
       } catch (emailError) {
-        console.error("Email service error:", emailError);
-        if (config.nodeEnv !== "development") {
+        console.error('Email service error:', emailError);
+        if (config.nodeEnv !== 'development') {
           throw emailError;
         }
         // In development, log the code
         console.log(`Reset code for ${email}: ${otpCode}`);
       }
 
-      return successResponse(res, null, "Verification code sent to your email");
+      return successResponse(res, null, 'Verification code sent to your email');
     } catch (error) {
       next(error);
     }
@@ -640,7 +606,7 @@ class AuthController {
       const { id_token } = req.body;
 
       if (!id_token) {
-        throw new ValidationError("Google ID token is required");
+        throw new ValidationError('Google ID token is required');
       }
 
       // Verify Google token
@@ -654,9 +620,9 @@ class AuthController {
         user = await User.create({
           email: googleUser.email,
           name: googleUser.name,
-          oauth_provider: "google",
+          oauth_provider: 'google',
           oauth_id: googleUser.oauth_id,
-          email_verified: googleUser.email_verified,
+          email_verified: googleUser.email_verified
         });
 
         // Create default settings
@@ -664,31 +630,27 @@ class AuthController {
       } else if (!user.oauth_provider) {
         // Link existing account with Google
         await user.update({
-          oauth_provider: "google",
+          oauth_provider: 'google',
           oauth_id: googleUser.oauth_id,
-          email_verified: true,
+          email_verified: true
         });
       }
 
       // Generate tokens
       const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn,
+        expiresIn: config.jwt.expiresIn
       });
 
-      const refreshToken = jwt.sign(
-        { userId: user.user_id },
-        config.jwt.refreshSecret,
-        {
-          expiresIn: config.jwt.refreshExpiresIn,
-        },
-      );
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
 
       // Create session
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await Session.create({
         user_id: user.user_id,
         refresh_token: refreshToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       return successResponse(
@@ -698,19 +660,19 @@ class AuthController {
             user_id: user.user_id,
             email: user.email,
             name: user.name,
-            oauth_provider: user.oauth_provider,
+            oauth_provider: user.oauth_provider
           },
           tokens: {
             access_token: token,
             refresh_token: refreshToken,
-            expires_in: 86400,
-          },
+            expires_in: 86400
+          }
         },
-        "Google login successful",
+        'Google login successful'
       );
     } catch (error) {
-      if (error.message === "Invalid Google token") {
-        next(new UnauthorizedError("Invalid Google token"));
+      if (error.message === 'Invalid Google token') {
+        next(new UnauthorizedError('Invalid Google token'));
       } else {
         next(error);
       }
@@ -723,7 +685,7 @@ class AuthController {
       const { access_token } = req.body;
 
       if (!access_token) {
-        throw new ValidationError("Facebook access token is required");
+        throw new ValidationError('Facebook access token is required');
       }
 
       // Verify Facebook token
@@ -737,9 +699,9 @@ class AuthController {
         user = await User.create({
           email: facebookUser.email,
           name: facebookUser.name,
-          oauth_provider: "facebook",
+          oauth_provider: 'facebook',
           oauth_id: facebookUser.oauth_id,
-          email_verified: facebookUser.email_verified,
+          email_verified: facebookUser.email_verified
         });
 
         // Create default settings
@@ -747,31 +709,27 @@ class AuthController {
       } else if (!user.oauth_provider) {
         // Link existing account with Facebook
         await user.update({
-          oauth_provider: "facebook",
+          oauth_provider: 'facebook',
           oauth_id: facebookUser.oauth_id,
-          email_verified: true,
+          email_verified: true
         });
       }
 
       // Generate tokens
       const token = jwt.sign({ userId: user.user_id }, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn,
+        expiresIn: config.jwt.expiresIn
       });
 
-      const refreshToken = jwt.sign(
-        { userId: user.user_id },
-        config.jwt.refreshSecret,
-        {
-          expiresIn: config.jwt.refreshExpiresIn,
-        },
-      );
+      const refreshToken = jwt.sign({ userId: user.user_id }, config.jwt.refreshSecret, {
+        expiresIn: config.jwt.refreshExpiresIn
+      });
 
       // Create session
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await Session.create({
         user_id: user.user_id,
         refresh_token: refreshToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt
       });
 
       return successResponse(
@@ -781,20 +739,20 @@ class AuthController {
             user_id: user.user_id,
             email: user.email,
             name: user.name,
-            oauth_provider: user.oauth_provider,
+            oauth_provider: user.oauth_provider
           },
           tokens: {
             access_token: token,
             refresh_token: refreshToken,
-            expires_in: 86400,
-          },
+            expires_in: 86400
+          }
         },
-        "Facebook login successful",
+        'Facebook login successful'
       );
     } catch (error) {
       if (
-        error.message === "Invalid Facebook token" ||
-        error.message === "Email permission required"
+        error.message === 'Invalid Facebook token' ||
+        error.message === 'Email permission required'
       ) {
         next(new UnauthorizedError(error.message));
       } else {
@@ -808,25 +766,20 @@ class AuthController {
       const { current_password, new_password } = req.body;
 
       if (!current_password || !new_password) {
-        throw new ValidationError(
-          "Current password and new password are required",
-        );
+        throw new ValidationError('Current password and new password are required');
       }
 
       // Get user with password
       const user = await User.findOne({ where: { user_id: req.user.user_id } });
 
       if (!user || !user.password) {
-        throw new ValidationError("Cannot change password for OAuth accounts");
+        throw new ValidationError('Cannot change password for OAuth accounts');
       }
 
       // Verify current password
-      const isValidPassword = await bcrypt.compare(
-        current_password,
-        user.password,
-      );
+      const isValidPassword = await bcrypt.compare(current_password, user.password);
       if (!isValidPassword) {
-        throw new UnauthorizedError("Current password is incorrect");
+        throw new UnauthorizedError('Current password is incorrect');
       }
 
       // Hash new password
@@ -835,7 +788,7 @@ class AuthController {
       // Update password
       await user.update({ password: hashedPassword });
 
-      return successResponse(res, null, "Password changed successfully");
+      return successResponse(res, null, 'Password changed successfully');
     } catch (error) {
       next(error);
     }
@@ -846,7 +799,7 @@ class AuthController {
       const { token, new_password } = req.body;
 
       if (!token || !new_password) {
-        throw new ValidationError("Reset token and new password are required");
+        throw new ValidationError('Reset token and new password are required');
       }
 
       // Verify token
@@ -855,8 +808,8 @@ class AuthController {
         decoded = jwt.verify(token, config.jwt.secret);
 
         // Verify token purpose
-        if (decoded.purpose !== "password_reset") {
-          throw new UnauthorizedError("Invalid reset token");
+        if (decoded.purpose !== 'password_reset') {
+          throw new UnauthorizedError('Invalid reset token');
         }
 
         // --- SINGLE USE CHECK ---
@@ -864,20 +817,18 @@ class AuthController {
         if (decoded.otpId) {
           const otp = await OTP.findByPk(decoded.otpId);
           if (!otp) {
-            throw new UnauthorizedError(
-              "This reset token has already been used or expired",
-            );
+            throw new UnauthorizedError('This reset token has already been used or expired');
           }
         }
       } catch (err) {
         if (err instanceof UnauthorizedError) throw err;
-        throw new UnauthorizedError("Invalid or expired reset token");
+        throw new UnauthorizedError('Invalid or expired reset token');
       }
 
       // Verify user exists
       const user = await User.findOne({ where: { user_id: decoded.userId } });
       if (!user) {
-        throw new NotFoundError("User not found");
+        throw new NotFoundError('User not found');
       }
 
       // Hash new password
@@ -898,7 +849,7 @@ class AuthController {
       return successResponse(
         res,
         null,
-        "Password reset successfully. Please login with your new password.",
+        'Password reset successfully. Please login with your new password.'
       );
     } catch (error) {
       next(error);

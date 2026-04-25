@@ -16,6 +16,10 @@ router.put('/theme', SettingsController.updateTheme);
 router.put('/language', SettingsController.updateLanguage);
 router.put('/timezone', SettingsController.updateTimezone);
 router.get('/notifications', SettingsController.getNotificationSettings);
-router.put('/notifications', updateNotificationSettingsValidator, SettingsController.updateNotificationSettings);
+router.put(
+  '/notifications',
+  updateNotificationSettingsValidator,
+  SettingsController.updateNotificationSettings
+);
 
 export default router;

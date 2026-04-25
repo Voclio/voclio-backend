@@ -12,7 +12,7 @@ class CacheService {
   initialize() {
     this.redis = redisClient.getClient();
     this.isEnabled = this.redis !== null && redisClient.isEnabled;
-    
+
     if (this.isEnabled) {
       logger.info('✅ Cache service initialized');
     } else {
@@ -32,17 +32,17 @@ class CacheService {
    */
   async set(key, value, ttl = this.defaultTTL) {
     if (!this.isEnabled) return false;
-    
+
     try {
       const cacheKey = this.getKey(key);
       const serialized = JSON.stringify(value);
-      
+
       if (ttl) {
         await this.redis.setex(cacheKey, ttl, serialized);
       } else {
         await this.redis.set(cacheKey, serialized);
       }
-      
+
       logger.debug(`Cache set: ${key}`);
       return true;
     } catch (error) {
@@ -56,16 +56,16 @@ class CacheService {
    */
   async get(key) {
     if (!this.isEnabled) return null;
-    
+
     try {
       const cacheKey = this.getKey(key);
       const cached = await this.redis.get(cacheKey);
-      
+
       if (!cached) {
         logger.debug(`Cache miss: ${key}`);
         return null;
       }
-      
+
       logger.debug(`Cache hit: ${key}`);
       return JSON.parse(cached);
     } catch (error) {
@@ -79,7 +79,7 @@ class CacheService {
    */
   async del(key) {
     if (!this.isEnabled) return false;
-    
+
     try {
       const cacheKey = this.getKey(key);
       await this.redis.del(cacheKey);
@@ -96,16 +96,16 @@ class CacheService {
    */
   async delPattern(pattern) {
     if (!this.isEnabled) return 0;
-    
+
     try {
       const cachePattern = this.getKey(pattern);
       const keys = await this.redis.keys(cachePattern);
-      
+
       if (keys.length > 0) {
         await this.redis.del(...keys);
         logger.debug(`Cache deleted pattern: ${pattern} (${keys.length} keys)`);
       }
-      
+
       return keys.length;
     } catch (error) {
       logger.error('Cache delete pattern error:', error);
@@ -118,7 +118,7 @@ class CacheService {
    */
   async exists(key) {
     if (!this.isEnabled) return false;
-    
+
     try {
       const cacheKey = this.getKey(key);
       const exists = await this.redis.exists(cacheKey);
@@ -144,12 +144,12 @@ class CacheService {
 
       // Fetch fresh data
       const freshData = await fetchFunction();
-      
+
       // Store in cache if enabled
       if (this.isEnabled) {
         await this.set(key, freshData, ttl);
       }
-      
+
       return freshData;
     } catch (error) {
       logger.error('Cache getOrSet error:', error);
@@ -163,7 +163,7 @@ class CacheService {
    */
   async incr(key, amount = 1) {
     if (!this.isEnabled) return null;
-    
+
     try {
       const cacheKey = this.getKey(key);
       return await this.redis.incrby(cacheKey, amount);
@@ -178,7 +178,7 @@ class CacheService {
    */
   async expire(key, ttl) {
     if (!this.isEnabled) return false;
-    
+
     try {
       const cacheKey = this.getKey(key);
       await this.redis.expire(cacheKey, ttl);
@@ -194,7 +194,7 @@ class CacheService {
    */
   async ttl(key) {
     if (!this.isEnabled) return -1;
-    
+
     try {
       const cacheKey = this.getKey(key);
       return await this.redis.ttl(cacheKey);
@@ -279,7 +279,7 @@ class CacheService {
    */
   async flushAll() {
     if (!this.isEnabled) return false;
-    
+
     try {
       await this.redis.flushdb();
       logger.warn('⚠️ All cache flushed');
@@ -300,11 +300,11 @@ class CacheService {
         message: 'Cache is disabled'
       };
     }
-    
+
     try {
       const info = await this.redis.info('stats');
       const dbSize = await this.redis.dbsize();
-      
+
       return {
         enabled: true,
         dbSize,

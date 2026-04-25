@@ -18,9 +18,9 @@ class ProductivityModel {
     const session = await FocusSession.findOne({
       where: { session_id: sessionId, user_id: userId }
     });
-    
+
     if (!session) return null;
-    
+
     await session.update(updates);
     return session.toJSON();
   }
@@ -29,9 +29,9 @@ class ProductivityModel {
     const session = await FocusSession.findOne({
       where: { session_id: sessionId, user_id: userId }
     });
-    
+
     if (!session) return null;
-    
+
     await session.update({
       status: 'completed',
       ended_at: new Date()
@@ -63,7 +63,7 @@ class ProductivityModel {
       limit,
       offset
     });
-    
+
     return sessions.map(s => s.toJSON());
   }
 
@@ -77,7 +77,7 @@ class ProductivityModel {
 
   static async updateStreak(userId) {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const [streak, created] = await ProductivityStreak.findOrCreate({
       where: { user_id: userId, streak_date: today },
       defaults: {
@@ -127,7 +127,13 @@ class ProductivityModel {
         }
       },
       attributes: [
-        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.fn('DATE', sequelize.col('started_at')))), 'focus_days'],
+        [
+          sequelize.fn(
+            'COUNT',
+            sequelize.fn('DISTINCT', sequelize.fn('DATE', sequelize.col('started_at')))
+          ),
+          'focus_days'
+        ],
         [sequelize.fn('SUM', sequelize.col('elapsed_time')), 'total_focus_minutes'],
         [sequelize.fn('COUNT', sequelize.col('session_id')), 'total_sessions'],
         [sequelize.fn('AVG', sequelize.col('elapsed_time')), 'avg_session_minutes']

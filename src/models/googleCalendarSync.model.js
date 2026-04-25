@@ -6,8 +6,10 @@ import encryptionService from '../services/encryption.service.js';
  */
 function encryptRecord(data) {
   const out = { ...data };
-  if (out.google_access_token)  out.google_access_token  = encryptionService.encryptField(out.google_access_token);
-  if (out.google_refresh_token) out.google_refresh_token = encryptionService.encryptField(out.google_refresh_token);
+  if (out.google_access_token)
+    out.google_access_token = encryptionService.encryptField(out.google_access_token);
+  if (out.google_refresh_token)
+    out.google_refresh_token = encryptionService.encryptField(out.google_refresh_token);
   return out;
 }
 
@@ -18,7 +20,7 @@ function decryptRecord(record) {
   if (!record) return null;
   return {
     ...record,
-    google_access_token:  encryptionService.decryptField(record.google_access_token),
+    google_access_token: encryptionService.decryptField(record.google_access_token),
     google_refresh_token: encryptionService.decryptField(record.google_refresh_token)
   };
 }

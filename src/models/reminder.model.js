@@ -22,7 +22,7 @@ class ReminderModel {
       limit,
       offset
     });
-    
+
     return reminders.map(r => r.toJSON());
   }
 
@@ -43,7 +43,7 @@ class ReminderModel {
       order: [['reminder_time', 'ASC']],
       limit: 10
     });
-    
+
     return reminders.map(r => r.toJSON());
   }
 
@@ -51,9 +51,9 @@ class ReminderModel {
     const reminder = await Reminder.findOne({
       where: { reminder_id: reminderId, user_id: userId }
     });
-    
+
     if (!reminder) return null;
-    
+
     await reminder.update(updates);
     return reminder.toJSON();
   }
@@ -62,9 +62,9 @@ class ReminderModel {
     const reminder = await Reminder.findOne({
       where: { reminder_id: reminderId, user_id: userId }
     });
-    
+
     if (!reminder) return null;
-    
+
     const newTime = new Date(reminder.reminder_time.getTime() + snoozeMinutes * 60000);
     await reminder.update({ reminder_time: newTime });
     return reminder.toJSON();
@@ -74,9 +74,9 @@ class ReminderModel {
     const reminder = await Reminder.findOne({
       where: { reminder_id: reminderId, user_id: userId }
     });
-    
+
     if (!reminder) return null;
-    
+
     await reminder.update({ is_dismissed: true });
     return reminder.toJSON();
   }
@@ -85,9 +85,9 @@ class ReminderModel {
     const reminder = await Reminder.findOne({
       where: { reminder_id: reminderId, user_id: userId }
     });
-    
+
     if (!reminder) return null;
-    
+
     const reminderData = reminder.toJSON();
     await reminder.destroy();
     return reminderData;

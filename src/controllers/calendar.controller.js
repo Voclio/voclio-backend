@@ -42,7 +42,11 @@ class CalendarController {
               expiry_date: googleSync.google_token_expiry
             };
 
-            googleEvents = await GoogleCalendarService.getEventsInRange(tokens, start_date, end_date);
+            googleEvents = await GoogleCalendarService.getEventsInRange(
+              tokens,
+              start_date,
+              end_date
+            );
           }
         } catch (error) {
           console.error('Error fetching Google Calendar events:', error);
@@ -57,32 +61,36 @@ class CalendarController {
           const webexSync = await WebexSync.findOne({
             where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
           });
-          
+
           if (webexSync) {
             const webexService = new WebexCalendarService();
             let accessToken = webexSync.accessToken;
-            
+
             // Check if token is expired and refresh if needed
             if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
               try {
                 const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
                 const newExpiresAt = new Date();
                 newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-                
+
                 await webexSync.update({
                   accessToken: newTokens.access_token,
                   refreshToken: newTokens.refresh_token || webexSync.refreshToken,
                   expiresIn: newTokens.expires_in,
                   expiresAt: newExpiresAt
                 });
-                
+
                 accessToken = newTokens.access_token;
               } catch (refreshError) {
                 console.error('Error refreshing Webex token:', refreshError);
               }
             }
 
-            webexMeetings = await webexService.getMeetingsInRange(accessToken, start_date, end_date);
+            webexMeetings = await webexService.getMeetingsInRange(
+              accessToken,
+              start_date,
+              end_date
+            );
             await webexSync.update({ lastSyncAt: new Date() });
           }
         } catch (error) {
@@ -160,7 +168,6 @@ class CalendarController {
         google_sync_enabled: googleEvents.length > 0,
         webex_sync_enabled: webexMeetings.length > 0
       });
-
     } catch (error) {
       next(error);
     }
@@ -205,7 +212,7 @@ class CalendarController {
 
       // Group events by day
       const eventsByDay = {};
-      
+
       monthTasks.forEach(task => {
         const day = new Date(task.due_date).getDate();
         if (!eventsByDay[day]) {
@@ -245,7 +252,6 @@ class CalendarController {
         tasks_count: monthTasks.length,
         reminders_count: monthReminders.length
       });
-
     } catch (error) {
       next(error);
     }
@@ -291,7 +297,11 @@ class CalendarController {
               expiry_date: googleSync.google_token_expiry
             };
 
-            googleEvents = await GoogleCalendarService.getEventsInRange(tokens, startOfDay, endOfDay);
+            googleEvents = await GoogleCalendarService.getEventsInRange(
+              tokens,
+              startOfDay,
+              endOfDay
+            );
           }
         } catch (error) {
           console.error('Error fetching Google Calendar events for day:', error);
@@ -306,7 +316,6 @@ class CalendarController {
         total_events: dayTasks.length + dayReminders.length + googleEvents.length,
         google_events_count: googleEvents.length
       });
-
     } catch (error) {
       next(error);
     }
@@ -321,7 +330,6 @@ class CalendarController {
         auth_url: authUrl,
         message: 'Visit the auth_url to authorize Google Calendar access'
       });
-
     } catch (error) {
       next(error);
     }
@@ -338,7 +346,6 @@ class CalendarController {
         custom_scheme,
         message: 'Use this URL for mobile OAuth flow'
       });
-
     } catch (error) {
       next(error);
     }
@@ -357,7 +364,7 @@ class CalendarController {
 
       // Save or update sync configuration
       const existingSync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);
-      
+
       if (existingSync) {
         await GoogleCalendarSyncModel.updateTokens(req.user.user_id, tokens);
       } else {
@@ -377,10 +384,11 @@ class CalendarController {
         sync_enabled: true,
         tokens: {
           access_token: tokens.access_token,
-          expires_in: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : null
+          expires_in: tokens.expiry_date
+            ? Math.floor((tokens.expiry_date - Date.now()) / 1000)
+            : null
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -405,7 +413,6 @@ class CalendarController {
         events_count: events.length,
         events: events.slice(0, 3) // First 3 events only
       });
-
     } catch (error) {
       next(error);
     }
@@ -437,7 +444,7 @@ class CalendarController {
 
       // Save or update sync configuration
       const existingSync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);
-      
+
       if (existingSync) {
         await GoogleCalendarSyncModel.updateTokens(req.user.user_id, tokens);
       } else {
@@ -460,10 +467,11 @@ class CalendarController {
         sync_enabled: true,
         tokens: {
           access_token: tokens.access_token,
-          expires_in: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : null
+          expires_in: tokens.expiry_date
+            ? Math.floor((tokens.expiry_date - Date.now()) / 1000)
+            : null
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -490,13 +498,13 @@ class CalendarController {
 
       // Store tokens temporarily with a session ID
       const sessionId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-      
+
       // In production, use Redis or database. For now, use memory (will be lost on restart)
       global.oauthSessions = global.oauthSessions || {};
       global.oauthSessions[sessionId] = {
         tokens,
         timestamp: Date.now(),
-        expires: Date.now() + (10 * 60 * 1000) // 10 minutes
+        expires: Date.now() + 10 * 60 * 1000 // 10 minutes
       };
 
       // Return success page with session ID
@@ -544,7 +552,6 @@ class CalendarController {
           </body>
         </html>
       `);
-
     } catch (error) {
       console.error('Google OAuth callback error:', error);
       return res.status(500).send(`
@@ -571,7 +578,6 @@ class CalendarController {
       return successResponse(res, {
         message: 'Google Calendar disconnected successfully'
       });
-
     } catch (error) {
       next(error);
     }
@@ -589,7 +595,6 @@ class CalendarController {
         last_sync_at: sync?.last_sync_at || null,
         error_message: sync?.error_message || null
       });
-
     } catch (error) {
       next(error);
     }
@@ -604,7 +609,7 @@ class CalendarController {
       }
 
       const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-      
+
       if (!googleSync) {
         throw new NotFoundError('Google Calendar not connected');
       }
@@ -622,7 +627,6 @@ class CalendarController {
         count: events.length,
         period: { start_date, end_date }
       });
-
     } catch (error) {
       next(error);
     }
@@ -631,7 +635,7 @@ class CalendarController {
   static async getTodayMeetings(req, res, next) {
     try {
       const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-      
+
       if (!googleSync) {
         return successResponse(res, {
           meetings: [],
@@ -653,7 +657,6 @@ class CalendarController {
         count: meetings.length,
         date: new Date().toISOString().split('T')[0]
       });
-
     } catch (error) {
       next(error);
     }
@@ -669,7 +672,7 @@ class CalendarController {
       if (include_google === 'true') {
         try {
           const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-          
+
           if (googleSync) {
             const tokens = {
               access_token: googleSync.google_access_token,
@@ -677,12 +680,17 @@ class CalendarController {
               expiry_date: googleSync.google_token_expiry
             };
 
-            const googleMeetings = await GoogleCalendarService.getUpcomingEvents(tokens, parseInt(days));
-            allMeetings.push(...googleMeetings.map(meeting => ({
-              ...meeting,
-              source: 'google_calendar',
-              platform: 'Google Calendar'
-            })));
+            const googleMeetings = await GoogleCalendarService.getUpcomingEvents(
+              tokens,
+              parseInt(days)
+            );
+            allMeetings.push(
+              ...googleMeetings.map(meeting => ({
+                ...meeting,
+                source: 'google_calendar',
+                platform: 'Google Calendar'
+              }))
+            );
           }
         } catch (error) {
           console.error('Error fetching Google Calendar meetings:', error);
@@ -695,38 +703,43 @@ class CalendarController {
           const webexSync = await WebexSync.findOne({
             where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
           });
-          
+
           if (webexSync) {
             const webexService = new WebexCalendarService();
             let accessToken = webexSync.accessToken;
-            
+
             // Check if token is expired and refresh if needed
             if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
               try {
                 const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
                 const newExpiresAt = new Date();
                 newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-                
+
                 await webexSync.update({
                   accessToken: newTokens.access_token,
                   refreshToken: newTokens.refresh_token || webexSync.refreshToken,
                   expiresIn: newTokens.expires_in,
                   expiresAt: newExpiresAt
                 });
-                
+
                 accessToken = newTokens.access_token;
               } catch (refreshError) {
                 console.error('Error refreshing Webex token:', refreshError);
               }
             }
 
-            const webexMeetings = await webexService.getUpcomingMeetings(accessToken, parseInt(days));
-            allMeetings.push(...webexMeetings.map(meeting => ({
-              ...meeting,
-              source: 'webex',
-              platform: 'Webex'
-            })));
-            
+            const webexMeetings = await webexService.getUpcomingMeetings(
+              accessToken,
+              parseInt(days)
+            );
+            allMeetings.push(
+              ...webexMeetings.map(meeting => ({
+                ...meeting,
+                source: 'webex',
+                platform: 'Webex'
+              }))
+            );
+
             await webexSync.update({ lastSyncAt: new Date() });
           }
         } catch (error) {
@@ -744,7 +757,6 @@ class CalendarController {
         google_meetings_count: allMeetings.filter(m => m.source === 'google_calendar').length,
         webex_meetings_count: allMeetings.filter(m => m.source === 'webex').length
       });
-
     } catch (error) {
       next(error);
     }

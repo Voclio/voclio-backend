@@ -1,4 +1,4 @@
-import config from "../config/index.js";
+import config from '../config/index.js';
 
 class AIService {
   constructor() {
@@ -6,11 +6,7 @@ class AIService {
     this.geminiKey = process.env.GEMINI_API_KEY;
     this.assemblyAIKey = process.env.ASSEMBLYAI_API_KEY;
     // Prefer OpenRouter (User requested)
-    this.provider = this.openRouterKey
-      ? "openrouter"
-      : this.geminiKey
-        ? "gemini"
-        : "assemblyai";
+    this.provider = this.openRouterKey ? 'openrouter' : this.geminiKey ? 'gemini' : 'assemblyai';
   }
 
   /**
@@ -18,13 +14,13 @@ class AIService {
    */
   async summarizeText(text) {
     try {
-      if (this.provider === "openrouter") {
+      if (this.provider === 'openrouter') {
         return await this.summarizeWithOpenRouter(text);
       } else {
         return await this.summarizeWithGemini(text);
       }
     } catch (error) {
-      console.error("Error summarizing text:", error);
+      console.error('Error summarizing text:', error);
       throw error;
     }
   }
@@ -35,20 +31,17 @@ class AIService {
   async extractTasks(input) {
     try {
       // Handle both text string and object input
-      const text =
-        typeof input === "string"
-          ? input
-          : input.transcription_text || input.text || "";
+      const text = typeof input === 'string' ? input : input.transcription_text || input.text || '';
 
-      if (this.provider === "assemblyai") {
+      if (this.provider === 'assemblyai') {
         return await this.extractTasksWithAssemblyAI(input);
-      } else if (this.provider === "openrouter") {
+      } else if (this.provider === 'openrouter') {
         return await this.extractTasksWithOpenRouter(text);
       } else {
         return await this.extractTasksWithGemini(text);
       }
     } catch (error) {
-      console.error("Error extracting tasks:", error);
+      console.error('Error extracting tasks:', error);
       throw error;
     }
   }
@@ -59,20 +52,17 @@ class AIService {
   async extractTasksAndNotes(input) {
     try {
       // Handle both text string and object input
-      const text =
-        typeof input === "string"
-          ? input
-          : input.transcription_text || input.text || "";
+      const text = typeof input === 'string' ? input : input.transcription_text || input.text || '';
 
-      if (this.provider === "assemblyai") {
+      if (this.provider === 'assemblyai') {
         return await this.extractTasksAndNotesWithAssemblyAI(input);
-      } else if (this.provider === "openrouter") {
+      } else if (this.provider === 'openrouter') {
         return await this.extractTasksAndNotesWithOpenRouter(text);
       } else {
         return await this.extractTasksAndNotesWithGemini(text);
       }
     } catch (error) {
-      console.error("Error extracting tasks and notes:", error);
+      console.error('Error extracting tasks and notes:', error);
       throw error;
     }
   }
@@ -82,13 +72,13 @@ class AIService {
    */
   async generateProductivitySuggestions(userData, options = {}) {
     try {
-      if (this.provider === "openrouter") {
+      if (this.provider === 'openrouter') {
         return await this.generateSuggestionsWithOpenRouter(userData, options);
       } else {
         return await this.generateSuggestionsWithGemini(userData, options);
       }
     } catch (error) {
-      console.error("Error generating suggestions:", error);
+      console.error('Error generating suggestions:', error);
       throw error;
     }
   }
@@ -96,15 +86,15 @@ class AIService {
   /**
    * Transcribe audio to text using AssemblyAI
    */
-  async transcribeAudio(audioFilePath, language = "ar") {
+  async transcribeAudio(audioFilePath, language = 'ar') {
     try {
       if (!this.assemblyAIKey) {
-        throw new Error("AssemblyAI API key not configured");
+        throw new Error('AssemblyAI API key not configured');
       }
 
       return await this.transcribeWithAssemblyAI(audioFilePath, language);
     } catch (error) {
-      console.error("Error transcribing audio:", error);
+      console.error('Error transcribing audio:', error);
       throw error;
     }
   }
@@ -118,29 +108,26 @@ ${text}
 
 التلخيص:`;
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://voclio.app",
-          "X-Title": "Voclio",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o",
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 500,
-        }),
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://voclio.app',
+        'X-Title': 'Voclio'
       },
-    );
+      body: JSON.stringify({
+        model: 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -152,9 +139,9 @@ ${text}
   }
 
   async extractTasksWithOpenRouter(text) {
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().toLocaleDateString('ar-EG', { weekday: 'long' });
-    
+
     const prompt = `أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية بجميع لهجاتها (مصرية، سعودية، خليجية، شامية، مغربية).
 
 📅 **معلومات التاريخ الحالي:**
@@ -271,33 +258,31 @@ ${text}
 
 🎯 **أرجع JSON array فقط:**`;
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://voclio.app",
-          "X-Title": "Voclio",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية. تفهم جميع اللهجات العربية وتستخرج المهام بدقة عالية. ترجع دائماً JSON صحيح بدون أي نص إضافي."
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 3000,
-        }),
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://voclio.app',
+        'X-Title': 'Voclio'
       },
-    );
+      body: JSON.stringify({
+        model: 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية. تفهم جميع اللهجات العربية وتستخرج المهام بدقة عالية. ترجع دائماً JSON صحيح بدون أي نص إضافي.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 3000
+      })
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -340,7 +325,7 @@ ${text}
   async extractTasksAndNotesWithOpenRouter(text) {
     const currentDate = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().toLocaleDateString('ar-EG', { weekday: 'long' });
-    
+
     const prompt = `أنت مساعد ذكي متخصص في تحليل النصوص العربية واستخراج المهام والملاحظات بدقة عالية.
 
 📅 **معلومات التاريخ الحالي:**
@@ -500,33 +485,31 @@ ${text}
 
 🎯 **أرجع JSON object فقط:**`;
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://voclio.app",
-          "X-Title": "Voclio",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "أنت مساعد ذكي متخصص في تحليل النصوص العربية واستخراج المهام والملاحظات بدقة عالية. تفهم جميع اللهجات العربية وتميز بين المهام القابلة للتنفيذ والملاحظات العامة. ترجع دائماً JSON صحيح بدون أي نص إضافي."
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 3500,
-        }),
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://voclio.app',
+        'X-Title': 'Voclio'
       },
-    );
+      body: JSON.stringify({
+        model: 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'أنت مساعد ذكي متخصص في تحليل النصوص العربية واستخراج المهام والملاحظات بدقة عالية. تفهم جميع اللهجات العربية وتميز بين المهام القابلة للتنفيذ والملاحظات العامة. ترجع دائماً JSON صحيح بدون أي نص إضافي.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 3500
+      })
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -546,26 +529,21 @@ ${text}
   }
 
   async generateSuggestionsWithOpenRouter(userData, options = {}) {
-    const { 
-      focus_area = 'general', 
-      tone = 'professional', 
-      count = 5, 
-      language = 'ar' 
-    } = options;
+    const { focus_area = 'general', tone = 'professional', count = 5, language = 'ar' } = options;
 
     const focusAreaPrompts = {
-      'time_management': 'إدارة الوقت وتنظيم الجدول اليومي',
-      'task_organization': 'تنظيم المهام وترتيب الأولويات',
-      'focus_improvement': 'تحسين التركيز وزيادة الإنتاجية',
-      'stress_reduction': 'تقليل التوتر وتحسين التوازن',
-      'general': 'تحسين الإنتاجية العامة'
+      time_management: 'إدارة الوقت وتنظيم الجدول اليومي',
+      task_organization: 'تنظيم المهام وترتيب الأولويات',
+      focus_improvement: 'تحسين التركيز وزيادة الإنتاجية',
+      stress_reduction: 'تقليل التوتر وتحسين التوازن',
+      general: 'تحسين الإنتاجية العامة'
     };
 
     const toneStyles = {
-      'professional': 'مهني ومباشر',
-      'motivational': 'محفز وإيجابي',
-      'casual': 'ودود وبسيط',
-      'direct': 'مختصر وواضح'
+      professional: 'مهني ومباشر',
+      motivational: 'محفز وإيجابي',
+      casual: 'ودود وبسيط',
+      direct: 'مختصر وواضح'
     };
 
     const prompt = `أنت مستشار إنتاجية خبير متخصص في تحليل أنماط العمل وتقديم اقتراحات شخصية مبنية على البيانات الفعلية.
@@ -626,33 +604,31 @@ ${JSON.stringify(userData, null, 2)}
 
 📄 **ابدأ التحليل والاقتراحات:**`;
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://voclio.app",
-          "X-Title": "Voclio",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: "أنت مستشار إنتاجية خبير متخصص في تحليل البيانات وتقديم اقتراحات مخصصة. تفهم السياق العربي وأنماط العمل المختلفة. ترجع دائماً JSON صحيح بدون أي نص إضافي."
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.3, // Lower for more consistent suggestions
-          max_tokens: 4000,
-        }),
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://voclio.app',
+        'X-Title': 'Voclio'
       },
-    );
+      body: JSON.stringify({
+        model: 'openai/gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'أنت مستشار إنتاجية خبير متخصص في تحليل البيانات وتقديم اقتراحات مخصصة. تفهم السياق العربي وأنماط العمل المختلفة. ترجع دائماً JSON صحيح بدون أي نص إضافي.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3, // Lower for more consistent suggestions
+        max_tokens: 4000
+      })
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -701,39 +677,36 @@ ${JSON.stringify(userData, null, 2)}
     }
   }
 
-  async transcribeWithOpenRouter(audioBuffer, language = "ar") {
+  async transcribeWithOpenRouter(audioBuffer, language = 'ar') {
     // Note: OpenRouter doesn't directly support audio transcription
     // You would need to use Whisper API or Google Cloud Speech-to-Text
     // This is a placeholder for future implementation
     throw new Error(
-      "Audio transcription via OpenRouter is not yet implemented. Please use AssemblyAI.",
+      'Audio transcription via OpenRouter is not yet implemented. Please use AssemblyAI.'
     );
   }
 
   // ============= AssemblyAI Methods =============
 
-  async transcribeWithAssemblyAI(audioFilePath, language = "ar") {
+  async transcribeWithAssemblyAI(audioFilePath, language = 'ar') {
     try {
-      const fs = await import("fs");
-      const path = await import("path");
+      const fs = await import('fs');
+      const path = await import('path');
 
-      console.log("🎤 Starting audio transcription with AssemblyAI...");
+      console.log('🎤 Starting audio transcription with AssemblyAI...');
 
       // Step 1: Upload audio file to AssemblyAI
-      console.log("📤 Uploading audio file...");
+      console.log('📤 Uploading audio file...');
       const audioData = fs.readFileSync(audioFilePath);
 
-      const uploadResponse = await fetch(
-        "https://api.assemblyai.com/v2/upload",
-        {
-          method: "POST",
-          headers: {
-            authorization: this.assemblyAIKey,
-            "Content-Type": "application/octet-stream",
-          },
-          body: audioData,
+      const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: {
+          authorization: this.assemblyAIKey,
+          'Content-Type': 'application/octet-stream'
         },
-      );
+        body: audioData
+      });
 
       if (!uploadResponse.ok) {
         const error = await uploadResponse.text();
@@ -741,30 +714,27 @@ ${JSON.stringify(userData, null, 2)}
       }
 
       const { upload_url } = await uploadResponse.json();
-      console.log("✅ Audio file uploaded successfully");
+      console.log('✅ Audio file uploaded successfully');
 
       // Step 2: Request transcription
-      console.log("🔄 Requesting transcription...");
+      console.log('🔄 Requesting transcription...');
 
       // Map language codes
-      const languageCode = language === "ar" ? "ar" : "en";
+      const languageCode = language === 'ar' ? 'ar' : 'en';
 
-      const transcriptResponse = await fetch(
-        "https://api.assemblyai.com/v2/transcript",
-        {
-          method: "POST",
-          headers: {
-            authorization: this.assemblyAIKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            audio_url: upload_url,
-            language_code: languageCode,
-            punctuate: true,
-            format_text: true,
-          }),
+      const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+        method: 'POST',
+        headers: {
+          authorization: this.assemblyAIKey,
+          'Content-Type': 'application/json'
         },
-      );
+        body: JSON.stringify({
+          audio_url: upload_url,
+          language_code: languageCode,
+          punctuate: true,
+          format_text: true
+        })
+      });
 
       if (!transcriptResponse.ok) {
         const error = await transcriptResponse.text();
@@ -775,7 +745,7 @@ ${JSON.stringify(userData, null, 2)}
       console.log(`📝 Transcription job created: ${transcriptId}`);
 
       // Step 3: Poll for completion
-      console.log("⏳ Waiting for transcription to complete...");
+      console.log('⏳ Waiting for transcription to complete...');
       let transcript;
       let attempts = 0;
       const maxAttempts = 60; // 5 minutes max (5 seconds * 60)
@@ -785,9 +755,9 @@ ${JSON.stringify(userData, null, 2)}
           `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
           {
             headers: {
-              authorization: this.assemblyAIKey,
-            },
-          },
+              authorization: this.assemblyAIKey
+            }
+          }
         );
 
         if (!pollingResponse.ok) {
@@ -797,15 +767,15 @@ ${JSON.stringify(userData, null, 2)}
 
         transcript = await pollingResponse.json();
 
-        if (transcript.status === "completed") {
-          console.log("✅ Transcription completed successfully!");
+        if (transcript.status === 'completed') {
+          console.log('✅ Transcription completed successfully!');
           return { text: transcript.text, id: transcript.id };
-        } else if (transcript.status === "error") {
+        } else if (transcript.status === 'error') {
           throw new Error(`Transcription failed: ${transcript.error}`);
         }
 
         // Wait 5 seconds before next poll
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
         attempts++;
 
         if (attempts % 6 === 0) {
@@ -813,9 +783,9 @@ ${JSON.stringify(userData, null, 2)}
         }
       }
 
-      throw new Error("Transcription timeout - took longer than 5 minutes");
+      throw new Error('Transcription timeout - took longer than 5 minutes');
     } catch (error) {
-      console.error("❌ AssemblyAI transcription error:", error);
+      console.error('❌ AssemblyAI transcription error:', error);
       throw error;
     }
   }
@@ -823,9 +793,9 @@ ${JSON.stringify(userData, null, 2)}
   // ============= Gemini Methods (Fallback) =============
 
   async summarizeWithGemini(text) {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `Please provide a concise summary of the following text:\n\n${text}`;
     const result = await model.generateContent(prompt);
@@ -834,11 +804,11 @@ ${JSON.stringify(userData, null, 2)}
   }
 
   async extractTasksWithGemini(text) {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = new Date().toISOString().split('T')[0];
     const prompt = `You are a smart assistant for extracting tasks from Arabic text. Current date: ${currentDate}
 
 Extract all actionable tasks from the following text. Return as JSON array only.
@@ -875,11 +845,11 @@ JSON:`;
   }
 
   async extractTasksAndNotesWithGemini(text) {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = new Date().toISOString().split('T')[0];
     const prompt = `You are a smart assistant for analyzing Arabic text and extracting tasks and notes. Current date: ${currentDate}
 
 Analyze the following text and extract:
@@ -940,16 +910,11 @@ JSON:`;
   }
 
   async generateSuggestionsWithGemini(userData, options = {}) {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(this.geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const { 
-      focus_area = 'general', 
-      tone = 'professional', 
-      count = 5, 
-      language = 'ar' 
-    } = options;
+    const { focus_area = 'general', tone = 'professional', count = 5, language = 'ar' } = options;
 
     const prompt = `You are an expert productivity consultant. Analyze the following user data and provide ${count} personalized productivity suggestions.
 
@@ -1019,16 +984,16 @@ Text context provided by transcript.`;
         // LeMUR returns text, we need to parse JSON
         // Sometimes it wraps in markdown code blocks
         let cleanJson = response
-          .replace(/```json/g, "")
-          .replace(/```/g, "")
+          .replace(/```json/g, '')
+          .replace(/```/g, '')
           .trim();
         return JSON.parse(cleanJson);
       } catch (e) {
-        console.error("Failed to parse LeMUR task response:", response);
+        console.error('Failed to parse LeMUR task response:', response);
         return [];
       }
     } catch (error) {
-      console.error("AssemblyAI Task Extraction Error:", error);
+      console.error('AssemblyAI Task Extraction Error:', error);
       throw error;
     }
   }
@@ -1065,20 +1030,20 @@ Return as a valid JSON object ONLY:
 
       try {
         let cleanJson = response
-          .replace(/```json/g, "")
-          .replace(/```/g, "")
+          .replace(/```json/g, '')
+          .replace(/```/g, '')
           .trim();
         const parsed = JSON.parse(cleanJson);
         return {
           tasks: parsed.tasks || [],
-          notes: parsed.notes || [],
+          notes: parsed.notes || []
         };
       } catch (e) {
-        console.error("Failed to parse LeMUR tasks/notes response:", response);
+        console.error('Failed to parse LeMUR tasks/notes response:', response);
         return { tasks: [], notes: [] };
       }
     } catch (error) {
-      console.error("AssemblyAI Notes Extraction Error:", error);
+      console.error('AssemblyAI Notes Extraction Error:', error);
       throw error;
     }
   }
@@ -1086,39 +1051,34 @@ Return as a valid JSON object ONLY:
   async ensureTranscript(input) {
     // If we already have a transcript ID, use it
     if (input.transcriptId) {
-      console.log("Using existing transcript ID:", input.transcriptId);
+      console.log('Using existing transcript ID:', input.transcriptId);
       return { id: input.transcriptId };
     }
 
     // If we have a file path, we might need to re-transcribe to get an ID (since we don't store it yet)
     // NOTE: This incurs cost. Ideally we should store transcript_id in DB.
     if (input.file_path) {
-      console.log("No transcript ID found, re-transcribing for LeMUR...");
+      console.log('No transcript ID found, re-transcribing for LeMUR...');
       return await this.transcribeWithAssemblyAI(input.file_path);
     }
 
-    throw new Error(
-      "AssemblyAI LeMUR requires a transcript ID or file path to process.",
-    );
+    throw new Error('AssemblyAI LeMUR requires a transcript ID or file path to process.');
   }
 
   async runLemurTask(transcriptIds, prompt) {
     try {
-      const response = await fetch(
-        "https://api.assemblyai.com/lemur/v3/generate/task",
-        {
-          method: "POST",
-          headers: {
-            authorization: this.assemblyAIKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            transcript_ids: transcriptIds,
-            prompt: prompt,
-            final_model: "default",
-          }),
+      const response = await fetch('https://api.assemblyai.com/lemur/v3/generate/task', {
+        method: 'POST',
+        headers: {
+          authorization: this.assemblyAIKey,
+          'Content-Type': 'application/json'
         },
-      );
+        body: JSON.stringify({
+          transcript_ids: transcriptIds,
+          prompt: prompt,
+          final_model: 'default'
+        })
+      });
 
       if (!response.ok) {
         const error = await response.text();
@@ -1128,7 +1088,7 @@ Return as a valid JSON object ONLY:
       const data = await response.json();
       return data.response;
     } catch (error) {
-      console.error("LeMUR Request Failed:", error);
+      console.error('LeMUR Request Failed:', error);
       throw error;
     }
   }

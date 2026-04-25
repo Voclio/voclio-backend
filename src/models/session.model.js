@@ -7,7 +7,7 @@ class SessionModel {
       refresh_token: refreshToken,
       expires_at: expiresAt
     });
-    
+
     return {
       session_id: session.session_id,
       refresh_token: session.refresh_token

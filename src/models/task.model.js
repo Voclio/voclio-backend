@@ -20,7 +20,7 @@ class TaskModel {
         })),
         { transaction }
       );
-      
+
       await transaction.commit();
       return tasks.map(task => task.toJSON());
     } catch (error) {
@@ -65,9 +65,9 @@ class TaskModel {
     const task = await Task.findOne({
       where: { task_id: taskId, user_id: userId }
     });
-    
+
     if (!task) return null;
-    
+
     await task.update(updates);
     return task.toJSON();
   }
@@ -76,9 +76,9 @@ class TaskModel {
     const task = await Task.findOne({
       where: { task_id: taskId, user_id: userId }
     });
-    
+
     if (!task) return null;
-    
+
     await task.update({
       status: 'completed',
       completed_at: new Date()
@@ -90,9 +90,9 @@ class TaskModel {
     const task = await Task.findOne({
       where: { task_id: taskId, user_id: userId }
     });
-    
+
     if (!task) return null;
-    
+
     const taskData = task.toJSON();
     await task.destroy();
     return taskData;
@@ -105,21 +105,20 @@ class TaskModel {
     });
 
     const today = new Date().setHours(0, 0, 0, 0);
-    
+
     return {
       total: tasks.length,
       todo: tasks.filter(t => t.status === 'todo').length,
       in_progress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
-      completed_today: tasks.filter(t => 
-        t.status === 'completed' && 
-        t.completed_at && 
-        new Date(t.completed_at).setHours(0, 0, 0, 0) === today
+      completed_today: tasks.filter(
+        t =>
+          t.status === 'completed' &&
+          t.completed_at &&
+          new Date(t.completed_at).setHours(0, 0, 0, 0) === today
       ).length,
-      overdue: tasks.filter(t => 
-        t.due_date && 
-        new Date(t.due_date) < new Date() && 
-        t.status !== 'completed'
+      overdue: tasks.filter(
+        t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
       ).length
     };
   }
@@ -128,7 +127,7 @@ class TaskModel {
     const parentTask = await Task.findOne({
       where: { task_id: parentTaskId, user_id: userId }
     });
-    
+
     if (!parentTask) {
       throw new Error('Parent task not found');
     }
@@ -138,7 +137,7 @@ class TaskModel {
       parent_task_id: parentTaskId,
       ...subtaskData
     });
-    
+
     return subtask.toJSON();
   }
 
@@ -146,7 +145,7 @@ class TaskModel {
     const parentTask = await Task.findOne({
       where: { task_id: parentTaskId, user_id: userId }
     });
-    
+
     if (!parentTask) {
       throw new Error('Parent task not found');
     }
@@ -155,7 +154,7 @@ class TaskModel {
       where: { parent_task_id: parentTaskId, user_id: userId },
       order: [['created_at', 'DESC']]
     });
-    
+
     return subtasks.map(task => task.toJSON());
   }
 
@@ -163,16 +162,16 @@ class TaskModel {
     const task = await Task.findOne({
       where: { task_id: taskId, user_id: userId }
     });
-    
+
     if (!task) return null;
 
     const subtasks = await Task.findAll({
       where: { parent_task_id: taskId, user_id: userId },
       order: [['created_at', 'DESC']]
     });
-    
+
     const subtasksData = subtasks.map(st => st.toJSON());
-    
+
     return {
       ...task.toJSON(),
       subtasks: subtasksData,
@@ -182,7 +181,7 @@ class TaskModel {
   }
 
   static async getMainTasks(userId, filters = {}) {
-    const where = { 
+    const where = {
       user_id: userId,
       parent_task_id: null
     };
@@ -199,7 +198,7 @@ class TaskModel {
         ['created_at', 'DESC']
       ]
     });
-    
+
     return tasks.map(task => task.toJSON());
   }
 }

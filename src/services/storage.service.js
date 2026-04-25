@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
@@ -40,7 +46,7 @@ class StorageService {
     const randomString = crypto.randomBytes(8).toString('hex');
     const ext = path.extname(originalName);
     const sanitizedName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9]/g, '_');
-    
+
     return `${folder}/${userId}/${timestamp}-${randomString}-${sanitizedName}${ext}`;
   }
 
@@ -50,7 +56,7 @@ class StorageService {
   async uploadFile(fileBuffer, originalName, userId, options = {}) {
     try {
       const fileKey = this.generateFileKey(originalName, userId, options.folder);
-      
+
       const command = new PutObjectCommand({
         Bucket: this.bucket,
         Key: fileKey,
@@ -91,7 +97,7 @@ class StorageService {
       const fs = await import('fs');
       const fileBuffer = fs.readFileSync(filePath);
       const originalName = path.basename(filePath);
-      
+
       return await this.uploadFile(fileBuffer, originalName, userId, options);
     } catch (error) {
       logger.error('Upload from path error:', error);
@@ -142,7 +148,7 @@ class StorageService {
 
       await this.client.send(command);
       logger.info(`File deleted: ${fileKey}`);
-      
+
       return true;
     } catch (error) {
       logger.error('File deletion error:', error);
@@ -181,7 +187,7 @@ class StorageService {
       });
 
       const response = await this.client.send(command);
-      
+
       return {
         size: response.ContentLength,
         contentType: response.ContentType,
@@ -205,13 +211,13 @@ class StorageService {
       });
 
       const response = await this.client.send(command);
-      
+
       // Convert stream to buffer
       const chunks = [];
       for await (const chunk of response.Body) {
         chunks.push(chunk);
       }
-      
+
       return Buffer.concat(chunks);
     } catch (error) {
       logger.error('File download error:', error);

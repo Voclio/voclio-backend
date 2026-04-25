@@ -32,12 +32,14 @@ setTimeout(() => {
 }, 1000);
 
 // Sync database with ORM
-syncDatabase(false).then(() => {
-  logger.info('✅ Database models synchronized');
-}).catch(err => {
-  logger.error('❌ Database sync error:', { error: err.message });
-  logger.info('💡 Server will continue running. Fix database credentials in .env');
-});
+syncDatabase(false)
+  .then(() => {
+    logger.info('✅ Database models synchronized');
+  })
+  .catch(err => {
+    logger.error('❌ Database sync error:', { error: err.message });
+    logger.info('💡 Server will continue running. Fix database credentials in .env');
+  });
 
 // Verify email service
 emailService.verifyConnection();
@@ -57,7 +59,7 @@ const server = app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-const shutdown = async (signal) => {
+const shutdown = async signal => {
   logger.info(`\n⚠️  ${signal} received: shutting down gracefully`);
   cronService.stop();
   await queueManager.closeAll().catch(() => {});
@@ -69,9 +71,9 @@ const shutdown = async (signal) => {
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('❌ Uncaught Exception:', { error: error.message, stack: error.stack });
   process.exit(1);
 });
@@ -80,4 +82,3 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('❌ Unhandled Rejection:', { reason, promise });
   process.exit(1);
 });
-

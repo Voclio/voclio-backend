@@ -38,7 +38,7 @@ class VoiceController {
       // Try cache first
       const cacheKey = `recordings:${userId}:${page}:${limit}`;
       const cached = await cacheService.get(cacheKey);
-      
+
       if (cached) {
         return successResponse(res, cached);
       }
@@ -255,7 +255,9 @@ class VoiceController {
       // Invalidate cache
       await cacheService.delPattern(`recordings:${userId}:*`);
 
-      logger.info(`Voice processing jobs created: transcription=${transcriptionJob.id}, extraction=${extractionJob.id}`);
+      logger.info(
+        `Voice processing jobs created: transcription=${transcriptionJob.id}, extraction=${extractionJob.id}`
+      );
 
       // Return immediately with job IDs
       return successResponse(

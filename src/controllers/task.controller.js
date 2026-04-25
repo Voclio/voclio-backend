@@ -8,7 +8,7 @@ class TaskController {
     try {
       const page = Math.max(1, parseInt(req.query.page) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
-      
+
       const filters = {
         status: req.query.status,
         priority: req.query.priority,
@@ -19,13 +19,11 @@ class TaskController {
       };
 
       // Remove undefined filters
-      Object.keys(filters).forEach(key => 
-        filters[key] === undefined && delete filters[key]
-      );
+      Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
 
       const tasks = await TaskModel.findAll(req.user.user_id, filters);
 
-      return successResponse(res, { 
+      return successResponse(res, {
         tasks,
         pagination: {
           page,
@@ -33,7 +31,6 @@ class TaskController {
           max_limit: 100
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -48,7 +45,6 @@ class TaskController {
       }
 
       return successResponse(res, { task });
-
     } catch (error) {
       next(error);
     }
@@ -67,7 +63,6 @@ class TaskController {
       await NotificationService.notifyTaskCreated(req.user.user_id, task);
 
       return successResponse(res, { task }, 'Task created successfully', 201);
-
     } catch (error) {
       next(error);
     }
@@ -85,7 +80,6 @@ class TaskController {
       const tasks = await TaskModel.bulkCreate(req.user.user_id, tasksData);
 
       return successResponse(res, { tasks }, `${tasks.length} tasks created successfully`, 201);
-
     } catch (error) {
       next(error);
     }
@@ -115,7 +109,6 @@ class TaskController {
       await NotificationService.notifyTaskUpdated(req.user.user_id, task);
 
       return successResponse(res, { task }, 'Task updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -133,7 +126,6 @@ class TaskController {
       await NotificationService.notifyTaskCompleted(req.user.user_id, task);
 
       return successResponse(res, { task }, 'Task marked as complete');
-
     } catch (error) {
       next(error);
     }
@@ -148,7 +140,6 @@ class TaskController {
       }
 
       return successResponse(res, null, 'Task deleted successfully');
-
     } catch (error) {
       next(error);
     }
@@ -157,20 +148,19 @@ class TaskController {
   static async getStats(req, res, next) {
     try {
       const stats = await TaskModel.getStats(req.user.user_id);
-      
+
       // Calculate overall progress percentage
       const total = parseInt(stats.total) || 0;
       const completed = parseInt(stats.completed) || 0;
       const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-      return successResponse(res, { 
+      return successResponse(res, {
         stats: {
           ...stats,
           overall_progress: overallProgress,
           completion_rate: overallProgress
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -187,7 +177,6 @@ class TaskController {
       const tasks = await TaskModel.findAll(req.user.user_id, { due_date: date });
 
       return successResponse(res, { tasks, date });
-
     } catch (error) {
       next(error);
     }
@@ -204,7 +193,6 @@ class TaskController {
       const tasks = await TaskModel.findAll(req.user.user_id, { category_id });
 
       return successResponse(res, { tasks, category_id });
-
     } catch (error) {
       next(error);
     }
@@ -217,14 +205,9 @@ class TaskController {
         throw new ValidationError('Invalid request data', errors.mapped());
       }
 
-      const subtask = await TaskModel.createSubtask(
-        req.user.user_id, 
-        req.params.id, 
-        req.body
-      );
+      const subtask = await TaskModel.createSubtask(req.user.user_id, req.params.id, req.body);
 
       return successResponse(res, { subtask }, 'Subtask created successfully', 201);
-
     } catch (error) {
       if (error.message === 'Parent task not found') {
         next(new NotFoundError('Parent task not found'));
@@ -238,12 +221,11 @@ class TaskController {
     try {
       const subtasks = await TaskModel.getSubtasks(req.params.id, req.user.user_id);
 
-      return successResponse(res, { 
+      return successResponse(res, {
         parent_task_id: parseInt(req.params.id),
         subtasks,
         count: subtasks.length
       });
-
     } catch (error) {
       if (error.message === 'Parent task not found') {
         next(new NotFoundError('Parent task not found'));
@@ -262,7 +244,6 @@ class TaskController {
       }
 
       return successResponse(res, { task: taskWithSubtasks });
-
     } catch (error) {
       next(error);
     }
@@ -276,18 +257,15 @@ class TaskController {
         category_id: req.query.category_id
       };
 
-      Object.keys(filters).forEach(key => 
-        filters[key] === undefined && delete filters[key]
-      );
+      Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
 
       const tasks = await TaskModel.getMainTasks(req.user.user_id, filters);
 
-      return successResponse(res, { 
+      return successResponse(res, {
         tasks,
         count: tasks.length,
         type: 'main_tasks_only'
       });
-
     } catch (error) {
       next(error);
     }

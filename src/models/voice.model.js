@@ -19,7 +19,7 @@ class VoiceRecordingModel {
       limit,
       offset
     });
-    
+
     return recordings.map(rec => rec.toJSON());
   }
 
@@ -33,7 +33,7 @@ class VoiceRecordingModel {
   static async updateTranscription(recordingId, transcription) {
     const recording = await VoiceRecording.findByPk(recordingId);
     if (!recording) return null;
-    
+
     await recording.update({
       transcription_text: transcription,
       status: 'transcribed'
@@ -45,9 +45,9 @@ class VoiceRecordingModel {
     const recording = await VoiceRecording.findOne({
       where: { recording_id: recordingId, user_id: userId }
     });
-    
+
     if (!recording) return null;
-    
+
     const recordingData = recording.toJSON();
     await recording.destroy();
     return recordingData;

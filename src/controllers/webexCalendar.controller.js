@@ -10,7 +10,7 @@ const webexService = new WebexCalendarService();
 export const getWebexAuthUrl = async (req, res) => {
   try {
     const authUrl = webexService.generateAuthUrl();
-    
+
     return successResponse(res, {
       authUrl,
       message: 'Webex authorization URL generated successfully'
@@ -39,7 +39,7 @@ export const handleWebexCallback = async (req, res) => {
 
     // Exchange code for tokens
     const tokens = await webexService.getTokens(code);
-    
+
     // Get user profile from Webex
     const userProfile = await webexService.getUserProfile(tokens.access_token);
 
@@ -65,7 +65,9 @@ export const handleWebexCallback = async (req, res) => {
     });
 
     return successResponse(res, {
-      message: created ? 'Webex calendar connected successfully' : 'Webex calendar updated successfully',
+      message: created
+        ? 'Webex calendar connected successfully'
+        : 'Webex calendar updated successfully',
       webexUser: {
         id: userProfile.id,
         email: userProfile.emails?.[0] || userProfile.userName,
@@ -100,18 +102,18 @@ export const getWebexMeetings = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         // Update tokens in database
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);
@@ -159,17 +161,17 @@ export const getTodayWebexMeetings = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);
@@ -178,7 +180,7 @@ export const getTodayWebexMeetings = async (req, res) => {
     }
 
     const meetings = await webexService.getTodayMeetings(accessToken);
-    
+
     await webexSync.update({ lastSyncAt: new Date() });
 
     return successResponse(res, {
@@ -212,17 +214,17 @@ export const createWebexMeeting = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);
@@ -262,17 +264,17 @@ export const getWebexMeetingById = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);
@@ -313,17 +315,17 @@ export const updateWebexMeeting = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);
@@ -363,17 +365,17 @@ export const deleteWebexMeeting = async (req, res) => {
     if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
       try {
         const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-        
+
         const newExpiresAt = new Date();
         newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-        
+
         await webexSync.update({
           accessToken: newTokens.access_token,
           refreshToken: newTokens.refresh_token || webexSync.refreshToken,
           expiresIn: newTokens.expires_in,
           expiresAt: newExpiresAt
         });
-        
+
         accessToken = newTokens.access_token;
       } catch (refreshError) {
         console.error('Error refreshing Webex token:', refreshError);

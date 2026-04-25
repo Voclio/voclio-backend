@@ -1,16 +1,36 @@
 import UserModel from '../models/user.model.js';
-import { User, Note, Task, VoiceRecording, Reminder, Tag, FocusSession, Achievement, Category, Notification, Session, sequelize } from '../models/orm/index.js';
+import {
+  User,
+  Note,
+  Task,
+  VoiceRecording,
+  Reminder,
+  Tag,
+  FocusSession,
+  Achievement,
+  Category,
+  Notification,
+  Session,
+  sequelize
+} from '../models/orm/index.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { Op } from 'sequelize';
 
 class AdminController {
   // ==================== USER MANAGEMENT ====================
-  
+
   // Get all users with stats
   static async getAllUsers(req, res, next) {
     try {
-      const { page = 1, limit = 20, search = '', status = 'all', sortBy = 'created_at', order = 'DESC' } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        search = '',
+        status = 'all',
+        sortBy = 'created_at',
+        order = 'DESC'
+      } = req.query;
       const offset = (page - 1) * limit;
 
       const where = {};
@@ -28,12 +48,31 @@ class AdminController {
       const { count, rows } = await User.findAndCountAll({
         where,
         attributes: [
-          'user_id', 'email', 'name', 'phone_number',
-          'is_active', 'email_verified', 'is_admin', 'oauth_provider',
-          'created_at', 'updated_at',
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('notes.note_id'))), 'notes_count'],
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('tasks.task_id'))), 'tasks_count'],
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('recordings.recording_id'))), 'recordings_count']
+          'user_id',
+          'email',
+          'name',
+          'phone_number',
+          'is_active',
+          'email_verified',
+          'is_admin',
+          'oauth_provider',
+          'created_at',
+          'updated_at',
+          [
+            sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('notes.note_id'))),
+            'notes_count'
+          ],
+          [
+            sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('tasks.task_id'))),
+            'tasks_count'
+          ],
+          [
+            sequelize.fn(
+              'COUNT',
+              sequelize.fn('DISTINCT', sequelize.col('recordings.recording_id'))
+            ),
+            'recordings_count'
+          ]
         ],
         include: [
           { model: Note, as: 'notes', attributes: [], required: false },
@@ -47,11 +86,15 @@ class AdminController {
         subQuery: false
       });
 
-      return paginatedResponse(res, rows.map(u => u.toJSON()), {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count.length
-      });
+      return paginatedResponse(
+        res,
+        rows.map(u => u.toJSON()),
+        {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count.length
+        }
+      );
     } catch (error) {
       next(error);
     }
@@ -76,7 +119,8 @@ class AdminController {
       const totalTags = await Tag.count({ where: { user_id: userId } });
       const totalCategories = await Category.count({ where: { user_id: userId } });
       const focusSessions = await FocusSession.count({ where: { user_id: userId } });
-      const totalFocusTime = await FocusSession.sum('elapsed_time', { where: { user_id: userId } }) || 0;
+      const totalFocusTime =
+        (await FocusSession.sum('elapsed_time', { where: { user_id: userId } })) || 0;
       const activeSessions = await Session.count({ where: { user_id: userId } });
 
       // Get recent activity
@@ -247,10 +291,24 @@ class AdminController {
       // Get most active users
       const activeUsersList = await User.findAll({
         attributes: [
-          'user_id', 'email', 'name',
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('notes.note_id'))), 'notes_count'],
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('tasks.task_id'))), 'tasks_count'],
-          [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('recordings.recording_id'))), 'recordings_count']
+          'user_id',
+          'email',
+          'name',
+          [
+            sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('notes.note_id'))),
+            'notes_count'
+          ],
+          [
+            sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('tasks.task_id'))),
+            'tasks_count'
+          ],
+          [
+            sequelize.fn(
+              'COUNT',
+              sequelize.fn('DISTINCT', sequelize.col('recordings.recording_id'))
+            ),
+            'recordings_count'
+          ]
         ],
         include: [
           { model: Note, as: 'notes', attributes: [], required: false },
@@ -258,7 +316,14 @@ class AdminController {
           { model: VoiceRecording, as: 'recordings', attributes: [], required: false }
         ],
         group: ['User.user_id'],
-        order: [[sequelize.literal('(COUNT(DISTINCT notes.note_id) + COUNT(DISTINCT tasks.task_id) + COUNT(DISTINCT recordings.recording_id))'), 'DESC']],
+        order: [
+          [
+            sequelize.literal(
+              '(COUNT(DISTINCT notes.note_id) + COUNT(DISTINCT tasks.task_id) + COUNT(DISTINCT recordings.recording_id))'
+            ),
+            'DESC'
+          ]
+        ],
         limit: 10,
         subQuery: false,
         raw: true
@@ -321,17 +386,26 @@ class AdminController {
             attributes: ['task_id', 'title', 'description', 'created_at'],
             where: Object.keys(dateFilter).length > 0 ? { created_at: dateFilter } : undefined,
             required: false,
-            include: [{
-              model: VoiceRecording,
-              as: 'voice_recording',
-              attributes: ['recording_id'],
-              required: false
-            }]
+            include: [
+              {
+                model: VoiceRecording,
+                as: 'voice_recording',
+                attributes: ['recording_id'],
+                required: false
+              }
+            ]
           },
           {
             model: Note,
             as: 'notes',
-            attributes: ['note_id', 'title', 'content', 'summary', 'voice_recording_id', 'created_at'],
+            attributes: [
+              'note_id',
+              'title',
+              'content',
+              'summary',
+              'voice_recording_id',
+              'created_at'
+            ],
             where: Object.keys(dateFilter).length > 0 ? { created_at: dateFilter } : undefined,
             required: false
           }
@@ -339,123 +413,149 @@ class AdminController {
       });
 
       // Calculate tokens for each user
-      const userStats = users.map(user => {
-        const userData = user.toJSON();
-        
-        let transcriptionTokens = 0;
-        let taskExtractionTokens = 0;
-        let noteExtractionTokens = 0;
-        let summarizationTokens = 0;
-        
-        let transcriptionCount = 0;
-        let taskExtractionCount = 0;
-        let noteExtractionCount = 0;
-        let summarizationCount = 0;
+      const userStats = users
+        .map(user => {
+          const userData = user.toJSON();
 
-        // Count transcriptions and estimate tokens
-        if (userData.recordings) {
-          userData.recordings.forEach(recording => {
-            if (recording.transcription_text) {
-              transcriptionCount++;
-              // Input: audio (estimate 1 token per 0.5 seconds, assume 30 sec average = 60 tokens)
-              // Output: transcription text
-              const transcriptionLength = recording.transcription_text.length;
-              transcriptionTokens += 60; // input estimate
-              transcriptionTokens += Math.floor(transcriptionLength / 4); // output tokens
-            }
-          });
-        }
+          let transcriptionTokens = 0;
+          let taskExtractionTokens = 0;
+          let noteExtractionTokens = 0;
+          let summarizationTokens = 0;
 
-        // Count task extractions from voice
-        if (userData.tasks) {
-          userData.tasks.forEach(task => {
-            if (task.voice_recording) {
-              taskExtractionCount++;
-              // Input: transcription text (estimate from title + description)
-              const inputLength = (task.title?.length || 0) + (task.description?.length || 0);
-              taskExtractionTokens += Math.floor(inputLength / 2); // input estimate (original text was longer)
-              taskExtractionTokens += Math.floor(inputLength / 4); // output tokens
-            }
-          });
-        }
+          let transcriptionCount = 0;
+          let taskExtractionCount = 0;
+          let noteExtractionCount = 0;
+          let summarizationCount = 0;
 
-        // Count note extractions and summarizations
-        if (userData.notes) {
-          userData.notes.forEach(note => {
-            // Note from voice recording
-            if (note.voice_recording_id) {
-              noteExtractionCount++;
-              const contentLength = note.content?.length || 0;
-              noteExtractionTokens += Math.floor(contentLength / 2); // input estimate
-              noteExtractionTokens += Math.floor(contentLength / 4); // output tokens
-            }
-            
-            // Summarization
-            if (note.summary) {
-              summarizationCount++;
-              const contentLength = note.content?.length || 0;
-              const summaryLength = note.summary.length;
-              summarizationTokens += Math.floor(contentLength / 4); // input
-              summarizationTokens += Math.floor(summaryLength / 4); // output
-            }
-          });
-        }
-
-        const totalInputTokens = Math.floor(
-          (transcriptionTokens + taskExtractionTokens + noteExtractionTokens + summarizationTokens) * 0.6
-        );
-        const totalOutputTokens = Math.floor(
-          (transcriptionTokens + taskExtractionTokens + noteExtractionTokens + summarizationTokens) * 0.4
-        );
-        const totalTokens = totalInputTokens + totalOutputTokens;
-        
-        // Calculate cost (GPT-4 pricing)
-        const estimatedCost = (totalInputTokens / 1000 * 0.03) + (totalOutputTokens / 1000 * 0.06);
-
-        return {
-          user_id: userData.user_id,
-          email: userData.email,
-          name: userData.name,
-          operations: {
-            transcriptions: transcriptionCount,
-            task_extractions: taskExtractionCount,
-            note_extractions: noteExtractionCount,
-            summarizations: summarizationCount,
-            total_operations: transcriptionCount + taskExtractionCount + noteExtractionCount + summarizationCount
-          },
-          tokens: {
-            input_tokens: totalInputTokens,
-            output_tokens: totalOutputTokens,
-            total_tokens: totalTokens
-          },
-          cost: {
-            estimated_cost_usd: estimatedCost.toFixed(4),
-            cost_breakdown: {
-              transcription_cost: ((transcriptionTokens * 0.6 / 1000 * 0.03) + (transcriptionTokens * 0.4 / 1000 * 0.06)).toFixed(4),
-              task_extraction_cost: ((taskExtractionTokens * 0.6 / 1000 * 0.03) + (taskExtractionTokens * 0.4 / 1000 * 0.06)).toFixed(4),
-              note_extraction_cost: ((noteExtractionTokens * 0.6 / 1000 * 0.03) + (noteExtractionTokens * 0.4 / 1000 * 0.06)).toFixed(4),
-              summarization_cost: ((summarizationTokens * 0.6 / 1000 * 0.03) + (summarizationTokens * 0.4 / 1000 * 0.06)).toFixed(4)
-            }
+          // Count transcriptions and estimate tokens
+          if (userData.recordings) {
+            userData.recordings.forEach(recording => {
+              if (recording.transcription_text) {
+                transcriptionCount++;
+                // Input: audio (estimate 1 token per 0.5 seconds, assume 30 sec average = 60 tokens)
+                // Output: transcription text
+                const transcriptionLength = recording.transcription_text.length;
+                transcriptionTokens += 60; // input estimate
+                transcriptionTokens += Math.floor(transcriptionLength / 4); // output tokens
+              }
+            });
           }
-        };
-      })
-      .filter(stat => stat.operations.total_operations > 0) // Only users with AI usage
-      .sort((a, b) => b.tokens.total_tokens - a.tokens.total_tokens) // Sort by token usage
-      .slice(0, parseInt(limit));
+
+          // Count task extractions from voice
+          if (userData.tasks) {
+            userData.tasks.forEach(task => {
+              if (task.voice_recording) {
+                taskExtractionCount++;
+                // Input: transcription text (estimate from title + description)
+                const inputLength = (task.title?.length || 0) + (task.description?.length || 0);
+                taskExtractionTokens += Math.floor(inputLength / 2); // input estimate (original text was longer)
+                taskExtractionTokens += Math.floor(inputLength / 4); // output tokens
+              }
+            });
+          }
+
+          // Count note extractions and summarizations
+          if (userData.notes) {
+            userData.notes.forEach(note => {
+              // Note from voice recording
+              if (note.voice_recording_id) {
+                noteExtractionCount++;
+                const contentLength = note.content?.length || 0;
+                noteExtractionTokens += Math.floor(contentLength / 2); // input estimate
+                noteExtractionTokens += Math.floor(contentLength / 4); // output tokens
+              }
+
+              // Summarization
+              if (note.summary) {
+                summarizationCount++;
+                const contentLength = note.content?.length || 0;
+                const summaryLength = note.summary.length;
+                summarizationTokens += Math.floor(contentLength / 4); // input
+                summarizationTokens += Math.floor(summaryLength / 4); // output
+              }
+            });
+          }
+
+          const totalInputTokens = Math.floor(
+            (transcriptionTokens +
+              taskExtractionTokens +
+              noteExtractionTokens +
+              summarizationTokens) *
+              0.6
+          );
+          const totalOutputTokens = Math.floor(
+            (transcriptionTokens +
+              taskExtractionTokens +
+              noteExtractionTokens +
+              summarizationTokens) *
+              0.4
+          );
+          const totalTokens = totalInputTokens + totalOutputTokens;
+
+          // Calculate cost (GPT-4 pricing)
+          const estimatedCost =
+            (totalInputTokens / 1000) * 0.03 + (totalOutputTokens / 1000) * 0.06;
+
+          return {
+            user_id: userData.user_id,
+            email: userData.email,
+            name: userData.name,
+            operations: {
+              transcriptions: transcriptionCount,
+              task_extractions: taskExtractionCount,
+              note_extractions: noteExtractionCount,
+              summarizations: summarizationCount,
+              total_operations:
+                transcriptionCount + taskExtractionCount + noteExtractionCount + summarizationCount
+            },
+            tokens: {
+              input_tokens: totalInputTokens,
+              output_tokens: totalOutputTokens,
+              total_tokens: totalTokens
+            },
+            cost: {
+              estimated_cost_usd: estimatedCost.toFixed(4),
+              cost_breakdown: {
+                transcription_cost: (
+                  ((transcriptionTokens * 0.6) / 1000) * 0.03 +
+                  ((transcriptionTokens * 0.4) / 1000) * 0.06
+                ).toFixed(4),
+                task_extraction_cost: (
+                  ((taskExtractionTokens * 0.6) / 1000) * 0.03 +
+                  ((taskExtractionTokens * 0.4) / 1000) * 0.06
+                ).toFixed(4),
+                note_extraction_cost: (
+                  ((noteExtractionTokens * 0.6) / 1000) * 0.03 +
+                  ((noteExtractionTokens * 0.4) / 1000) * 0.06
+                ).toFixed(4),
+                summarization_cost: (
+                  ((summarizationTokens * 0.6) / 1000) * 0.03 +
+                  ((summarizationTokens * 0.4) / 1000) * 0.06
+                ).toFixed(4)
+              }
+            }
+          };
+        })
+        .filter(stat => stat.operations.total_operations > 0) // Only users with AI usage
+        .sort((a, b) => b.tokens.total_tokens - a.tokens.total_tokens) // Sort by token usage
+        .slice(0, parseInt(limit));
 
       // Calculate totals
-      const totals = userStats.reduce((acc, stat) => {
-        acc.total_users++;
-        acc.total_operations += stat.operations.total_operations;
-        acc.total_tokens += stat.tokens.total_tokens;
-        acc.total_cost += parseFloat(stat.cost.estimated_cost_usd);
-        return acc;
-      }, {
-        total_users: 0,
-        total_operations: 0,
-        total_tokens: 0,
-        total_cost: 0
-      });
+      const totals = userStats.reduce(
+        (acc, stat) => {
+          acc.total_users++;
+          acc.total_operations += stat.operations.total_operations;
+          acc.total_tokens += stat.tokens.total_tokens;
+          acc.total_cost += parseFloat(stat.cost.estimated_cost_usd);
+          return acc;
+        },
+        {
+          total_users: 0,
+          total_operations: 0,
+          total_tokens: 0,
+          total_cost: 0
+        }
+      );
 
       return successResponse(res, {
         users: userStats,
@@ -464,8 +564,10 @@ class AdminController {
           total_operations: totals.total_operations,
           total_tokens: totals.total_tokens,
           total_cost_usd: totals.total_cost.toFixed(4),
-          average_tokens_per_user: totals.total_users > 0 ? Math.floor(totals.total_tokens / totals.total_users) : 0,
-          average_cost_per_user: totals.total_users > 0 ? (totals.total_cost / totals.total_users).toFixed(4) : '0.0000'
+          average_tokens_per_user:
+            totals.total_users > 0 ? Math.floor(totals.total_tokens / totals.total_users) : 0,
+          average_cost_per_user:
+            totals.total_users > 0 ? (totals.total_cost / totals.total_users).toFixed(4) : '0.0000'
         }
       });
     } catch (error) {
@@ -506,12 +608,14 @@ class AdminController {
 
       const totalTaskExtractions = await Task.count({
         where: taskExtractionWhere,
-        include: [{
-          model: VoiceRecording,
-          as: 'voice_recording',
-          required: true,
-          attributes: []
-        }]
+        include: [
+          {
+            model: VoiceRecording,
+            as: 'voice_recording',
+            required: true,
+            attributes: []
+          }
+        ]
       });
 
       // Count note extractions (recordings that created notes)
@@ -548,12 +652,14 @@ class AdminController {
       // Get daily stats for task extractions
       const dailyTaskExtractions = await Task.findAll({
         where: taskExtractionWhere,
-        include: [{
-          model: VoiceRecording,
-          as: 'voice_recording',
-          required: true,
-          attributes: []
-        }],
+        include: [
+          {
+            model: VoiceRecording,
+            as: 'voice_recording',
+            required: true,
+            attributes: []
+          }
+        ],
         attributes: [
           [sequelize.fn('DATE', sequelize.col('Task.created_at')), 'date'],
           [sequelize.fn('COUNT', sequelize.col('task_id')), 'count']
@@ -566,11 +672,16 @@ class AdminController {
 
       // Combine daily stats
       const dailyStatsMap = new Map();
-      
+
       dailyTranscriptions.forEach(item => {
         const date = item.date;
         if (!dailyStatsMap.has(date)) {
-          dailyStatsMap.set(date, { date, transcriptions: 0, task_extractions: 0, total_ai_requests: 0 });
+          dailyStatsMap.set(date, {
+            date,
+            transcriptions: 0,
+            task_extractions: 0,
+            total_ai_requests: 0
+          });
         }
         dailyStatsMap.get(date).transcriptions = parseInt(item.count);
         dailyStatsMap.get(date).total_ai_requests += parseInt(item.count);
@@ -579,14 +690,20 @@ class AdminController {
       dailyTaskExtractions.forEach(item => {
         const date = item.date;
         if (!dailyStatsMap.has(date)) {
-          dailyStatsMap.set(date, { date, transcriptions: 0, task_extractions: 0, total_ai_requests: 0 });
+          dailyStatsMap.set(date, {
+            date,
+            transcriptions: 0,
+            task_extractions: 0,
+            total_ai_requests: 0
+          });
         }
         dailyStatsMap.get(date).task_extractions = parseInt(item.count);
         dailyStatsMap.get(date).total_ai_requests += parseInt(item.count);
       });
 
-      const dailyStats = Array.from(dailyStatsMap.values())
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      const dailyStats = Array.from(dailyStatsMap.values()).sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
 
       // Count active AI users
       const activeAiUsers = await VoiceRecording.count({
@@ -603,13 +720,13 @@ class AdminController {
 
       let estimatedInputTokens = 0;
       let estimatedOutputTokens = 0;
-      
+
       recordings.forEach(recording => {
         if (recording.transcription_text) {
           // Input: transcription text
           estimatedInputTokens += Math.floor(recording.transcription_text.length / 4);
           // Output: estimated extracted tasks/notes (assume 30% of input)
-          estimatedOutputTokens += Math.floor(recording.transcription_text.length / 4 * 0.3);
+          estimatedOutputTokens += Math.floor((recording.transcription_text.length / 4) * 0.3);
         }
       });
 
@@ -625,7 +742,8 @@ class AdminController {
       });
 
       // Calculate cost (GPT-4 pricing: ~$0.03 per 1K input tokens, ~$0.06 per 1K output tokens)
-      const estimatedCost = (estimatedInputTokens / 1000 * 0.03) + (estimatedOutputTokens / 1000 * 0.06);
+      const estimatedCost =
+        (estimatedInputTokens / 1000) * 0.03 + (estimatedOutputTokens / 1000) * 0.06;
 
       return successResponse(res, {
         daily_stats: dailyStats,
@@ -635,7 +753,8 @@ class AdminController {
           total_note_extractions: totalNoteExtractions,
           total_summarizations: totalSummarizations,
           active_ai_users: activeAiUsers,
-          total_ai_operations: totalTranscriptions + totalTaskExtractions + totalNoteExtractions + totalSummarizations
+          total_ai_operations:
+            totalTranscriptions + totalTaskExtractions + totalNoteExtractions + totalSummarizations
         },
         token_estimate: {
           input_tokens: estimatedInputTokens,
@@ -657,14 +776,20 @@ class AdminController {
 
       const notesToday = await Note.count({ where: { created_at: { [Op.gt]: oneDayAgo } } });
       const tasksToday = await Task.count({ where: { created_at: { [Op.gt]: oneDayAgo } } });
-      const recordingsToday = await VoiceRecording.count({ where: { created_at: { [Op.gt]: oneDayAgo } } });
+      const recordingsToday = await VoiceRecording.count({
+        where: { created_at: { [Op.gt]: oneDayAgo } }
+      });
 
       const notesWeek = await Note.count({ where: { created_at: { [Op.gt]: oneWeekAgo } } });
       const tasksWeek = await Task.count({ where: { created_at: { [Op.gt]: oneWeekAgo } } });
-      const recordingsWeek = await VoiceRecording.count({ where: { created_at: { [Op.gt]: oneWeekAgo } } });
+      const recordingsWeek = await VoiceRecording.count({
+        where: { created_at: { [Op.gt]: oneWeekAgo } }
+      });
 
       const avgNoteLength = await Note.findOne({
-        attributes: [[sequelize.fn('AVG', sequelize.fn('LENGTH', sequelize.col('content'))), 'avg']],
+        attributes: [
+          [sequelize.fn('AVG', sequelize.fn('LENGTH', sequelize.col('content'))), 'avg']
+        ],
         raw: true
       });
 
@@ -673,7 +798,7 @@ class AdminController {
         raw: true
       });
 
-      const totalStorageUsed = await VoiceRecording.sum('file_size') || 0;
+      const totalStorageUsed = (await VoiceRecording.sum('file_size')) || 0;
 
       // Get popular tags
       const popularTags = await Tag.findAll({
@@ -686,12 +811,12 @@ class AdminController {
       // Get popular categories
       const popularCategories = await Category.findAll({
         attributes: [
-          'category_id', 'name', 'color',
+          'category_id',
+          'name',
+          'color',
           [sequelize.fn('COUNT', sequelize.col('tasks.task_id')), 'task_count']
         ],
-        include: [
-          { model: Task, as: 'tasks', attributes: [], required: false }
-        ],
+        include: [{ model: Task, as: 'tasks', attributes: [], required: false }],
         group: ['Category.category_id'],
         order: [[sequelize.fn('COUNT', sequelize.col('tasks.task_id')), 'DESC']],
         limit: 10,
@@ -725,7 +850,8 @@ class AdminController {
   // Get system health
   static async getSystemHealth(req, res, next) {
     try {
-      const dbStatus = await sequelize.authenticate()
+      const dbStatus = await sequelize
+        .authenticate()
         .then(() => 'healthy')
         .catch(() => 'unhealthy');
 
@@ -782,7 +908,9 @@ class AdminController {
           data: { task_id: t.task_id, title: t.title, status: t.status },
           timestamp: t.created_at
         }))
-      ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, limit);
+      ]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit);
 
       return paginatedResponse(res, activities, {
         page: parseInt(page),
@@ -811,10 +939,14 @@ class AdminController {
         }
       });
 
-      return successResponse(res, {
-        deleted_sessions: deletedSessions,
-        deleted_notifications: deletedNotifications
-      }, 'Old data cleared successfully');
+      return successResponse(
+        res,
+        {
+          deleted_sessions: deletedSessions,
+          deleted_notifications: deletedNotifications
+        },
+        'Old data cleared successfully'
+      );
     } catch (error) {
       next(error);
     }

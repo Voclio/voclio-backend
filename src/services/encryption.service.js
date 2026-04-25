@@ -30,24 +30,20 @@ class EncryptionService {
 
       // Generate random IV
       const iv = crypto.randomBytes(this.ivLength);
-      
+
       // Create cipher
       const cipher = crypto.createCipheriv(this.algorithm, this.encryptionKey, iv);
-      
+
       // Encrypt
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       // Get auth tag
       const authTag = cipher.getAuthTag();
-      
+
       // Combine IV + authTag + encrypted data
-      const result = Buffer.concat([
-        iv,
-        authTag,
-        Buffer.from(encrypted, 'hex')
-      ]);
-      
+      const result = Buffer.concat([iv, authTag, Buffer.from(encrypted, 'hex')]);
+
       // Return as base64
       return result.toString('base64');
     } catch (error) {
@@ -67,20 +63,20 @@ class EncryptionService {
 
       // Convert from base64
       const buffer = Buffer.from(encryptedData, 'base64');
-      
+
       // Extract IV, authTag, and encrypted data
       const iv = buffer.subarray(0, this.ivLength);
       const authTag = buffer.subarray(this.ivLength, this.ivLength + this.tagLength);
       const encrypted = buffer.subarray(this.ivLength + this.tagLength);
-      
+
       // Create decipher
       const decipher = crypto.createDecipheriv(this.algorithm, this.encryptionKey, iv);
       decipher.setAuthTag(authTag);
-      
+
       // Decrypt
       let decrypted = decipher.update(encrypted, null, 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return decrypted;
     } catch (error) {
       logger.error('Decryption error:', error);
@@ -128,8 +124,12 @@ class EncryptionService {
     }
 
     return {
-      access_token: encryptedTokens.access_token ? this.decrypt(encryptedTokens.access_token) : null,
-      refresh_token: encryptedTokens.refresh_token ? this.decrypt(encryptedTokens.refresh_token) : null,
+      access_token: encryptedTokens.access_token
+        ? this.decrypt(encryptedTokens.access_token)
+        : null,
+      refresh_token: encryptedTokens.refresh_token
+        ? this.decrypt(encryptedTokens.refresh_token)
+        : null,
       id_token: encryptedTokens.id_token ? this.decrypt(encryptedTokens.id_token) : null,
       expires_at: encryptedTokens.expires_at,
       scope: encryptedTokens.scope

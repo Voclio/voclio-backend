@@ -11,18 +11,18 @@ import logger from '../utils/logger.js';
  * Handles AI extraction of tasks and notes from transcription
  */
 export async function processExtraction(job) {
-  const { 
-    recordingId, 
-    userId, 
-    autoCreateTasks = true, 
+  const {
+    recordingId,
+    userId,
+    autoCreateTasks = true,
     autoCreateNotes = true,
     categoryId,
-    transcriptId 
+    transcriptId
   } = job.data;
 
   try {
     logger.info(`[Extraction Job ${job.id}] Starting for recording ${recordingId}`);
-    
+
     await job.updateProgress(10);
 
     // Get recording from database
@@ -39,7 +39,7 @@ export async function processExtraction(job) {
 
     // Extract tasks and notes using AI
     logger.info(`[Extraction Job ${job.id}] Extracting tasks and notes with AI`);
-    
+
     const extractionContext = {
       ...recording,
       transcriptId,
@@ -91,7 +91,6 @@ export async function processExtraction(job) {
           // Fetch complete task with subtasks
           const completeTask = await TaskModel.getTaskWithSubtasks(task.task_id, userId);
           result.created.tasks.push(completeTask);
-
         } catch (taskError) {
           logger.error(`[Extraction Job ${job.id}] Failed to create task:`, taskError);
         }
@@ -122,7 +121,6 @@ export async function processExtraction(job) {
 
           const completeNote = await NoteModel.findById(note.note_id, userId);
           result.created.notes.push(completeNote);
-
         } catch (noteError) {
           logger.error(`[Extraction Job ${job.id}] Failed to create note:`, noteError);
         }
@@ -138,10 +136,11 @@ export async function processExtraction(job) {
 
     await job.updateProgress(100);
 
-    logger.info(`[Extraction Job ${job.id}] Completed: ${result.created.tasks.length} tasks, ${result.created.notes.length} notes`);
+    logger.info(
+      `[Extraction Job ${job.id}] Completed: ${result.created.tasks.length} tasks, ${result.created.notes.length} notes`
+    );
 
     return result;
-
   } catch (error) {
     logger.error(`[Extraction Job ${job.id}] Failed:`, error);
     throw error;

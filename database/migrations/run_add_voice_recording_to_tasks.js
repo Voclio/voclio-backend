@@ -17,12 +17,12 @@ async function runMigration() {
     // Execute the migration
     console.log('📝 Executing SQL migration...');
     await executeMigration(sql);
-    
+
     console.log('\n✅ Migration completed successfully!');
     console.log('✅ Added voice_recording_id column to tasks table');
     console.log('✅ Added foreign key constraint');
     console.log('✅ Added index for performance');
-    
+
     await closeConnection();
   } catch (error) {
     console.error('\n❌ Migration failed:', error.message);

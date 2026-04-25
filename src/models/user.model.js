@@ -12,11 +12,11 @@ class UserModel {
   }
 
   static async findByOAuth(provider, oauthId) {
-    const user = await User.findOne({ 
-      where: { 
-        oauth_provider: provider, 
-        oauth_id: oauthId 
-      } 
+    const user = await User.findOne({
+      where: {
+        oauth_provider: provider,
+        oauth_id: oauthId
+      }
     });
     return user ? user.toJSON() : null;
   }
@@ -24,7 +24,15 @@ class UserModel {
   static async findById(userId) {
     const user = await User.findOne({
       where: { user_id: userId },
-      attributes: ['user_id', 'email', 'name', 'phone_number', 'is_active', 'oauth_provider', 'created_at']
+      attributes: [
+        'user_id',
+        'email',
+        'name',
+        'phone_number',
+        'is_active',
+        'oauth_provider',
+        'created_at'
+      ]
     });
     return user ? user.toJSON() : null;
   }
@@ -37,7 +45,7 @@ class UserModel {
   static async updateOAuthInfo(userId, provider, oauthId) {
     const user = await User.findOne({ where: { user_id: userId } });
     if (!user) return null;
-    
+
     await user.update({
       oauth_provider: provider,
       oauth_id: oauthId,
@@ -49,7 +57,7 @@ class UserModel {
   static async update(userId, updates) {
     const user = await User.findOne({ where: { user_id: userId } });
     if (!user) return null;
-    
+
     await user.update(updates);
     return {
       user_id: user.user_id,
@@ -60,10 +68,7 @@ class UserModel {
   }
 
   static async updatePassword(userId, hashedPassword) {
-    await User.update(
-      { password: hashedPassword },
-      { where: { user_id: userId } }
-    );
+    await User.update({ password: hashedPassword }, { where: { user_id: userId } });
   }
 
   static async delete(userId) {

@@ -65,7 +65,8 @@ router.use(authMiddleware);
  *                   type: string
  *                   example: processing
  */
-router.post('/process-complete',
+router.post(
+  '/process-complete',
   VoiceController.uploadMiddleware,
   processVoiceCompleteValidator,
   VoiceController.processVoiceComplete
@@ -124,7 +125,8 @@ router.get('/job-status/:jobId', VoiceController.getJobStatus);
  *       201:
  *         description: Recording uploaded
  */
-router.post('/upload',
+router.post(
+  '/upload',
   VoiceController.uploadMiddleware,
   uploadVoiceValidator,
   VoiceController.uploadRecording

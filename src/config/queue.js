@@ -27,7 +27,7 @@ class QueueManager {
   initialize() {
     // Get Redis connection for BullMQ
     const redis = redisClient.getClient();
-    
+
     if (!redis) {
       logger.warn('⚠️  Queue manager disabled - Redis not available');
       this.isEnabled = false;
@@ -83,13 +83,13 @@ class QueueManager {
         }
       });
 
-      queue.on('error', (error) => {
+      queue.on('error', error => {
         logger.error(`Queue ${name} error:`, error);
       });
 
       this.queues.set(name, queue);
       logger.info(`Queue created: ${name}`);
-      
+
       return queue;
     } catch (error) {
       logger.warn(`Failed to create queue ${name}:`, error.message);
@@ -118,7 +118,7 @@ class QueueManager {
       logger.warn(`Queue ${queueName} not available - skipping job: ${jobName}`);
       return null;
     }
-    
+
     const job = await queue.add(jobName, data, {
       priority: options.priority || JOB_PRIORITY.MEDIUM,
       delay: options.delay || 0,
@@ -215,7 +215,7 @@ class QueueManager {
         disabled: true
       };
     }
-    
+
     const [waiting, active, completed, failed, delayed] = await Promise.all([
       queue.getWaitingCount(),
       queue.getActiveCount(),

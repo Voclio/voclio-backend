@@ -34,8 +34,4 @@ const paginatedResponse = (res, data, pagination) => {
   });
 };
 
-export {
-  successResponse,
-  errorResponse,
-  paginatedResponse
-};
+export { successResponse, errorResponse, paginatedResponse };

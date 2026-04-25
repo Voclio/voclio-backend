@@ -27,7 +27,7 @@ class RedisClient {
         port: config.redis.port,
         password: config.redis.password,
         maxRetriesPerRequest: 1,
-        retryStrategy: (times) => {
+        retryStrategy: times => {
           if (times > 3) {
             logger.warn('⚠️  Redis connection failed after 3 attempts - disabling Redis');
             this.isEnabled = false;
@@ -48,7 +48,7 @@ class RedisClient {
         logger.info('✅ Redis connected successfully');
       });
 
-      this.client.on('error', (err) => {
+      this.client.on('error', err => {
         this.isConnected = false;
         // Only log once, not repeatedly
         if (this.isEnabled) {

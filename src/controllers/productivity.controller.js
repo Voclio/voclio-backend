@@ -16,7 +16,6 @@ class ProductivityController {
       });
 
       return successResponse(res, { session }, 'Focus session started', 201);
-
     } catch (error) {
       next(error);
     }
@@ -42,7 +41,6 @@ class ProductivityController {
       }
 
       return successResponse(res, { session }, 'Focus session updated');
-
     } catch (error) {
       next(error);
     }
@@ -68,7 +66,6 @@ class ProductivityController {
       }
 
       return successResponse(res, { session }, 'Focus session completed');
-
     } catch (error) {
       next(error);
     }
@@ -90,7 +87,6 @@ class ProductivityController {
         limit: parseInt(limit),
         total: sessions.length
       });
-
     } catch (error) {
       next(error);
     }
@@ -107,7 +103,6 @@ class ProductivityController {
           streak_date: null
         }
       });
-
     } catch (error) {
       next(error);
     }
@@ -118,7 +113,6 @@ class ProductivityController {
       const achievements = await ProductivityModel.getAchievements(req.user.user_id);
 
       return successResponse(res, { achievements });
-
     } catch (error) {
       next(error);
     }
@@ -132,7 +126,7 @@ class ProductivityController {
       if (period && !start_date && !end_date) {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
+
         switch (period) {
           case 'today':
             start_date = today.toISOString().split('T')[0];
@@ -155,7 +149,9 @@ class ProductivityController {
       }
 
       if (!start_date || !end_date) {
-        throw new ValidationError('start_date and end_date are required, or use period parameter (today, week, month)');
+        throw new ValidationError(
+          'start_date and end_date are required, or use period parameter (today, week, month)'
+        );
       }
 
       const summary = await ProductivityModel.getProductivitySummary(
@@ -165,7 +161,6 @@ class ProductivityController {
       );
 
       return successResponse(res, { summary, period: { start_date, end_date } });
-
     } catch (error) {
       next(error);
     }
@@ -174,19 +169,21 @@ class ProductivityController {
   static async getAISuggestions(req, res, next) {
     try {
       const startTime = Date.now();
-      
+
       // Extract query parameters with defaults
-      const { 
+      const {
         days = 7,
-        focus_area = 'general', 
-        tone = 'professional', 
+        focus_area = 'general',
+        tone = 'professional',
         count = 5,
         language = 'ar'
       } = req.query;
 
       // Get user's productivity data for specified period
       const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
 
       const summary = await ProductivityModel.getProductivitySummary(
         req.user.user_id,
@@ -197,8 +194,8 @@ class ProductivityController {
       const tasks = await TaskModel.findAll(req.user.user_id, {});
       const completedTasks = tasks.filter(t => t.status === 'completed');
       const pendingTasks = tasks.filter(t => t.status !== 'completed');
-      const overdueTasks = tasks.filter(t => 
-        t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
+      const overdueTasks = tasks.filter(
+        t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed'
       );
 
       // Enhanced user data with more context
@@ -210,7 +207,8 @@ class ProductivityController {
           completed_tasks: completedTasks.length,
           pending_tasks: pendingTasks.length,
           overdue_tasks: overdueTasks.length,
-          completion_rate: tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0,
+          completion_rate:
+            tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0,
           average_tasks_per_day: Math.round(tasks.length / days)
         },
         productivity_patterns: {
@@ -220,7 +218,8 @@ class ProductivityController {
           average_focus_duration: summary.average_focus_duration || 0
         },
         stress_indicators: {
-          overdue_percentage: tasks.length > 0 ? Math.round((overdueTasks.length / tasks.length) * 100) : 0,
+          overdue_percentage:
+            tasks.length > 0 ? Math.round((overdueTasks.length / tasks.length) * 100) : 0,
           high_priority_pending: pendingTasks.filter(t => t.priority === 'high').length,
           tasks_without_due_date: pendingTasks.filter(t => !t.due_date).length
         }
@@ -256,7 +255,6 @@ class ProductivityController {
       };
 
       return successResponse(res, response);
-
     } catch (error) {
       console.error('AI Suggestions Error:', error);
       next(error);

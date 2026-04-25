@@ -6,22 +6,15 @@ const uploadVoiceValidator = [
     .trim()
     .isLength({ max: 255 })
     .withMessage('Title must be less than 255 characters'),
-  body('duration')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Duration must be a positive integer')
+  body('duration').optional().isInt({ min: 0 }).withMessage('Duration must be a positive integer')
 ];
 
 const voiceIdValidator = [
-  param('id')
-    .isInt()
-    .withMessage('Voice recording ID must be a valid integer')
+  param('id').isInt().withMessage('Voice recording ID must be a valid integer')
 ];
 
 const transcribeVoiceValidator = [
-  body('recording_id')
-    .isInt()
-    .withMessage('Recording ID must be a valid integer'),
+  body('recording_id').isInt().withMessage('Recording ID must be a valid integer'),
   body('language')
     .optional()
     .isIn(['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
@@ -29,42 +22,24 @@ const transcribeVoiceValidator = [
 ];
 
 const createNoteFromVoiceValidator = [
-  param('id')
-    .isInt()
-    .withMessage('Voice recording ID must be a valid integer'),
+  param('id').isInt().withMessage('Voice recording ID must be a valid integer'),
   body('title')
     .optional()
     .trim()
     .isLength({ max: 255 })
     .withMessage('Title must be less than 255 characters'),
-  body('tags')
-    .optional()
-    .isArray()
-    .withMessage('Tags must be an array'),
-  body('tags.*')
-    .optional()
-    .isInt()
-    .withMessage('Each tag must be a valid tag ID')
+  body('tags').optional().isArray().withMessage('Tags must be an array'),
+  body('tags.*').optional().isInt().withMessage('Each tag must be a valid tag ID')
 ];
 
 const createTasksFromVoiceValidator = [
-  param('id')
-    .isInt()
-    .withMessage('Voice recording ID must be a valid integer'),
-  body('auto_create')
-    .optional()
-    .isBoolean()
-    .withMessage('auto_create must be a boolean'),
-  body('category_id')
-    .optional()
-    .isInt()
-    .withMessage('Category ID must be a valid integer')
+  param('id').isInt().withMessage('Voice recording ID must be a valid integer'),
+  body('auto_create').optional().isBoolean().withMessage('auto_create must be a boolean'),
+  body('category_id').optional().isInt().withMessage('Category ID must be a valid integer')
 ];
 
 const previewExtractionValidator = [
-  body('recording_id')
-    .isInt()
-    .withMessage('Recording ID must be a valid integer'),
+  body('recording_id').isInt().withMessage('Recording ID must be a valid integer'),
   body('extraction_type')
     .optional()
     .isIn(['tasks', 'notes', 'both'])
@@ -72,27 +47,14 @@ const previewExtractionValidator = [
 ];
 
 const createFromPreviewValidator = [
-  body('recording_id')
-    .isInt()
-    .withMessage('Recording ID must be a valid integer'),
-  body('tasks')
-    .optional()
-    .isArray()
-    .withMessage('tasks must be an array'),
-  body('notes')
-    .optional()
-    .isArray()
-    .withMessage('notes must be an array'),
-  body('category_id')
-    .optional()
-    .isInt()
-    .withMessage('Category ID must be a valid integer')
+  body('recording_id').isInt().withMessage('Recording ID must be a valid integer'),
+  body('tasks').optional().isArray().withMessage('tasks must be an array'),
+  body('notes').optional().isArray().withMessage('notes must be an array'),
+  body('category_id').optional().isInt().withMessage('Category ID must be a valid integer')
 ];
 
 const updateTranscriptionValidator = [
-  body('recording_id')
-    .isInt()
-    .withMessage('Recording ID must be a valid integer'),
+  body('recording_id').isInt().withMessage('Recording ID must be a valid integer'),
   body('transcription')
     .notEmpty()
     .withMessage('Transcription text is required')
@@ -105,10 +67,7 @@ const processVoiceCompleteValidator = [
     .optional()
     .isIn(['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
     .withMessage('Language must be one of: en, ar, fr, es, de, it, pt, ru, ja, ko, zh, hi, tr'),
-  body('category_id')
-    .optional()
-    .isInt()
-    .withMessage('Category ID must be a valid integer'),
+  body('category_id').optional().isInt().withMessage('Category ID must be a valid integer'),
   body('auto_create_tasks')
     .optional()
     .isBoolean()

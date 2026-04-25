@@ -15,7 +15,6 @@ class SettingsController {
       }
 
       return successResponse(res, { settings: settings.toJSON() });
-
     } catch (error) {
       next(error);
     }
@@ -45,7 +44,6 @@ class SettingsController {
       });
 
       return successResponse(res, { settings: settings.toJSON() }, 'Settings updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -59,17 +57,13 @@ class SettingsController {
         throw new ValidationError('Invalid theme. Must be: light, dark, or auto');
       }
 
-      await UserSettings.update(
-        { theme },
-        { where: { user_id: req.user.user_id } }
-      );
+      await UserSettings.update({ theme }, { where: { user_id: req.user.user_id } });
 
       const settings = await UserSettings.findOne({
         where: { user_id: req.user.user_id }
       });
 
       return successResponse(res, { settings: settings.toJSON() }, 'Theme updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -83,17 +77,13 @@ class SettingsController {
         throw new ValidationError('Language is required');
       }
 
-      await UserSettings.update(
-        { language },
-        { where: { user_id: req.user.user_id } }
-      );
+      await UserSettings.update({ language }, { where: { user_id: req.user.user_id } });
 
       const settings = await UserSettings.findOne({
         where: { user_id: req.user.user_id }
       });
 
       return successResponse(res, { settings: settings.toJSON() }, 'Language updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -107,17 +97,13 @@ class SettingsController {
         throw new ValidationError('Timezone is required');
       }
 
-      await UserSettings.update(
-        { timezone },
-        { where: { user_id: req.user.user_id } }
-      );
+      await UserSettings.update({ timezone }, { where: { user_id: req.user.user_id } });
 
       const settings = await UserSettings.findOne({
         where: { user_id: req.user.user_id }
       });
 
       return successResponse(res, { settings: settings.toJSON() }, 'Timezone updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -143,7 +129,6 @@ class SettingsController {
       };
 
       return successResponse(res, { notification_settings: notificationSettings });
-
     } catch (error) {
       next(error);
     }
@@ -152,8 +137,14 @@ class SettingsController {
   static async updateNotificationSettings(req, res, next) {
     try {
       const updates = {};
-      const allowedFields = ['email_enabled', 'whatsapp_enabled', 'push_enabled', 
-                            'email_for_reminders', 'email_for_tasks', 'whatsapp_for_reminders'];
+      const allowedFields = [
+        'email_enabled',
+        'whatsapp_enabled',
+        'push_enabled',
+        'email_for_reminders',
+        'email_for_tasks',
+        'whatsapp_for_reminders'
+      ];
 
       allowedFields.forEach(field => {
         if (req.body[field] !== undefined) {
@@ -169,8 +160,11 @@ class SettingsController {
         where: { user_id: req.user.user_id }
       });
 
-      return successResponse(res, { settings: settings.toJSON() }, 'Notification settings updated successfully');
-
+      return successResponse(
+        res,
+        { settings: settings.toJSON() },
+        'Notification settings updated successfully'
+      );
     } catch (error) {
       next(error);
     }
