@@ -75,11 +75,11 @@ const WebexSync = sequelize.define('WebexSync', {
   tableName: 'webex_sync',
   timestamps: true,
   indexes: [
-    { unique: true, fields: ['userId'] },
-    { fields: ['webexUserId'] },
-    { fields: ['webexUserEmail'] },
-    { fields: ['isActive'] },
-    { fields: ['syncEnabled'] }
+    { unique: true, fields: ['user_id'] },
+    { fields: ['webex_user_id'] },
+    { fields: ['webex_user_email'] },
+    { fields: ['is_active'] },
+    { fields: ['sync_enabled'] }
   ]
 });
 
@@ -110,78 +110,6 @@ WebexSync.addHook('afterFind', async (result) => {
     if (inst.refreshToken) inst.refreshToken = enc.decryptField(inst.refreshToken);
   };
   Array.isArray(result) ? result.forEach(decrypt) : decrypt(result);
-});
-
-export default WebexSync;
-  tokenType: {
-    type: DataTypes.STRING,
-    defaultValue: 'Bearer'
-  },
-  expiresIn: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
-  expiresAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  scope: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  webexUserId: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  webexUserEmail: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  webexDisplayName: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-  lastSyncAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
-  syncEnabled: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
-}, {
-  tableName: 'webex_sync',
-  timestamps: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['userId']
-    },
-    {
-      fields: ['webexUserId']
-    },
-    {
-      fields: ['webexUserEmail']
-    },
-    {
-      fields: ['isActive']
-    },
-    {
-      fields: ['syncEnabled']
-    }
-  ]
 });
 
 export default WebexSync;

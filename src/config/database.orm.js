@@ -20,6 +20,12 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  dialectOptions: {
+    ssl: process.env.DB_HOST?.includes('neon.tech') || process.env.DB_HOST?.includes('aws') ? {
+      require: true,
+      rejectUnauthorized: false
+    } : false
+  },
   pool: {
     max: 20,
     min: 0,

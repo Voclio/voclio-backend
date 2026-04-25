@@ -4,13 +4,20 @@ import logger from '../utils/logger.js';
 class CacheService {
   constructor() {
     this.redis = null;
+    this.isEnabled = false;
     this.defaultTTL = 3600; // 1 hour
     this.keyPrefix = 'voclio:';
   }
 
   initialize() {
     this.redis = redisClient.getClient();
-    logger.info('✅ Cache service initialized');
+    this.isEnabled = this.redis !== null && redisClient.isEnabled;
+    
+    if (this.isEnabled) {
+      logger.info('✅ Cache service initialized');
+    } else {
+      logger.warn('⚠️  Cache service disabled - Redis not available');
+    }
   }
 
   /**
@@ -24,6 +31,8 @@ class CacheService {
    * Set cache value
    */
   async set(key, value, ttl = this.defaultTTL) {
+    if (!this.isEnabled) return false;
+    
     try {
       const cacheKey = this.getKey(key);
       const serialized = JSON.stringify(value);
@@ -46,6 +55,8 @@ class CacheService {
    * Get cache value
    */
   async get(key) {
+    if (!this.isEnabled) return null;
+    
     try {
       const cacheKey = this.getKey(key);
       const cached = await this.redis.get(cacheKey);
@@ -67,6 +78,8 @@ class CacheService {
    * Delete cache value
    */
   async del(key) {
+    if (!this.isEnabled) return false;
+    
     try {
       const cacheKey = this.getKey(key);
       await this.redis.del(cacheKey);
@@ -82,6 +95,8 @@ class CacheService {
    * Delete multiple keys by pattern
    */
   async delPattern(pattern) {
+    if (!this.isEnabled) return 0;
+    
     try {
       const cachePattern = this.getKey(pattern);
       const keys = await this.redis.keys(cachePattern);
@@ -102,6 +117,8 @@ class CacheService {
    * Check if key exists
    */
   async exists(key) {
+    if (!this.isEnabled) return false;
+    
     try {
       const cacheKey = this.getKey(key);
       const exists = await this.redis.exists(cacheKey);
@@ -117,17 +134,21 @@ class CacheService {
    */
   async getOrSet(key, fetchFunction, ttl = this.defaultTTL) {
     try {
-      // Try to get from cache
-      const cached = await this.get(key);
-      if (cached !== null) {
-        return cached;
+      // Try to get from cache if enabled
+      if (this.isEnabled) {
+        const cached = await this.get(key);
+        if (cached !== null) {
+          return cached;
+        }
       }
 
       // Fetch fresh data
       const freshData = await fetchFunction();
       
-      // Store in cache
-      await this.set(key, freshData, ttl);
+      // Store in cache if enabled
+      if (this.isEnabled) {
+        await this.set(key, freshData, ttl);
+      }
       
       return freshData;
     } catch (error) {
@@ -141,6 +162,8 @@ class CacheService {
    * Increment counter
    */
   async incr(key, amount = 1) {
+    if (!this.isEnabled) return null;
+    
     try {
       const cacheKey = this.getKey(key);
       return await this.redis.incrby(cacheKey, amount);
@@ -154,6 +177,8 @@ class CacheService {
    * Set expiration time
    */
   async expire(key, ttl) {
+    if (!this.isEnabled) return false;
+    
     try {
       const cacheKey = this.getKey(key);
       await this.redis.expire(cacheKey, ttl);
@@ -168,6 +193,8 @@ class CacheService {
    * Get TTL
    */
   async ttl(key) {
+    if (!this.isEnabled) return -1;
+    
     try {
       const cacheKey = this.getKey(key);
       return await this.redis.ttl(cacheKey);
@@ -251,6 +278,8 @@ class CacheService {
    * Flush all cache
    */
   async flushAll() {
+    if (!this.isEnabled) return false;
+    
     try {
       await this.redis.flushdb();
       logger.warn('⚠️ All cache flushed');
@@ -265,11 +294,19 @@ class CacheService {
    * Get cache stats
    */
   async getStats() {
+    if (!this.isEnabled) {
+      return {
+        enabled: false,
+        message: 'Cache is disabled'
+      };
+    }
+    
     try {
       const info = await this.redis.info('stats');
       const dbSize = await this.redis.dbsize();
       
       return {
+        enabled: true,
         dbSize,
         info
       };
