@@ -17,9 +17,9 @@ async function verifyGoogleToken(idToken) {
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    
+
     const payload = ticket.getPayload();
-    
+
     return {
       oauth_id: payload.sub,
       email: payload.email,
@@ -43,17 +43,17 @@ async function verifyFacebookToken(accessToken) {
     const response = await fetch(
       `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
     );
-    
+
     if (!response.ok) {
       throw new Error('Invalid Facebook token');
     }
-    
+
     const data = await response.json();
-    
+
     if (!data.email) {
       throw new Error('Email permission required');
     }
-    
+
     return {
       oauth_id: data.id,
       email: data.email,

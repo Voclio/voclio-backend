@@ -16,12 +16,12 @@ async function runWebexSyncMigration() {
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
     console.log('📝 Running Webex sync migration...');
-    
+
     // Execute the migration
     await executeMigration(migrationSQL);
-    
+
     console.log('✅ Webex sync migration completed successfully!');
-    
+
     // Verify the table was created
     const [result] = await sequelize.query(`
       SELECT table_name, column_name, data_type, is_nullable
@@ -29,11 +29,13 @@ async function runWebexSyncMigration() {
       WHERE table_name = 'webex_sync'
       ORDER BY ordinal_position;
     `);
-    
+
     if (result.length > 0) {
       console.log('\n📋 Webex sync table structure:');
       result.forEach(row => {
-        console.log(`  - ${row.column_name}: ${row.data_type} ${row.is_nullable === 'NO' ? '(NOT NULL)' : ''}`);
+        console.log(
+          `  - ${row.column_name}: ${row.data_type} ${row.is_nullable === 'NO' ? '(NOT NULL)' : ''}`
+        );
       });
     }
 
@@ -43,7 +45,7 @@ async function runWebexSyncMigration() {
       FROM pg_indexes 
       WHERE tablename = 'webex_sync';
     `);
-    
+
     if (indexResult.length > 0) {
       console.log('\n🔍 Created indexes:');
       indexResult.forEach(row => {

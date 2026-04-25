@@ -8,7 +8,7 @@ class NoteController {
   static async getAllNotes(req, res, next) {
     try {
       const { page = 1, limit = 20, search } = req.query;
-      
+
       const notes = await NoteModel.findAll(req.user.user_id, {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -22,7 +22,6 @@ class NoteController {
         limit: parseInt(limit),
         total
       });
-
     } catch (error) {
       next(error);
     }
@@ -31,13 +30,12 @@ class NoteController {
   static async getNoteById(req, res, next) {
     try {
       const note = await NoteModel.findById(req.params.id, req.user.user_id);
-      
+
       if (!note) {
         throw new NotFoundError('Note not found');
       }
 
       return successResponse(res, { note });
-
     } catch (error) {
       next(error);
     }
@@ -67,7 +65,6 @@ class NoteController {
       const completeNote = await NoteModel.findById(note.note_id, req.user.user_id);
 
       return successResponse(res, { note: completeNote }, 'Note created successfully', 201);
-
     } catch (error) {
       next(error);
     }
@@ -100,7 +97,6 @@ class NoteController {
       const updatedNote = await NoteModel.findById(note.note_id, req.user.user_id);
 
       return successResponse(res, { note: updatedNote }, 'Note updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -115,7 +111,6 @@ class NoteController {
       }
 
       return successResponse(res, null, 'Note deleted successfully');
-
     } catch (error) {
       next(error);
     }
@@ -131,11 +126,14 @@ class NoteController {
 
       const summary = await aiService.summarizeText(note.content);
 
-      return successResponse(res, {
-        note_id: note.note_id,
-        summary
-      }, 'Note summarized successfully');
-
+      return successResponse(
+        res,
+        {
+          note_id: note.note_id,
+          summary
+        },
+        'Note summarized successfully'
+      );
     } catch (error) {
       next(error);
     }
@@ -144,7 +142,7 @@ class NoteController {
   static async extractTasks(req, res, next) {
     try {
       const { auto_create = false, category_id } = req.body;
-      
+
       const note = await NoteModel.findById(req.params.id, req.user.user_id);
 
       if (!note) {
@@ -155,16 +153,20 @@ class NoteController {
       console.log('Content:', note.content);
 
       const extractedTasks = await aiService.extractTasks(note.content);
-      
+
       console.log('🤖 AI extracted tasks:', extractedTasks.length);
       console.log('Tasks:', JSON.stringify(extractedTasks, null, 2));
 
       if (!auto_create) {
-        return successResponse(res, {
-          note_id: note.note_id,
-          extracted_tasks: extractedTasks,
-          message: 'Tasks extracted. Set auto_create=true to save them automatically.'
-        }, 'Tasks extracted successfully');
+        return successResponse(
+          res,
+          {
+            note_id: note.note_id,
+            extracted_tasks: extractedTasks,
+            message: 'Tasks extracted. Set auto_create=true to save them automatically.'
+          },
+          'Tasks extracted successfully'
+        );
       }
 
       // Auto-create tasks - ensure category_id is valid or null
@@ -176,12 +178,12 @@ class NoteController {
           due_date: task.due_date || null,
           note_id: note.note_id
         };
-        
+
         // Only add category_id if it's provided and valid
         if (category_id) {
           taskData.category_id = category_id;
         }
-        
+
         return taskData;
       });
 
@@ -191,12 +193,16 @@ class NoteController {
 
       console.log('✅ Created tasks:', createdTasks.length);
 
-      return successResponse(res, {
-        note_id: note.note_id,
-        tasks: createdTasks,
-        count: createdTasks.length
-      }, 'Tasks created successfully', 201);
-
+      return successResponse(
+        res,
+        {
+          note_id: note.note_id,
+          tasks: createdTasks,
+          count: createdTasks.length
+        },
+        'Tasks created successfully',
+        201
+      );
     } catch (error) {
       console.error('❌ Extract tasks error:', error);
       next(error);
@@ -223,7 +229,6 @@ class NoteController {
       const updatedNote = await NoteModel.findById(req.params.id, req.user.user_id);
 
       return successResponse(res, { note: updatedNote }, 'Tags added successfully');
-
     } catch (error) {
       next(error);
     }
@@ -241,7 +246,6 @@ class NoteController {
         note_id: note.note_id,
         tags: note.tags || []
       });
-
     } catch (error) {
       next(error);
     }
@@ -262,7 +266,6 @@ class NoteController {
       const updatedNote = await NoteModel.findById(noteId, req.user.user_id);
 
       return successResponse(res, { note: updatedNote }, 'Tag removed successfully');
-
     } catch (error) {
       next(error);
     }

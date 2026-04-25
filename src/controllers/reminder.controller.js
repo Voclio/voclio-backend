@@ -20,7 +20,6 @@ class ReminderController {
         limit: parseInt(limit),
         total
       });
-
     } catch (error) {
       next(error);
     }
@@ -35,7 +34,6 @@ class ReminderController {
       }
 
       return successResponse(res, { reminder });
-
     } catch (error) {
       next(error);
     }
@@ -60,7 +58,6 @@ class ReminderController {
       await NotificationService.notifyReminderCreated(req.user.user_id, reminder);
 
       return successResponse(res, { reminder }, 'Reminder created successfully', 201);
-
     } catch (error) {
       next(error);
     }
@@ -82,7 +79,6 @@ class ReminderController {
       }
 
       return successResponse(res, { reminder }, 'Reminder updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -99,7 +95,6 @@ class ReminderController {
       }
 
       return successResponse(res, { reminder }, `Reminder snoozed for ${snooze_minutes} minutes`);
-
     } catch (error) {
       next(error);
     }
@@ -114,7 +109,6 @@ class ReminderController {
       }
 
       return successResponse(res, { reminder }, 'Reminder dismissed');
-
     } catch (error) {
       next(error);
     }
@@ -129,7 +123,6 @@ class ReminderController {
       }
 
       return successResponse(res, null, 'Reminder deleted successfully');
-
     } catch (error) {
       next(error);
     }
@@ -140,7 +133,6 @@ class ReminderController {
       const reminders = await ReminderModel.findUpcoming(req.user.user_id);
 
       return successResponse(res, { reminders });
-
     } catch (error) {
       next(error);
     }

@@ -1,11 +1,11 @@
-import { Note, Tag, sequelize } from "./orm/index.js";
-import { Op } from "sequelize";
+import { Note, Tag, sequelize } from './orm/index.js';
+import { Op } from 'sequelize';
 
 class NoteModel {
   static async create(userId, noteData) {
     const note = await Note.create({
       user_id: userId,
-      ...noteData,
+      ...noteData
     });
     return note.toJSON();
   }
@@ -19,7 +19,7 @@ class NoteModel {
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
-        { content: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } }
       ];
     }
 
@@ -28,17 +28,17 @@ class NoteModel {
       include: [
         {
           model: Tag,
-          as: "tags",
-          attributes: ["tag_id", "name", "color"],
-          through: { attributes: [] },
-        },
+          as: 'tags',
+          attributes: ['tag_id', 'name', 'color'],
+          through: { attributes: [] }
+        }
       ],
-      order: [["updated_at", "DESC"]],
+      order: [['updated_at', 'DESC']],
       limit,
-      offset,
+      offset
     });
 
-    return notes.map((note) => note.toJSON());
+    return notes.map(note => note.toJSON());
   }
 
   static async findById(noteId, userId) {
@@ -47,11 +47,11 @@ class NoteModel {
       include: [
         {
           model: Tag,
-          as: "tags",
-          attributes: ["tag_id", "name", "color"],
-          through: { attributes: [] },
-        },
-      ],
+          as: 'tags',
+          attributes: ['tag_id', 'name', 'color'],
+          through: { attributes: [] }
+        }
+      ]
     });
 
     return note ? note.toJSON() : null;
@@ -59,7 +59,7 @@ class NoteModel {
 
   static async update(noteId, userId, updates) {
     const note = await Note.findOne({
-      where: { note_id: noteId, user_id: userId },
+      where: { note_id: noteId, user_id: userId }
     });
 
     if (!note) return null;
@@ -70,7 +70,7 @@ class NoteModel {
 
   static async delete(noteId, userId) {
     const note = await Note.findOne({
-      where: { note_id: noteId, user_id: userId },
+      where: { note_id: noteId, user_id: userId }
     });
 
     if (!note) return null;
@@ -82,23 +82,23 @@ class NoteModel {
 
   static async addTags(noteId, tags) {
     const note = await Note.findByPk(noteId);
-    if (!note) throw new Error("Note not found");
+    if (!note) throw new Error('Note not found');
 
     const tagIds = [];
 
     for (const tag of tags) {
-      if (typeof tag === "number") {
+      if (typeof tag === 'number') {
         tagIds.push(tag);
-      } else if (typeof tag === "string") {
+      } else if (typeof tag === 'string') {
         // Treat as tag name -> Find or create
         const [tagRecord] = await Tag.findOrCreate({
           where: {
             name: tag,
-            user_id: note.user_id,
+            user_id: note.user_id
           },
           defaults: {
-            color: "#3498db", // Default color
-          },
+            color: '#3498db' // Default color
+          }
         });
         tagIds.push(tagRecord.tag_id);
       }
@@ -121,7 +121,7 @@ class NoteModel {
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
-        { content: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } }
       ];
     }
 

@@ -12,11 +12,11 @@ class GoogleCalendarService {
       config.google.clientSecret,
       config.google.redirectUri
     );
-    
+
     if (tokens) {
       oauth2Client.setCredentials(tokens);
     }
-    
+
     return oauth2Client;
   }
 
@@ -79,7 +79,7 @@ class GoogleCalendarService {
       const oauth2Client = this.createClient({
         refresh_token: refreshToken
       });
-      
+
       const { credentials } = await oauth2Client.refreshAccessToken();
       return credentials;
     } catch (error) {
@@ -95,7 +95,7 @@ class GoogleCalendarService {
     try {
       const oauth2Client = this.createClient(tokens);
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-      
+
       const {
         calendarId = 'primary',
         timeMin = new Date().toISOString(),
@@ -182,7 +182,7 @@ class GoogleCalendarService {
     try {
       const oauth2Client = this.createClient(tokens);
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-      
+
       const response = await calendar.calendarList.list();
       return response.data.items || [];
     } catch (error) {
@@ -198,7 +198,7 @@ class GoogleCalendarService {
     try {
       const oauth2Client = this.createClient(tokens);
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-      
+
       const {
         title,
         description,

@@ -25,7 +25,7 @@ class NotificationModel {
       limit,
       offset
     });
-    
+
     return notifications.map(n => n.toJSON());
   }
 
@@ -40,27 +40,24 @@ class NotificationModel {
     const notification = await Notification.findOne({
       where: { notification_id: notificationId, user_id: userId }
     });
-    
+
     if (!notification) return null;
-    
+
     await notification.update({ is_read: true });
     return notification.toJSON();
   }
 
   static async markAllAsRead(userId) {
-    await Notification.update(
-      { is_read: true },
-      { where: { user_id: userId, is_read: false } }
-    );
+    await Notification.update({ is_read: true }, { where: { user_id: userId, is_read: false } });
   }
 
   static async delete(notificationId, userId) {
     const notification = await Notification.findOne({
       where: { notification_id: notificationId, user_id: userId }
     });
-    
+
     if (!notification) return null;
-    
+
     const notificationData = notification.toJSON();
     await notification.destroy();
     return notificationData;
@@ -71,7 +68,7 @@ class NotificationModel {
     if (is_read !== undefined) {
       where.is_read = is_read;
     }
-    
+
     return await Notification.count({ where });
   }
 

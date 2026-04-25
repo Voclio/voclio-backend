@@ -39,10 +39,7 @@ const getSummaryValidator = [
     .optional()
     .isISO8601()
     .withMessage('start_date must be a valid ISO 8601 date'),
-  query('end_date')
-    .optional()
-    .isISO8601()
-    .withMessage('end_date must be a valid ISO 8601 date'),
+  query('end_date').optional().isISO8601().withMessage('end_date must be a valid ISO 8601 date'),
   query('period')
     .optional()
     .isIn(['today', 'week', 'month'])
@@ -58,13 +55,16 @@ const getSummaryValidator = [
 ];
 
 const getAISuggestionsValidator = [
-  query('days')
-    .optional()
-    .isInt({ min: 1, max: 30 })
-    .withMessage('Days must be between 1 and 30'),
+  query('days').optional().isInt({ min: 1, max: 30 }).withMessage('Days must be between 1 and 30'),
   query('focus_area')
     .optional()
-    .isIn(['time_management', 'task_organization', 'focus_improvement', 'stress_reduction', 'general'])
+    .isIn([
+      'time_management',
+      'task_organization',
+      'focus_improvement',
+      'stress_reduction',
+      'general'
+    ])
     .withMessage('Invalid focus area'),
   query('tone')
     .optional()
@@ -74,10 +74,7 @@ const getAISuggestionsValidator = [
     .optional()
     .isInt({ min: 1, max: 10 })
     .withMessage('Count must be between 1 and 10'),
-  query('language')
-    .optional()
-    .isIn(['ar', 'en'])
-    .withMessage('Language must be ar or en')
+  query('language').optional().isIn(['ar', 'en']).withMessage('Language must be ar or en')
 ];
 
 export {

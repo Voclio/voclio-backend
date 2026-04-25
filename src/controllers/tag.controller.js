@@ -8,7 +8,6 @@ class TagController {
       const tags = await TagModel.findAll(req.user.user_id);
 
       return successResponse(res, { tags });
-
     } catch (error) {
       next(error);
     }
@@ -23,7 +22,6 @@ class TagController {
       }
 
       return successResponse(res, { tag });
-
     } catch (error) {
       next(error);
     }
@@ -44,7 +42,6 @@ class TagController {
       });
 
       return successResponse(res, { tag }, 'Tag created successfully', 201);
-
     } catch (error) {
       next(error);
     }
@@ -65,7 +62,6 @@ class TagController {
       }
 
       return successResponse(res, { tag }, 'Tag updated successfully');
-
     } catch (error) {
       next(error);
     }
@@ -80,7 +76,6 @@ class TagController {
       }
 
       return successResponse(res, null, 'Tag deleted successfully');
-
     } catch (error) {
       next(error);
     }

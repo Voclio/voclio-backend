@@ -19,12 +19,15 @@ const sequelize = new Sequelize({
   database: process.env.DB_NAME || 'voclio_db',
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  logging: false,
   dialectOptions: {
-    ssl: process.env.DB_HOST?.includes('neon.tech') || process.env.DB_HOST?.includes('aws') ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
+    ssl:
+      process.env.DB_HOST?.includes('neon.tech') || process.env.DB_HOST?.includes('aws')
+        ? {
+            require: true,
+            rejectUnauthorized: false
+          }
+        : false
   },
   pool: {
     max: 20,
@@ -41,7 +44,8 @@ const sequelize = new Sequelize({
 });
 
 // Test connection
-sequelize.authenticate()
+sequelize
+  .authenticate()
   .then(() => {
     console.log('✅ Database ORM connected successfully');
     if (missingEnvVars.length > 0) {

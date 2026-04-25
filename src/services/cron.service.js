@@ -12,7 +12,7 @@ class CronService {
   // Start all cron jobs
   start() {
     console.log('🕐 Starting cron jobs...');
-    
+
     // Check for reminders every minute
     this.jobs.push(
       cron.schedule('* * * * *', () => {
@@ -128,7 +128,7 @@ class CronService {
       console.log(`✅ Reminder sent to ${user.email}`);
     } catch (error) {
       console.error('Error sending reminder:', error);
-      
+
       // Mark as failed and retry later
       try {
         await reminder.update({ status: 'failed' });
@@ -148,7 +148,7 @@ class CronService {
           }
         }
       });
-      
+
       if (result > 0) {
         console.log(`🧹 Cleaned up ${result} expired OTP codes`);
       }
@@ -167,7 +167,7 @@ class CronService {
           }
         }
       });
-      
+
       if (result > 0) {
         console.log(`🧹 Cleaned up ${result} expired sessions`);
       }
@@ -240,7 +240,9 @@ class CronService {
       }
 
       if (tasksDueSoon.length > 0 || overdueTasks.length > 0) {
-        console.log(`📅 Checked tasks: ${tasksDueSoon.length} due soon, ${overdueTasks.length} overdue`);
+        console.log(
+          `📅 Checked tasks: ${tasksDueSoon.length} due soon, ${overdueTasks.length} overdue`
+        );
       }
     } catch (error) {
       console.error('Error checking tasks due soon:', error);

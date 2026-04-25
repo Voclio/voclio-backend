@@ -12,7 +12,8 @@ class NotificationController {
         is_read: is_read !== undefined ? is_read === 'true' : undefined
       });
 
-      const total = await NotificationModel.count(req.user.user_id, 
+      const total = await NotificationModel.count(
+        req.user.user_id,
         is_read !== undefined ? is_read === 'true' : undefined
       );
 
@@ -24,7 +25,6 @@ class NotificationController {
         total,
         unread_count: unreadCount
       });
-
     } catch (error) {
       next(error);
     }
@@ -39,7 +39,6 @@ class NotificationController {
       }
 
       return successResponse(res, { notification });
-
     } catch (error) {
       next(error);
     }
@@ -54,7 +53,6 @@ class NotificationController {
       }
 
       return successResponse(res, { notification }, 'Notification marked as read');
-
     } catch (error) {
       next(error);
     }
@@ -65,7 +63,6 @@ class NotificationController {
       await NotificationModel.markAllAsRead(req.user.user_id);
 
       return successResponse(res, null, 'All notifications marked as read');
-
     } catch (error) {
       next(error);
     }
@@ -80,7 +77,6 @@ class NotificationController {
       }
 
       return successResponse(res, null, 'Notification deleted successfully');
-
     } catch (error) {
       next(error);
     }
@@ -91,7 +87,6 @@ class NotificationController {
       const count = await NotificationModel.getUnreadCount(req.user.user_id);
 
       return successResponse(res, { unread_count: count });
-
     } catch (error) {
       next(error);
     }

@@ -13,11 +13,7 @@ class WebexCalendarService {
    * Generate OAuth URL for user to authorize Webex access
    */
   generateAuthUrl() {
-    const scopes = [
-      'spark:meetings_read',
-      'spark:meetings_write',
-      'spark:people_read'
-    ];
+    const scopes = ['spark:meetings_read', 'spark:meetings_write', 'spark:people_read'];
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -35,17 +31,21 @@ class WebexCalendarService {
    */
   async getTokens(code) {
     try {
-      const response = await axios.post('https://webexapis.com/v1/access_token', {
-        grant_type: 'authorization_code',
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        code: code,
-        redirect_uri: this.redirectUri
-      }, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+      const response = await axios.post(
+        'https://webexapis.com/v1/access_token',
+        {
+          grant_type: 'authorization_code',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          code: code,
+          redirect_uri: this.redirectUri
+        },
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
         }
-      });
+      );
 
       return response.data;
     } catch (error) {
@@ -59,16 +59,20 @@ class WebexCalendarService {
    */
   async refreshAccessToken(refreshToken) {
     try {
-      const response = await axios.post('https://webexapis.com/v1/access_token', {
-        grant_type: 'refresh_token',
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        refresh_token: refreshToken
-      }, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+      const response = await axios.post(
+        'https://webexapis.com/v1/access_token',
+        {
+          grant_type: 'refresh_token',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          refresh_token: refreshToken
+        },
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
         }
-      });
+      );
 
       return response.data;
     } catch (error) {
@@ -82,12 +86,7 @@ class WebexCalendarService {
    */
   async getMeetings(accessToken, options = {}) {
     try {
-      const {
-        from = new Date().toISOString(),
-        to,
-        max = 50,
-        meetingType = 'meeting'
-      } = options;
+      const { from = new Date().toISOString(), to, max = 50, meetingType = 'meeting' } = options;
 
       const params = {
         from,
@@ -101,7 +100,7 @@ class WebexCalendarService {
 
       const response = await axios.get(`${this.apiUrl}/meetings`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         params
@@ -250,7 +249,7 @@ class WebexCalendarService {
 
       const response = await axios.post(`${this.apiUrl}/meetings`, meeting, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -269,7 +268,7 @@ class WebexCalendarService {
     try {
       const response = await axios.put(`${this.apiUrl}/meetings/${meetingId}`, meetingData, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -288,7 +287,7 @@ class WebexCalendarService {
     try {
       await axios.delete(`${this.apiUrl}/meetings/${meetingId}`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -307,7 +306,7 @@ class WebexCalendarService {
     try {
       const response = await axios.get(`${this.apiUrl}/meetings/${meetingId}`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -326,7 +325,7 @@ class WebexCalendarService {
     try {
       const response = await axios.get(`${this.apiUrl}/people/me`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });

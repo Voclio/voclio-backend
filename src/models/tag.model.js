@@ -28,9 +28,9 @@ class TagModel {
     const tag = await Tag.findOne({
       where: { tag_id: tagId, user_id: userId }
     });
-    
+
     if (!tag) return null;
-    
+
     await tag.update(updates);
     return tag.toJSON();
   }
@@ -39,9 +39,9 @@ class TagModel {
     const tag = await Tag.findOne({
       where: { tag_id: tagId, user_id: userId }
     });
-    
+
     if (!tag) return null;
-    
+
     const tagData = tag.toJSON();
     await tag.destroy();
     return tagData;

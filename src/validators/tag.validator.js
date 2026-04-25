@@ -13,9 +13,7 @@ const createTagValidator = [
 ];
 
 const updateTagValidator = [
-  param('id')
-    .isInt()
-    .withMessage('Tag ID must be a valid integer'),
+  param('id').isInt().withMessage('Tag ID must be a valid integer'),
   body('name')
     .optional()
     .trim()
@@ -27,14 +25,6 @@ const updateTagValidator = [
     .withMessage('Color must be a valid hex color code (e.g., #FF5733)')
 ];
 
-const tagIdValidator = [
-  param('id')
-    .isInt()
-    .withMessage('Tag ID must be a valid integer')
-];
+const tagIdValidator = [param('id').isInt().withMessage('Tag ID must be a valid integer')];
 
-export {
-  createTagValidator,
-  updateTagValidator,
-  tagIdValidator
-};
+export { createTagValidator, updateTagValidator, tagIdValidator };

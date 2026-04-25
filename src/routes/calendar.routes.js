@@ -27,7 +27,11 @@ router.post('/google/link-session', CalendarController.linkOAuthSession);
 router.post('/google/callback/mobile', CalendarController.handleMobileCallback);
 router.delete('/google/disconnect', CalendarController.disconnectGoogleCalendar);
 router.get('/google/status', CalendarController.getGoogleCalendarStatus);
-router.get('/google/events', getCalendarEventsValidator, CalendarController.getGoogleCalendarEvents);
+router.get(
+  '/google/events',
+  getCalendarEventsValidator,
+  CalendarController.getGoogleCalendarEvents
+);
 router.get('/google/today', CalendarController.getTodayMeetings);
 router.get('/google/upcoming', CalendarController.getUpcomingMeetings);
 

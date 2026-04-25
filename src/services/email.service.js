@@ -1,7 +1,7 @@
-import { Resend } from "resend";
-import config from "../config/index.js";
+import { Resend } from 'resend';
+import config from '../config/index.js';
 
-const baseUrl = process.env.API_URL || "http://localhost:3000";
+const baseUrl = process.env.API_URL || 'http://localhost:3000';
 
 class EmailService {
   constructor() {
@@ -11,9 +11,11 @@ class EmailService {
       this.useResend = true;
     } else {
       this.useResend = false;
-      console.warn("⚠️  Resend API key not configured. Email service will run in development mode.");
+      console.warn(
+        '⚠️  Resend API key not configured. Email service will run in development mode.'
+      );
     }
-    this.fromEmail = process.env.EMAIL_FROM || "noreply@build8.dev";
+    this.fromEmail = process.env.EMAIL_FROM || 'noreply@build8.dev';
   }
 
   /**
@@ -217,24 +219,24 @@ class EmailService {
         </table>
       `;
 
-      const html = this.getTemplate("Verification Code", content);
+      const html = this.getTemplate('Verification Code', content);
 
       const { data, error } = await this.resend.emails.send({
         from: `Voclio <${this.fromEmail}>`,
         to: email,
         subject: subject,
-        html: html,
+        html: html
       });
 
       if (error) {
         throw new Error(error.message);
       }
 
-      console.log("✅ OTP email sent:", data.id);
+      console.log('✅ OTP email sent:', data.id);
       return true;
     } catch (error) {
-      console.error("❌ Error sending OTP email:", error);
-      if (config.nodeEnv === "development") {
+      console.error('❌ Error sending OTP email:', error);
+      if (config.nodeEnv === 'development') {
         console.log(`\n📧 Development Mode - OTP for ${email}: ${otpCode}\n`);
       }
       throw error;
@@ -243,13 +245,13 @@ class EmailService {
 
   getOTPTypeLabel(type) {
     const labels = {
-      login: "Login",
-      registration: "Registration",
-      password_reset: "Password Reset",
-      email_verification: "Email Verification",
-      phone_verification: "Phone Verification",
+      login: 'Login',
+      registration: 'Registration',
+      password_reset: 'Password Reset',
+      email_verification: 'Email Verification',
+      phone_verification: 'Phone Verification'
     };
-    return labels[type] || "Verification";
+    return labels[type] || 'Verification';
   }
 
   async sendPasswordReset(email, resetUrl, userName) {
@@ -263,7 +265,7 @@ class EmailService {
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr>
             <td>
-              <p style="margin: 0 0 16px; color: #374151; font-size: 15px; line-height: 1.6;" class="mobile-text">Hi <strong>${userName || "Friend"}</strong>,</p>
+              <p style="margin: 0 0 16px; color: #374151; font-size: 15px; line-height: 1.6;" class="mobile-text">Hi <strong>${userName || 'Friend'}</strong>,</p>
               <p style="margin: 0 0 16px; color: #4b5563; font-size: 15px; line-height: 1.6;" class="mobile-text">You requested to reset your password. No worries, we've got you covered!</p>
               <p style="margin: 0 0 24px; color: #4b5563; font-size: 15px; line-height: 1.6;" class="mobile-text">Click the button below to reset your password:</p>
             </td>
@@ -299,24 +301,24 @@ class EmailService {
         </table>
       `;
 
-      const html = this.getTemplate("Password Reset", content);
+      const html = this.getTemplate('Password Reset', content);
 
       const { data, error } = await this.resend.emails.send({
         from: `Voclio <${this.fromEmail}>`,
         to: email,
-        subject: "Reset Your Password - Voclio",
-        html: html,
+        subject: 'Reset Your Password - Voclio',
+        html: html
       });
 
       if (error) {
         throw new Error(error.message);
       }
 
-      console.log("✅ Password reset email sent:", data.id);
+      console.log('✅ Password reset email sent:', data.id);
       return true;
     } catch (error) {
-      console.error("❌ Error sending password reset email:", error);
-      if (config.nodeEnv === "development") {
+      console.error('❌ Error sending password reset email:', error);
+      if (config.nodeEnv === 'development') {
         console.log(`\n📧 Reset link for ${email}: ${resetUrl}\n`);
       }
       throw error;
@@ -359,48 +361,51 @@ class EmailService {
         </table>
       `;
 
-      const html = this.getTemplate("Reminder", content);
+      const html = this.getTemplate('Reminder', content);
 
       const { data, error } = await this.resend.emails.send({
         from: `Voclio <${this.fromEmail}>`,
         to: email,
         subject: `Reminder: ${title}`,
-        html: html,
+        html: html
       });
 
       if (error) {
         throw new Error(error.message);
       }
 
-      console.log("✅ Reminder email sent:", data.id);
+      console.log('✅ Reminder email sent:', data.id);
       return true;
     } catch (error) {
-      console.error("❌ Error sending reminder email:", error);
+      console.error('❌ Error sending reminder email:', error);
       throw error;
     }
   }
 
   getOTPSubject(type) {
     const subjects = {
-      login: "Your Login Code",
-      registration: "Verify Your Email",
-      password_reset: "Password Reset Code",
-      phone_verification: "Verify Phone Number",
+      login: 'Your Login Code',
+      registration: 'Verify Your Email',
+      password_reset: 'Password Reset Code',
+      phone_verification: 'Verify Phone Number'
     };
-    return `${subjects[type] || "Verification Code"} - Voclio`;
+    return `${subjects[type] || 'Verification Code'} - Voclio`;
   }
 
   async verifyConnection() {
     try {
       // Check if Resend API key is configured
-      if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key_here') {
-        console.log("⚠️  Email service running in development mode (Resend not configured)");
+      if (
+        !process.env.RESEND_API_KEY ||
+        process.env.RESEND_API_KEY === 'your_resend_api_key_here'
+      ) {
+        console.log('⚠️  Email service running in development mode (Resend not configured)');
         return true; // Allow server to start
       }
-      console.log("✅ Email service (Resend) is ready");
+      console.log('✅ Email service (Resend) is ready');
       return true;
     } catch (error) {
-      console.warn("⚠️  Email service not configured:", error.message);
+      console.warn('⚠️  Email service not configured:', error.message);
       return false;
     }
   }

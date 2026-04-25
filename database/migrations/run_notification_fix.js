@@ -9,17 +9,14 @@ const __dirname = dirname(__filename);
 async function runMigration() {
   try {
     console.log('🔧 Running notification table migration...');
-    
-    const migrationSQL = readFileSync(
-      join(__dirname, 'add_notification_priority.sql'),
-      'utf8'
-    );
-    
+
+    const migrationSQL = readFileSync(join(__dirname, 'add_notification_priority.sql'), 'utf8');
+
     await executeMigration(migrationSQL);
-    
+
     console.log('✅ Migration completed successfully!');
     console.log('✅ Added priority, related_id, and read_at columns to notifications table');
-    
+
     await closeConnection();
   } catch (error) {
     console.error('❌ Migration failed:', error.message);

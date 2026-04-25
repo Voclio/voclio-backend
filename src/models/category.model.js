@@ -29,9 +29,9 @@ class CategoryModel {
     const category = await Category.findOne({
       where: { category_id: categoryId, user_id: userId }
     });
-    
+
     if (!category) return null;
-    
+
     await category.update(updates);
     return category.toJSON();
   }
@@ -40,9 +40,9 @@ class CategoryModel {
     const category = await Category.findOne({
       where: { category_id: categoryId, user_id: userId }
     });
-    
+
     if (!category) return null;
-    
+
     const categoryData = category.toJSON();
     await category.destroy();
     return categoryData;
@@ -51,22 +51,30 @@ class CategoryModel {
   static async getStats(categoryId, userId) {
     const category = await Category.findOne({
       where: { category_id: categoryId, user_id: userId },
-      include: [{
-        model: Task,
-        as: 'tasks',
-        attributes: []
-      }],
+      include: [
+        {
+          model: Task,
+          as: 'tasks',
+          attributes: []
+        }
+      ],
       attributes: {
         include: [
           [sequelize.fn('COUNT', sequelize.col('tasks.task_id')), 'total_tasks'],
-          [sequelize.literal(`COUNT(CASE WHEN tasks.status = 'completed' THEN 1 END)`), 'completed_tasks'],
-          [sequelize.literal(`COUNT(CASE WHEN tasks.status != 'completed' THEN 1 END)`), 'pending_tasks']
+          [
+            sequelize.literal(`COUNT(CASE WHEN tasks.status = 'completed' THEN 1 END)`),
+            'completed_tasks'
+          ],
+          [
+            sequelize.literal(`COUNT(CASE WHEN tasks.status != 'completed' THEN 1 END)`),
+            'pending_tasks'
+          ]
         ]
       },
       group: ['Category.category_id'],
       raw: true
     });
-    
+
     return category;
   }
 }
