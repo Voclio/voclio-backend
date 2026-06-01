@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/orm/index.js';
 import config from '../config/index.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -85,7 +85,7 @@ const adminMiddleware = async (req, res, next) => {
     });
 
     if (!user || !user.is_admin) {
-      throw new UnauthorizedError('Admin access required');
+      throw new ForbiddenError('Admin access required');
     }
 
     next();

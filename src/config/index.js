@@ -47,8 +47,10 @@ const validateConfig = () => {
   }
 };
 
-// Run validation
-validateConfig();
+// Run validation (skipped in test environment — see tests/setup.js)
+if (process.env.NODE_ENV !== 'test') {
+  validateConfig();
+}
 
 export default {
   port: process.env.PORT || 3000,

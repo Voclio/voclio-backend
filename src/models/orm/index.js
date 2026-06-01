@@ -94,13 +94,19 @@ Tag.belongsToMany(Note, {
   as: 'notes'
 });
 
-// Sync database
+// Connect to database (schema managed via database/migrations, not auto-alter)
 const syncDatabase = async (force = false) => {
   try {
-    await sequelize.sync({ force, alter: !force });
-    console.log('✅ Database synced successfully');
+    if (process.env.DB_SYNC_ALTER === 'true' && process.env.NODE_ENV !== 'production') {
+      await sequelize.sync({ force, alter: !force });
+      console.log('✅ Database synced with alter (dev only)');
+    } else {
+      await sequelize.authenticate();
+      console.log('✅ Database connected successfully');
+    }
   } catch (error) {
-    console.error('❌ Database sync failed:', error);
+    console.error('❌ Database connection failed:', error);
+    throw error;
   }
 };
 

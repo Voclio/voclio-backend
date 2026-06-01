@@ -220,7 +220,7 @@ class VoiceController {
         status: 'processing'
       });
 
-      // Step 3: Add transcription job
+      // Step 3: Add transcription job (extraction chained after transcription completes)
       const transcriptionJob = await queueManager.addJob(
         QUEUE_NAMES.TRANSCRIPTION,
         'transcribe-audio',
@@ -228,48 +228,35 @@ class VoiceController {
           recordingId: recording.recording_id,
           userId,
           language,
-          storageKey: uploadResult.key
+          storageKey: uploadResult.key,
+          extractionOptions: {
+            autoCreateTasks: auto_create_tasks === 'true' || auto_create_tasks === true,
+            autoCreateNotes: auto_create_notes === 'true' || auto_create_notes === true,
+            categoryId: category_id || null
+          }
         },
         {
           priority: JOB_PRIORITY.HIGH
         }
       );
 
-      // Step 4: Add extraction job (will wait for transcription)
-      const extractionJob = await queueManager.addJob(
-        QUEUE_NAMES.EXTRACTION,
-        'extract-tasks-notes',
-        {
-          recordingId: recording.recording_id,
-          userId,
-          autoCreateTasks: auto_create_tasks === 'true' || auto_create_tasks === true,
-          autoCreateNotes: auto_create_notes === 'true' || auto_create_notes === true,
-          categoryId: category_id
-        },
-        {
-          priority: JOB_PRIORITY.MEDIUM,
-          delay: 5000 // Wait 5 seconds for transcription to start
-        }
-      );
-
       // Invalidate cache
       await cacheService.delPattern(`recordings:${userId}:*`);
 
-      logger.info(
-        `Voice processing jobs created: transcription=${transcriptionJob.id}, extraction=${extractionJob.id}`
-      );
+      logger.info(`Voice processing job created: transcription=${transcriptionJob.id}`);
 
-      // Return immediately with job IDs
+      // Return immediately with job ID (extraction job ID available after transcription completes)
       return successResponse(
         res,
         {
           recording_id: recording.recording_id,
           jobs: {
             transcription: transcriptionJob.id,
-            extraction: extractionJob.id
+            extraction: null
           },
           status: 'processing',
-          message: 'Voice processing started. Use /api/voice/job-status/:jobId to check progress.'
+          message:
+            'Voice processing started. Extraction begins after transcription. Use /api/voice/job-status/:jobId to check progress.'
         },
         'Voice processing started',
         202 // Accepted

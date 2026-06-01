@@ -31,10 +31,10 @@ setTimeout(() => {
   }
 }, 1000);
 
-// Sync database with ORM
+// Sync database with ORM (authenticate only — schema via database/migrations)
 syncDatabase(false)
   .then(() => {
-    logger.info('✅ Database models synchronized');
+    logger.info('✅ Database connection verified');
   })
   .catch(err => {
     logger.error('❌ Database sync error:', { error: err.message });

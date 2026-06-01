@@ -1,6 +1,7 @@
 import aiService from '../services/ai.service.js';
 import VoiceRecordingModel from '../models/voice.model.js';
 import storageService from '../services/storage.service.js';
+import queueManager, { QUEUE_NAMES, JOB_PRIORITY } from '../config/queue.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -8,7 +9,7 @@ import logger from '../utils/logger.js';
  * Handles audio transcription using AssemblyAI
  */
 export async function processTranscription(job) {
-  const { recordingId, userId, language, storageKey } = job.data;
+  const { recordingId, userId, language, storageKey, extractionOptions } = job.data;
 
   try {
     logger.info(`[Transcription Job ${job.id}] Starting for recording ${recordingId}`);
@@ -63,11 +64,33 @@ export async function processTranscription(job) {
 
     logger.info(`[Transcription Job ${job.id}] Completed successfully`);
 
+    let extractionJobId = null;
+
+    if (extractionOptions) {
+      const extractionJob = await queueManager.addJob(
+        QUEUE_NAMES.EXTRACTION,
+        'extract-tasks-notes',
+        {
+          recordingId,
+          userId,
+          transcriptId,
+          autoCreateTasks: extractionOptions.autoCreateTasks ?? true,
+          autoCreateNotes: extractionOptions.autoCreateNotes ?? true,
+          categoryId: extractionOptions.categoryId ?? null
+        },
+        { priority: JOB_PRIORITY.MEDIUM }
+      );
+
+      extractionJobId = extractionJob?.id ?? null;
+      logger.info(`[Transcription Job ${job.id}] Chained extraction job: ${extractionJobId}`);
+    }
+
     return {
       recordingId,
       transcription: transcriptionText,
       transcriptId,
       language,
+      extractionJobId,
       success: true
     };
   } catch (error) {

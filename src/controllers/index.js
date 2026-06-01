@@ -1,15 +1,9 @@
-/**
- * Controllers index - Export all controllers for easy importing
- */
-
-export {
-  AuthController: require('./auth.controller'),
-  NoteController: require('./note.controller'),
-  TaskController: require('./task.controller'),
-  VoiceController: require('./voice.controller'),
-  TagController: require('./tag.controller'),
-  ReminderController: require('./reminder.controller'),
-  NotificationController: require('./notification.controller'),
-  SettingsController: require('./settings.controller'),
-  ProductivityController: require('./productivity.controller')
-};
+export { default as AuthController } from './auth.controller.js';
+export { default as NoteController } from './note.controller.js';
+export { default as TaskController } from './task.controller.js';
+export { default as VoiceController } from './voice.controller.js';
+export { default as TagController } from './tag.controller.js';
+export { default as ReminderController } from './reminder.controller.js';
+export { default as NotificationController } from './notification.controller.js';
+export { default as SettingsController } from './settings.controller.js';
+export { default as ProductivityController } from './productivity.controller.js';
