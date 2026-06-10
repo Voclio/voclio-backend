@@ -59,25 +59,24 @@ class CalendarController {
       if (include_webex === 'true') {
         try {
           const webexSync = await WebexSync.findOne({
-            where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
+            where: { user_id: req.user.user_id, is_active: true, sync_enabled: true }
           });
 
           if (webexSync) {
             const webexService = new WebexCalendarService();
-            let accessToken = webexSync.accessToken;
+            let accessToken = webexSync.access_token;
 
-            // Check if token is expired and refresh if needed
-            if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
+            if (webexSync.expires_at && new Date() >= webexSync.expires_at) {
               try {
-                const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
+                const newTokens = await webexService.refreshAccessToken(webexSync.refresh_token);
                 const newExpiresAt = new Date();
                 newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
 
                 await webexSync.update({
-                  accessToken: newTokens.access_token,
-                  refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-                  expiresIn: newTokens.expires_in,
-                  expiresAt: newExpiresAt
+                  access_token: newTokens.access_token,
+                  refresh_token: newTokens.refresh_token || webexSync.refresh_token,
+                  expires_in: newTokens.expires_in,
+                  expires_at: newExpiresAt
                 });
 
                 accessToken = newTokens.access_token;
@@ -91,7 +90,7 @@ class CalendarController {
               start_date,
               end_date
             );
-            await webexSync.update({ lastSyncAt: new Date() });
+            await webexSync.update({ last_sync_at: new Date() });
           }
         } catch (error) {
           console.error('Error fetching Webex meetings:', error);
@@ -701,25 +700,24 @@ class CalendarController {
       if (include_webex === 'true') {
         try {
           const webexSync = await WebexSync.findOne({
-            where: { userId: req.user.user_id, isActive: true, syncEnabled: true }
+            where: { user_id: req.user.user_id, is_active: true, sync_enabled: true }
           });
 
           if (webexSync) {
             const webexService = new WebexCalendarService();
-            let accessToken = webexSync.accessToken;
+            let accessToken = webexSync.access_token;
 
-            // Check if token is expired and refresh if needed
-            if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
+            if (webexSync.expires_at && new Date() >= webexSync.expires_at) {
               try {
-                const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
+                const newTokens = await webexService.refreshAccessToken(webexSync.refresh_token);
                 const newExpiresAt = new Date();
                 newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
 
                 await webexSync.update({
-                  accessToken: newTokens.access_token,
-                  refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-                  expiresIn: newTokens.expires_in,
-                  expiresAt: newExpiresAt
+                  access_token: newTokens.access_token,
+                  refresh_token: newTokens.refresh_token || webexSync.refresh_token,
+                  expires_in: newTokens.expires_in,
+                  expires_at: newExpiresAt
                 });
 
                 accessToken = newTokens.access_token;
@@ -740,7 +738,7 @@ class CalendarController {
               }))
             );
 
-            await webexSync.update({ lastSyncAt: new Date() });
+            await webexSync.update({ last_sync_at: new Date() });
           }
         } catch (error) {
           console.error('Error fetching Webex meetings:', error);

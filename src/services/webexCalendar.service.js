@@ -1,5 +1,7 @@
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 import config from '../config/index.js';
+import logger from '../utils/logger.js';
 
 class WebexCalendarService {
   constructor() {
@@ -9,10 +11,22 @@ class WebexCalendarService {
     this.redirectUri = config.webex.redirectUri;
   }
 
+  createOAuthState(userId) {
+    return jwt.sign({ userId, purpose: 'webex_oauth' }, config.jwt.secret, { expiresIn: '15m' });
+  }
+
+  verifyOAuthState(state) {
+    const decoded = jwt.verify(state, config.jwt.secret);
+    if (decoded.purpose !== 'webex_oauth' || !decoded.userId) {
+      throw new Error('Invalid OAuth state');
+    }
+    return decoded.userId;
+  }
+
   /**
    * Generate OAuth URL for user to authorize Webex access
    */
-  generateAuthUrl() {
+  generateAuthUrl(userId) {
     const scopes = ['spark:meetings_read', 'spark:meetings_write', 'spark:people_read'];
 
     const params = new URLSearchParams({
@@ -20,10 +34,23 @@ class WebexCalendarService {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       scope: scopes.join(' '),
-      state: Math.random().toString(36).substring(7)
+      state: this.createOAuthState(userId)
     });
 
     return `https://webexapis.com/v1/authorize?${params.toString()}`;
+  }
+
+  async postTokenRequest(body) {
+    const response = await axios.post(
+      'https://webexapis.com/v1/access_token',
+      new URLSearchParams(body).toString(),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+    return response.data;
   }
 
   /**
@@ -31,25 +58,17 @@ class WebexCalendarService {
    */
   async getTokens(code) {
     try {
-      const response = await axios.post(
-        'https://webexapis.com/v1/access_token',
-        {
-          grant_type: 'authorization_code',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-          code: code,
-          redirect_uri: this.redirectUri
-        },
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-
-      return response.data;
+      return await this.postTokenRequest({
+        grant_type: 'authorization_code',
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        code,
+        redirect_uri: this.redirectUri
+      });
     } catch (error) {
-      console.error('Error getting Webex tokens:', error.response?.data || error.message);
+      logger.error('Error getting Webex tokens', {
+        error: error.response?.data || error.message
+      });
       throw error;
     }
   }
@@ -59,24 +78,16 @@ class WebexCalendarService {
    */
   async refreshAccessToken(refreshToken) {
     try {
-      const response = await axios.post(
-        'https://webexapis.com/v1/access_token',
-        {
-          grant_type: 'refresh_token',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-          refresh_token: refreshToken
-        },
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-
-      return response.data;
+      return await this.postTokenRequest({
+        grant_type: 'refresh_token',
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        refresh_token: refreshToken
+      });
     } catch (error) {
-      console.error('Error refreshing Webex token:', error.response?.data || error.message);
+      logger.error('Error refreshing Webex token', {
+        error: error.response?.data || error.message
+      });
       throw error;
     }
   }

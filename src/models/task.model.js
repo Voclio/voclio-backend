@@ -108,7 +108,7 @@ class TaskModel {
 
     return {
       total: tasks.length,
-      todo: tasks.filter(t => t.status === 'todo').length,
+      todo: tasks.filter(t => t.status === 'todo' || t.status === 'pending').length,
       in_progress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
       completed_today: tasks.filter(

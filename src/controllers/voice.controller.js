@@ -3,7 +3,7 @@ import VoiceRecordingModel from '../models/voice.model.js';
 import storageService from '../services/storage.service.js';
 import queueManager, { QUEUE_NAMES, JOB_PRIORITY } from '../config/queue.js';
 import { successResponse } from '../utils/responses.js';
-import { ValidationError, NotFoundError } from '../utils/errors.js';
+import { ValidationError, NotFoundError, ServiceUnavailableError } from '../utils/errors.js';
 import config from '../config/index.js';
 import cacheService from '../services/cache.service.js';
 import logger from '../utils/logger.js';
@@ -162,6 +162,12 @@ class VoiceController {
         }
       );
 
+      if (!job) {
+        throw new ServiceUnavailableError(
+          'Transcription queue unavailable. Ensure Redis is running and start the worker with npm run worker.'
+        );
+      }
+
       logger.info(`Transcription job created: ${job.id}`);
 
       // Return job ID immediately
@@ -239,6 +245,12 @@ class VoiceController {
           priority: JOB_PRIORITY.HIGH
         }
       );
+
+      if (!transcriptionJob) {
+        throw new ServiceUnavailableError(
+          'Voice processing queue unavailable. Ensure Redis is running and start the worker with npm run worker.'
+        );
+      }
 
       // Invalidate cache
       await cacheService.delPattern(`recordings:${userId}:*`);

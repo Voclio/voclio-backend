@@ -43,7 +43,10 @@ const validateConfig = () => {
     console.error('\n❌ Configuration Errors:');
     errors.forEach(error => console.error(`   - ${error}`));
     console.error('\n💡 Please check your .env file and update the required values.\n');
-    process.exit(1);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+    console.warn('⚠️  Continuing in development mode with placeholder configuration.\n');
   }
 };
 
@@ -122,7 +125,7 @@ export default {
   },
 
   rateLimit: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300 // limit each IP to 300 requests per windowMs
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 300
   }
 };

@@ -24,9 +24,9 @@ const sequelize = new Sequelize({
     ssl:
       process.env.DB_HOST?.includes('neon.tech') || process.env.DB_HOST?.includes('aws')
         ? {
-            require: true,
-            rejectUnauthorized: false
-          }
+          require: true,
+          rejectUnauthorized: false
+        }
         : false
   },
   pool: {

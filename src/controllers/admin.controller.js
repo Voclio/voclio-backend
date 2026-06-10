@@ -1,4 +1,8 @@
 import UserModel from '../models/user.model.js';
+import TaskModel from '../models/task.model.js';
+import NoteModel from '../models/note.model.js';
+import authService from '../services/auth.service.js';
+import AdminActivityService from '../services/adminActivity.service.js';
 import {
   User,
   Note,
@@ -11,10 +15,13 @@ import {
   Category,
   Notification,
   Session,
+  ApiKey,
+  AppConfig,
+  ActivityLog,
   sequelize
 } from '../models/orm/index.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
-import { NotFoundError, ValidationError } from '../utils/errors.js';
+import { NotFoundError, ValidationError, ConflictError } from '../utils/errors.js';
 import { Op } from 'sequelize';
 
 class AdminController {
@@ -231,6 +238,126 @@ class AdminController {
     }
   }
 
+  static async createUser(req, res, next) {
+    try {
+      const { email, password, name, phone_number, is_admin = false, is_active = true } = req.body;
+
+      if (!email || !password) {
+        throw new ValidationError('Email and password are required');
+      }
+
+      const existing = await User.findOne({ where: { email } });
+      if (existing) {
+        throw new ConflictError('Email already registered');
+      }
+
+      const hashedPassword = await authService.hashPassword(password);
+      const user = await User.create({
+        email,
+        password: hashedPassword,
+        name,
+        phone_number,
+        is_admin,
+        is_active,
+        email_verified: true
+      });
+
+      await UserModel.createDefaultSettings(user.user_id);
+
+      await AdminActivityService.log({
+        activityType: 'user_created',
+        adminId: req.user.user_id,
+        userId: user.user_id,
+        ipAddress: req.ip,
+        details: { email, message: `Admin created user ${email}` }
+      });
+
+      return successResponse(res, { user: user.toJSON() }, 'User created successfully', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateUser(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { name, email, phone_number, is_active, is_admin } = req.body;
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      if (req.user.user_id === parseInt(userId, 10) && is_admin === false) {
+        throw new ValidationError('Cannot remove admin role from yourself');
+      }
+
+      if (email && email !== user.email) {
+        const existing = await User.findOne({ where: { email } });
+        if (existing) {
+          throw new ConflictError('Email already in use');
+        }
+      }
+
+      const updates = {};
+      if (name !== undefined) updates.name = name;
+      if (email !== undefined) updates.email = email;
+      if (phone_number !== undefined) updates.phone_number = phone_number;
+      if (is_active !== undefined) updates.is_active = is_active;
+      if (is_admin !== undefined) updates.is_admin = is_admin;
+
+      await user.update(updates);
+
+      await AdminActivityService.log({
+        activityType: 'user_updated',
+        adminId: req.user.user_id,
+        userId: user.user_id,
+        ipAddress: req.ip,
+        details: { updates, message: `Admin updated user ${user.email}` }
+      });
+
+      return successResponse(res, { user: user.toJSON() }, 'User updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resetUserPassword(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { new_password } = req.body;
+
+      if (!new_password || new_password.length < 8) {
+        throw new ValidationError('New password must be at least 8 characters');
+      }
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      if (!user.password) {
+        throw new ValidationError('Cannot reset password for OAuth-only accounts');
+      }
+
+      const hashedPassword = await authService.hashPassword(new_password);
+      await UserModel.updatePassword(userId, hashedPassword);
+      await authService.revokeAllUserSessions(userId);
+
+      await AdminActivityService.log({
+        activityType: 'password_reset',
+        adminId: req.user.user_id,
+        userId: parseInt(userId, 10),
+        ipAddress: req.ip,
+        details: { message: `Admin reset password for user ${user.email}` }
+      });
+
+      return successResponse(res, null, 'Password reset successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Bulk delete users
   static async bulkDeleteUsers(req, res, next) {
     try {
@@ -376,7 +503,7 @@ class AdminController {
           {
             model: VoiceRecording,
             as: 'recordings',
-            attributes: ['recording_id', 'transcription_text', 'transcribed_at', 'created_at'],
+            attributes: ['recording_id', 'transcription_text', 'created_at'],
             where: Object.keys(dateFilter).length > 0 ? { created_at: dateFilter } : undefined,
             required: false
           },
@@ -800,11 +927,20 @@ class AdminController {
 
       const totalStorageUsed = (await VoiceRecording.sum('file_size')) || 0;
 
-      // Get popular tags
+      // Get popular tags (count via note_tags join — works without usage_count column)
       const popularTags = await Tag.findAll({
-        attributes: ['name', 'usage_count', 'color'],
-        order: [['usage_count', 'DESC']],
+        attributes: [
+          'name',
+          'color',
+          [sequelize.fn('COUNT', sequelize.col('notes.note_id')), 'usage_count']
+        ],
+        include: [
+          { model: Note, as: 'notes', attributes: [], through: { attributes: [] }, required: false }
+        ],
+        group: ['Tag.tag_id', 'Tag.name', 'Tag.color'],
+        order: [[sequelize.fn('COUNT', sequelize.col('notes.note_id')), 'DESC']],
         limit: 10,
+        subQuery: false,
         raw: true
       });
 
@@ -875,48 +1011,410 @@ class AdminController {
   // Get activity logs
   static async getActivityLogs(req, res, next) {
     try {
-      const { page = 1, limit = 50, userId, action } = req.query;
+      const { page = 1, limit = 50, userId, action, severity, startDate, endDate } = req.query;
       const offset = (page - 1) * limit;
+      const where = {};
+      if (userId) where.user_id = userId;
+      if (action) where.activity_type = action;
+      if (severity) where.severity = severity;
+      if (startDate || endDate) {
+        where.created_at = {};
+        if (startDate) where.created_at[Op.gte] = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          where.created_at[Op.lte] = end;
+        }
+      }
 
-      // Get recent user activities
-      const recentNotes = await Note.findAll({
-        attributes: ['note_id', 'user_id', 'title', 'created_at'],
-        include: [{ model: User, as: 'user', attributes: ['email', 'name'] }],
-        order: [['created_at', 'DESC']],
-        limit: 20,
-        ...(userId && { where: { user_id: userId } })
-      });
+      let count = 0;
+      let rows = [];
+      try {
+        const result = await ActivityLog.findAndCountAll({
+          where,
+          include: [
+            { model: User, as: 'user', attributes: ['user_id', 'email', 'name'], required: false },
+            { model: User, as: 'admin', attributes: ['user_id', 'email', 'name'], required: false }
+          ],
+          order: [['created_at', 'DESC']],
+          limit: parseInt(limit, 10),
+          offset
+        });
+        count = result.count;
+        rows = result.rows;
+      } catch {
+        count = 0;
+        rows = [];
+      }
 
-      const recentTasks = await Task.findAll({
-        attributes: ['task_id', 'user_id', 'title', 'status', 'created_at'],
-        include: [{ model: User, as: 'user', attributes: ['email', 'name'] }],
-        order: [['created_at', 'DESC']],
-        limit: 20,
-        ...(userId && { where: { user_id: userId } })
-      });
+      if (count > 0) {
+        const logs = rows.map(log => ({
+          id: log.log_id,
+          type: log.activity_type,
+          category: log.activity_category,
+          severity: log.severity,
+          message: log.details?.message || log.activity_type.replace(/_/g, ' '),
+          user: log.user ? log.user.toJSON() : null,
+          admin: log.admin ? log.admin.toJSON() : null,
+          data: log.details,
+          ip_address: log.ip_address,
+          timestamp: log.created_at
+        }));
+
+        return paginatedResponse(res, logs, {
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          total: count
+        });
+      }
+
+      if (severity && severity !== 'info') {
+        return paginatedResponse(res, [], {
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          total: 0
+        });
+      }
+
+      const dateWhere = {};
+      if (startDate) dateWhere[Op.gte] = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateWhere[Op.lte] = end;
+      }
+      const hasDateFilter = Object.keys(dateWhere).length > 0;
+      const contentWhere = {
+        ...(userId && { user_id: userId }),
+        ...(hasDateFilter && { created_at: dateWhere })
+      };
+
+      const recentNotes =
+        !action || action === 'note_created'
+          ? await Note.findAll({
+              attributes: ['note_id', 'user_id', 'title', 'created_at'],
+              include: [{ model: User, as: 'user', attributes: ['email', 'name'] }],
+              order: [['created_at', 'DESC']],
+              limit: 50,
+              ...(Object.keys(contentWhere).length > 0 && { where: contentWhere })
+            })
+          : [];
+
+      const recentTasks =
+        !action || action === 'task_created'
+          ? await Task.findAll({
+              attributes: ['task_id', 'user_id', 'title', 'status', 'created_at'],
+              include: [{ model: User, as: 'user', attributes: ['email', 'name'] }],
+              order: [['created_at', 'DESC']],
+              limit: 50,
+              ...(Object.keys(contentWhere).length > 0 && { where: contentWhere })
+            })
+          : [];
 
       const activities = [
         ...recentNotes.map(n => ({
+          id: `note-${n.note_id}`,
           type: 'note_created',
+          severity: 'info',
+          message: `Note created: ${n.title}`,
           user: n.user,
           data: { note_id: n.note_id, title: n.title },
           timestamp: n.created_at
         })),
         ...recentTasks.map(t => ({
+          id: `task-${t.task_id}`,
           type: 'task_created',
+          severity: 'info',
+          message: `Task created: ${t.title}`,
           user: t.user,
           data: { task_id: t.task_id, title: t.title, status: t.status },
           timestamp: t.created_at
         }))
       ]
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, limit);
+        .slice(offset, offset + parseInt(limit, 10));
+
+      let totalFallback = 0;
+      if (!action || action === 'note_created') {
+        totalFallback += await Note.count({
+          where: Object.keys(contentWhere).length > 0 ? contentWhere : undefined
+        });
+      }
+      if (!action || action === 'task_created') {
+        totalFallback += await Task.count({
+          where: Object.keys(contentWhere).length > 0 ? contentWhere : undefined
+        });
+      }
 
       return paginatedResponse(res, activities, {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: activities.length
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total: totalFallback
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==================== API KEYS ====================
+
+  static async getApiKeys(req, res, next) {
+    try {
+      const keys = await ApiKey.findAll({ order: [['created_at', 'DESC']] });
+      return successResponse(res, { api_keys: keys.map(k => k.toJSON()) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createApiKey(req, res, next) {
+    try {
+      const { api_type, provider, name, access_token, rate_limit, is_active = true } = req.body;
+
+      if (!api_type || !access_token) {
+        throw new ValidationError('api_type and access_token are required');
+      }
+
+      const key = await ApiKey.create({
+        api_type,
+        provider,
+        name,
+        access_token,
+        rate_limit,
+        is_active
+      });
+      const savedKey = await ApiKey.findByPk(key.key_id);
+
+      await AdminActivityService.log({
+        activityType: 'api_key_created',
+        adminId: req.user.user_id,
+        ipAddress: req.ip,
+        details: { api_type, provider, name, message: `API key created: ${name || api_type}` }
+      });
+
+      return successResponse(res, { api_key: savedKey.toJSON() }, 'API key created', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateApiKey(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { api_type, provider, name, access_token, rate_limit, is_active } = req.body;
+
+      const key = await ApiKey.findByPk(id);
+      if (!key) {
+        throw new NotFoundError('API key not found');
+      }
+
+      const updates = {};
+      if (api_type !== undefined) updates.api_type = api_type;
+      if (provider !== undefined) updates.provider = provider;
+      if (name !== undefined) updates.name = name;
+      if (rate_limit !== undefined) updates.rate_limit = rate_limit;
+      if (is_active !== undefined) updates.is_active = is_active;
+      if (access_token && !access_token.includes('...')) {
+        updates.access_token = access_token;
+      }
+
+      await key.update(updates);
+
+      await AdminActivityService.log({
+        activityType: 'api_key_updated',
+        adminId: req.user.user_id,
+        ipAddress: req.ip,
+        details: { key_id: id, message: `API key updated: ${key.name || key.api_type}` }
+      });
+
+      return successResponse(res, { api_key: key.toJSON() }, 'API key updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteApiKey(req, res, next) {
+    try {
+      const { id } = req.params;
+      const key = await ApiKey.findByPk(id);
+      if (!key) {
+        throw new NotFoundError('API key not found');
+      }
+
+      await key.destroy();
+
+      await AdminActivityService.log({
+        activityType: 'api_key_deleted',
+        adminId: req.user.user_id,
+        ipAddress: req.ip,
+        details: { key_id: id, message: `API key deleted: ${key.name || key.api_type}` }
+      });
+
+      return successResponse(res, null, 'API key deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==================== APP CONFIG ====================
+
+  static async getConfig(req, res, next) {
+    try {
+      const configs = await AppConfig.findAll({ order: [['config_key', 'ASC']] });
+      const configMap = {};
+      configs.forEach(c => {
+        configMap[c.config_key] = {
+          value: c.config_value,
+          description: c.description,
+          updated_at: c.updated_at
+        };
+      });
+
+      return successResponse(res, { config: configMap, items: configs.map(c => c.toJSON()) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateConfig(req, res, next) {
+    try {
+      const { config } = req.body;
+
+      if (!config || typeof config !== 'object') {
+        throw new ValidationError('config object is required');
+      }
+
+      const updated = [];
+      for (const [key, value] of Object.entries(config)) {
+        const entry = typeof value === 'object' ? value : { value };
+        const [row] = await AppConfig.upsert(
+          {
+            config_key: key,
+            config_value: String(entry.value ?? entry.config_value ?? ''),
+            description: entry.description ?? null
+          },
+          { conflictFields: ['config_key'] }
+        );
+        updated.push(row.toJSON());
+      }
+
+      await AdminActivityService.log({
+        activityType: 'config_updated',
+        adminId: req.user.user_id,
+        ipAddress: req.ip,
+        details: { keys: Object.keys(config), message: 'App configuration updated' }
+      });
+
+      return successResponse(res, { updated }, 'Configuration saved');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==================== USER TASKS (ADMIN) ====================
+
+  static async getUserTasks(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const tasks = await TaskModel.findAll(userId, {
+        page: parseInt(req.query.page, 10) || 1,
+        limit: Math.min(100, parseInt(req.query.limit, 10) || 50),
+        status: req.query.status
+      });
+
+      return successResponse(res, { tasks });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createUserTask(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const task = await TaskModel.create(userId, req.body);
+      return successResponse(res, { task }, 'Task created', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateUserTask(req, res, next) {
+    try {
+      const { userId, taskId } = req.params;
+      const task = await TaskModel.update(taskId, userId, req.body);
+      if (!task) throw new NotFoundError('Task not found');
+      return successResponse(res, { task }, 'Task updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteUserTask(req, res, next) {
+    try {
+      const { userId, taskId } = req.params;
+      const task = await TaskModel.delete(taskId, userId);
+      if (!task) throw new NotFoundError('Task not found');
+      return successResponse(res, null, 'Task deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ==================== USER NOTES (ADMIN) ====================
+
+  static async getUserNotes(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const notes = await NoteModel.findAll(userId, {
+        page: parseInt(req.query.page, 10) || 1,
+        limit: Math.min(100, parseInt(req.query.limit, 10) || 50)
+      });
+
+      return successResponse(res, { notes });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createUserNote(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId);
+      if (!user) throw new NotFoundError('User not found');
+
+      const note = await NoteModel.create(userId, req.body);
+      return successResponse(res, { note }, 'Note created', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateUserNote(req, res, next) {
+    try {
+      const { userId, noteId } = req.params;
+      const note = await NoteModel.update(noteId, userId, req.body);
+      if (!note) throw new NotFoundError('Note not found');
+      return successResponse(res, { note }, 'Note updated');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteUserNote(req, res, next) {
+    try {
+      const { userId, noteId } = req.params;
+      const note = await NoteModel.delete(noteId, userId);
+      if (!note) throw new NotFoundError('Note not found');
+      return successResponse(res, null, 'Note deleted');
     } catch (error) {
       next(error);
     }

@@ -9,31 +9,31 @@ const WebexSync = sequelize.define(
       primaryKey: true,
       autoIncrement: true
     },
-    userId: {
+    user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: { model: 'users', key: 'user_id' },
       onDelete: 'CASCADE'
     },
-    accessToken: {
+    access_token: {
       type: DataTypes.TEXT,
       allowNull: false,
       comment: 'AES-256-GCM encrypted'
     },
-    refreshToken: {
+    refresh_token: {
       type: DataTypes.TEXT,
       allowNull: true,
       comment: 'AES-256-GCM encrypted'
     },
-    tokenType: {
+    token_type: {
       type: DataTypes.STRING,
       defaultValue: 'Bearer'
     },
-    expiresIn: {
+    expires_in: {
       type: DataTypes.INTEGER,
       allowNull: true
     },
-    expiresAt: {
+    expires_at: {
       type: DataTypes.DATE,
       allowNull: true
     },
@@ -41,42 +41,36 @@ const WebexSync = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true
     },
-    webexUserId: {
+    webex_user_id: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    webexUserEmail: {
+    webex_user_email: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    webexDisplayName: {
+    webex_display_name: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    isActive: {
+    is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
     },
-    lastSyncAt: {
+    last_sync_at: {
       type: DataTypes.DATE,
       allowNull: true
     },
-    syncEnabled: {
+    sync_enabled: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW
     }
   },
   {
     tableName: 'webex_sync',
     timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { unique: true, fields: ['user_id'] },
       { fields: ['webex_user_id'] },
@@ -87,8 +81,6 @@ const WebexSync = sequelize.define(
   }
 );
 
-// ── Encryption hooks ──────────────────────────────────────────────────────────
-// Lazy-import to avoid circular deps at module load time
 async function getEncryption() {
   const { default: enc } = await import('../../services/encryption.service.js');
   return enc;
@@ -96,24 +88,24 @@ async function getEncryption() {
 
 WebexSync.addHook('beforeCreate', async instance => {
   const enc = await getEncryption();
-  if (instance.accessToken) instance.accessToken = enc.encryptField(instance.accessToken);
-  if (instance.refreshToken) instance.refreshToken = enc.encryptField(instance.refreshToken);
+  if (instance.access_token) instance.access_token = enc.encryptField(instance.access_token);
+  if (instance.refresh_token) instance.refresh_token = enc.encryptField(instance.refresh_token);
 });
 
 WebexSync.addHook('beforeUpdate', async instance => {
   const enc = await getEncryption();
-  if (instance.changed('accessToken') && instance.accessToken)
-    instance.accessToken = enc.encryptField(instance.accessToken);
-  if (instance.changed('refreshToken') && instance.refreshToken)
-    instance.refreshToken = enc.encryptField(instance.refreshToken);
+  if (instance.changed('access_token') && instance.access_token)
+    instance.access_token = enc.encryptField(instance.access_token);
+  if (instance.changed('refresh_token') && instance.refresh_token)
+    instance.refresh_token = enc.encryptField(instance.refresh_token);
 });
 
 WebexSync.addHook('afterFind', async result => {
   if (!result) return;
   const enc = await getEncryption();
   const decrypt = inst => {
-    if (inst.accessToken) inst.accessToken = enc.decryptField(inst.accessToken);
-    if (inst.refreshToken) inst.refreshToken = enc.decryptField(inst.refreshToken);
+    if (inst.access_token) inst.access_token = enc.decryptField(inst.access_token);
+    if (inst.refresh_token) inst.refresh_token = enc.decryptField(inst.refresh_token);
   };
   Array.isArray(result) ? result.forEach(decrypt) : decrypt(result);
 });

@@ -51,6 +51,11 @@ class NotificationModel {
     await Notification.update({ is_read: true }, { where: { user_id: userId, is_read: false } });
   }
 
+  static async deleteAll(userId) {
+    const deleted = await Notification.destroy({ where: { user_id: userId } });
+    return deleted;
+  }
+
   static async delete(notificationId, userId) {
     const notification = await Notification.findOne({
       where: { notification_id: notificationId, user_id: userId }

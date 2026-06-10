@@ -1,82 +1,140 @@
 import WebexCalendarService from '../services/webexCalendar.service.js';
 import { WebexSync } from '../models/orm/index.js';
 import { successResponse, errorResponse } from '../utils/responses.js';
+import logger from '../utils/logger.js';
 
 const webexService = new WebexCalendarService();
+
+const webexErr = (res, message, statusCode = 500, code = 'WEBEX_ERROR') =>
+  errorResponse(res, { code, message }, statusCode);
+
+const findActiveSync = userId =>
+  WebexSync.findOne({
+    where: { user_id: userId, is_active: true, sync_enabled: true }
+  });
+
+const refreshTokenIfNeeded = async webexSync => {
+  if (!webexSync.expires_at || new Date() < webexSync.expires_at) {
+    return webexSync.access_token;
+  }
+
+  const newTokens = await webexService.refreshAccessToken(webexSync.refresh_token);
+  const newExpiresAt = new Date();
+  newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
+
+  await webexSync.update({
+    access_token: newTokens.access_token,
+    refresh_token: newTokens.refresh_token || webexSync.refresh_token,
+    expires_in: newTokens.expires_in,
+    expires_at: newExpiresAt
+  });
+
+  return newTokens.access_token;
+};
+
+const getAccessToken = async (userId, res) => {
+  const webexSync = await findActiveSync(userId);
+  if (!webexSync) {
+    webexErr(res, 'Webex calendar not connected', 404, 'NOT_CONNECTED');
+    return null;
+  }
+
+  try {
+    return await refreshTokenIfNeeded(webexSync);
+  } catch (error) {
+    logger.error('Error refreshing Webex token', { error: error.message });
+    webexErr(res, 'Webex token expired. Please reconnect your account.', 401, 'TOKEN_EXPIRED');
+    return null;
+  }
+};
 
 /**
  * Generate Webex OAuth authorization URL
  */
 export const getWebexAuthUrl = async (req, res) => {
   try {
-    const authUrl = webexService.generateAuthUrl();
+    const authUrl = webexService.generateAuthUrl(req.user.user_id);
 
     return successResponse(res, {
       authUrl,
       message: 'Webex authorization URL generated successfully'
     });
   } catch (error) {
-    console.error('Error generating Webex auth URL:', error);
-    return errorResponse(res, 'Failed to generate authorization URL', 500);
+    logger.error('Error generating Webex auth URL', { error: error.message });
+    return webexErr(res, 'Failed to generate authorization URL');
   }
 };
 
 /**
- * Handle Webex OAuth callback
+ * Handle Webex OAuth callback (no auth — userId comes from signed state)
  */
 export const handleWebexCallback = async (req, res) => {
   try {
     const { code, state, error } = req.query;
-    const userId = req.user.user_id;
 
     if (error) {
-      return errorResponse(res, `Webex authorization failed: ${error}`, 400);
+      return webexErr(res, `Webex authorization failed: ${error}`, 400, 'OAUTH_DENIED');
     }
 
-    if (!code) {
-      return errorResponse(res, 'Authorization code not provided', 400);
+    if (!code || !state) {
+      return webexErr(res, 'Authorization code and state are required', 400, 'VALIDATION_ERROR');
     }
 
-    // Exchange code for tokens
+    const userId = webexService.verifyOAuthState(state);
     const tokens = await webexService.getTokens(code);
-
-    // Get user profile from Webex
     const userProfile = await webexService.getUserProfile(tokens.access_token);
 
-    // Calculate expiration date
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + tokens.expires_in);
 
-    // Save or update Webex sync record
-    const [webexSync, created] = await WebexSync.upsert({
-      userId,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      tokenType: tokens.token_type || 'Bearer',
-      expiresIn: tokens.expires_in,
-      expiresAt,
-      scope: tokens.scope,
-      webexUserId: userProfile.id,
-      webexUserEmail: userProfile.emails?.[0] || userProfile.userName,
-      webexDisplayName: userProfile.displayName,
-      isActive: true,
-      syncEnabled: true,
-      lastSyncAt: new Date()
-    });
+    const [, created] = await WebexSync.upsert(
+      {
+        user_id: userId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        token_type: tokens.token_type || 'Bearer',
+        expires_in: tokens.expires_in,
+        expires_at: expiresAt,
+        scope: tokens.scope,
+        webex_user_id: userProfile.id,
+        webex_user_email: userProfile.emails?.[0] || userProfile.userName,
+        webex_display_name: userProfile.displayName,
+        is_active: true,
+        sync_enabled: true,
+        last_sync_at: new Date()
+      },
+      { conflictFields: ['user_id'] }
+    );
 
-    return successResponse(res, {
-      message: created
-        ? 'Webex calendar connected successfully'
-        : 'Webex calendar updated successfully',
-      webexUser: {
-        id: userProfile.id,
-        email: userProfile.emails?.[0] || userProfile.userName,
-        displayName: userProfile.displayName
-      }
-    });
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const message = created
+      ? 'Webex calendar connected successfully'
+      : 'Webex calendar updated successfully';
+
+    if (req.headers.accept?.includes('application/json')) {
+      return successResponse(res, {
+        message,
+        webexUser: {
+          id: userProfile.id,
+          email: userProfile.emails?.[0] || userProfile.userName,
+          displayName: userProfile.displayName
+        }
+      });
+    }
+
+    return res.send(`
+      <html>
+        <head><title>Webex Connected</title><meta charset="UTF-8"></head>
+        <body style="font-family:Arial;text-align:center;padding:50px">
+          <h2>✅ ${message}</h2>
+          <p>You can close this window and return to the app.</p>
+          <script>setTimeout(() => { window.location.href = '${frontendUrl}'; }, 2000);</script>
+        </body>
+      </html>
+    `);
   } catch (error) {
-    console.error('Error handling Webex callback:', error);
-    return errorResponse(res, 'Failed to connect Webex calendar', 500);
+    logger.error('Error handling Webex callback', { error: error.message });
+    return webexErr(res, 'Failed to connect Webex calendar');
   }
 };
 
@@ -88,38 +146,13 @@ export const getWebexMeetings = async (req, res) => {
     const userId = req.user.user_id;
     const { from, to, days = 7 } = req.query;
 
-    // Get user's Webex sync record
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
+    const webexSync = await findActiveSync(userId);
     if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
+      return webexErr(res, 'Webex calendar not connected', 404, 'NOT_CONNECTED');
     }
 
-    // Check if token is expired and refresh if needed
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        // Update tokens in database
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
+    const accessToken = await getAccessToken(userId, res);
+    if (!accessToken) return;
 
     let meetings;
     if (from && to) {
@@ -128,8 +161,7 @@ export const getWebexMeetings = async (req, res) => {
       meetings = await webexService.getUpcomingMeetings(accessToken, parseInt(days));
     }
 
-    // Update last sync time
-    await webexSync.update({ lastSyncAt: new Date() });
+    await webexSync.update({ last_sync_at: new Date() });
 
     return successResponse(res, {
       meetings,
@@ -137,301 +169,135 @@ export const getWebexMeetings = async (req, res) => {
       message: 'Webex meetings retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting Webex meetings:', error);
-    return errorResponse(res, 'Failed to retrieve Webex meetings', 500);
+    logger.error('Error getting Webex meetings', { error: error.message });
+    return webexErr(res, 'Failed to retrieve Webex meetings');
   }
 };
 
-/**
- * Get today's Webex meetings
- */
 export const getTodayWebexMeetings = async (req, res) => {
   try {
     const userId = req.user.user_id;
-
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
+    const webexSync = await findActiveSync(userId);
     if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
+      return webexErr(res, 'Webex calendar not connected', 404, 'NOT_CONNECTED');
     }
 
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
+    const accessToken = await getAccessToken(userId, res);
+    if (!accessToken) return;
 
     const meetings = await webexService.getTodayMeetings(accessToken);
-
-    await webexSync.update({ lastSyncAt: new Date() });
+    await webexSync.update({ last_sync_at: new Date() });
 
     return successResponse(res, {
       meetings,
       count: meetings.length,
-      message: "Today's Webex meetings retrieved successfully"
+      message: 'Today\'s Webex meetings retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting today Webex meetings:', error);
-    return errorResponse(res, "Failed to retrieve today's Webex meetings", 500);
+    logger.error('Error getting today Webex meetings', { error: error.message });
+    return webexErr(res, 'Failed to retrieve today\'s Webex meetings');
   }
 };
 
-/**
- * Create a new Webex meeting
- */
 export const createWebexMeeting = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const meetingData = req.body;
+    const accessToken = await getAccessToken(req.user.user_id, res);
+    if (!accessToken) return;
 
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
-    if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
-    }
-
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
-
-    const meeting = await webexService.createMeeting(accessToken, meetingData);
+    const meeting = await webexService.createMeeting(accessToken, req.body);
 
     return successResponse(res, {
       meeting,
       message: 'Webex meeting created successfully'
     });
   } catch (error) {
-    console.error('Error creating Webex meeting:', error);
-    return errorResponse(res, 'Failed to create Webex meeting', 500);
+    logger.error('Error creating Webex meeting', { error: error.message });
+    return webexErr(res, 'Failed to create Webex meeting');
   }
 };
 
-/**
- * Get Webex meeting by ID
- */
 export const getWebexMeetingById = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const { meetingId } = req.params;
+    const accessToken = await getAccessToken(req.user.user_id, res);
+    if (!accessToken) return;
 
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
-    if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
-    }
-
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
-
-    const meeting = await webexService.getMeetingById(accessToken, meetingId);
+    const meeting = await webexService.getMeetingById(accessToken, req.params.meetingId);
 
     return successResponse(res, {
       meeting,
       message: 'Webex meeting retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting Webex meeting:', error);
-    return errorResponse(res, 'Failed to retrieve Webex meeting', 500);
+    logger.error('Error getting Webex meeting', { error: error.message });
+    return webexErr(res, 'Failed to retrieve Webex meeting');
   }
 };
 
-/**
- * Update Webex meeting
- */
 export const updateWebexMeeting = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const { meetingId } = req.params;
-    const meetingData = req.body;
+    const accessToken = await getAccessToken(req.user.user_id, res);
+    if (!accessToken) return;
 
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
-    if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
-    }
-
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
-
-    const meeting = await webexService.updateMeeting(accessToken, meetingId, meetingData);
+    const meeting = await webexService.updateMeeting(
+      accessToken,
+      req.params.meetingId,
+      req.body
+    );
 
     return successResponse(res, {
       meeting,
       message: 'Webex meeting updated successfully'
     });
   } catch (error) {
-    console.error('Error updating Webex meeting:', error);
-    return errorResponse(res, 'Failed to update Webex meeting', 500);
+    logger.error('Error updating Webex meeting', { error: error.message });
+    return webexErr(res, 'Failed to update Webex meeting');
   }
 };
 
-/**
- * Delete Webex meeting
- */
 export const deleteWebexMeeting = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const { meetingId } = req.params;
+    const accessToken = await getAccessToken(req.user.user_id, res);
+    if (!accessToken) return;
 
-    const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true, syncEnabled: true }
-    });
-
-    if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
-    }
-
-    let accessToken = webexSync.accessToken;
-    if (webexSync.expiresAt && new Date() >= webexSync.expiresAt) {
-      try {
-        const newTokens = await webexService.refreshAccessToken(webexSync.refreshToken);
-
-        const newExpiresAt = new Date();
-        newExpiresAt.setSeconds(newExpiresAt.getSeconds() + newTokens.expires_in);
-
-        await webexSync.update({
-          accessToken: newTokens.access_token,
-          refreshToken: newTokens.refresh_token || webexSync.refreshToken,
-          expiresIn: newTokens.expires_in,
-          expiresAt: newExpiresAt
-        });
-
-        accessToken = newTokens.access_token;
-      } catch (refreshError) {
-        console.error('Error refreshing Webex token:', refreshError);
-        return errorResponse(res, 'Webex token expired. Please reconnect your account.', 401);
-      }
-    }
-
-    await webexService.deleteMeeting(accessToken, meetingId);
+    await webexService.deleteMeeting(accessToken, req.params.meetingId);
 
     return successResponse(res, {
       message: 'Webex meeting deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting Webex meeting:', error);
-    return errorResponse(res, 'Failed to delete Webex meeting', 500);
+    logger.error('Error deleting Webex meeting', { error: error.message });
+    return webexErr(res, 'Failed to delete Webex meeting');
   }
 };
 
-/**
- * Disconnect Webex calendar
- */
 export const disconnectWebexCalendar = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
     const webexSync = await WebexSync.findOne({
-      where: { userId }
+      where: { user_id: req.user.user_id }
     });
 
     if (!webexSync) {
-      return errorResponse(res, 'Webex calendar not connected', 404);
+      return webexErr(res, 'Webex calendar not connected', 404, 'NOT_CONNECTED');
     }
 
     await webexSync.update({
-      isActive: false,
-      syncEnabled: false
+      is_active: false,
+      sync_enabled: false
     });
 
     return successResponse(res, {
       message: 'Webex calendar disconnected successfully'
     });
   } catch (error) {
-    console.error('Error disconnecting Webex calendar:', error);
-    return errorResponse(res, 'Failed to disconnect Webex calendar', 500);
+    logger.error('Error disconnecting Webex calendar', { error: error.message });
+    return webexErr(res, 'Failed to disconnect Webex calendar');
   }
 };
 
-/**
- * Get Webex connection status
- */
 export const getWebexConnectionStatus = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
     const webexSync = await WebexSync.findOne({
-      where: { userId, isActive: true }
+      where: { user_id: req.user.user_id, is_active: true }
     });
 
     if (!webexSync) {
@@ -443,17 +309,17 @@ export const getWebexConnectionStatus = async (req, res) => {
 
     return successResponse(res, {
       connected: true,
-      syncEnabled: webexSync.syncEnabled,
+      syncEnabled: webexSync.sync_enabled,
       webexUser: {
-        id: webexSync.webexUserId,
-        email: webexSync.webexUserEmail,
-        displayName: webexSync.webexDisplayName
+        id: webexSync.webex_user_id,
+        email: webexSync.webex_user_email,
+        displayName: webexSync.webex_display_name
       },
-      lastSyncAt: webexSync.lastSyncAt,
+      lastSyncAt: webexSync.last_sync_at,
       message: 'Webex calendar connected'
     });
   } catch (error) {
-    console.error('Error getting Webex connection status:', error);
-    return errorResponse(res, 'Failed to get connection status', 500);
+    logger.error('Error getting Webex connection status', { error: error.message });
+    return webexErr(res, 'Failed to get connection status');
   }
 };

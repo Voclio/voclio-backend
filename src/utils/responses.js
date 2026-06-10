@@ -11,12 +11,15 @@ const successResponse = (res, data, message = 'Success', statusCode = 200) => {
 };
 
 const errorResponse = (res, error, statusCode = 500) => {
+  const normalized =
+    typeof error === 'string' ? { code: 'ERROR', message: error } : error;
+
   return res.status(statusCode).json({
     success: false,
     error: {
-      code: error.code || 'INTERNAL_ERROR',
-      message: error.message || 'An error occurred',
-      details: error.details || null
+      code: normalized.code || 'INTERNAL_ERROR',
+      message: normalized.message || 'An error occurred',
+      details: normalized.details || null
     }
   });
 };

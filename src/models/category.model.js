@@ -62,11 +62,11 @@ class CategoryModel {
         include: [
           [sequelize.fn('COUNT', sequelize.col('tasks.task_id')), 'total_tasks'],
           [
-            sequelize.literal(`COUNT(CASE WHEN tasks.status = 'completed' THEN 1 END)`),
+            sequelize.literal('COUNT(CASE WHEN tasks.status = \'completed\' THEN 1 END)'),
             'completed_tasks'
           ],
           [
-            sequelize.literal(`COUNT(CASE WHEN tasks.status != 'completed' THEN 1 END)`),
+            sequelize.literal('COUNT(CASE WHEN tasks.status != \'completed\' THEN 1 END)'),
             'pending_tasks'
           ]
         ]

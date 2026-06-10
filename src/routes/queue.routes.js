@@ -47,7 +47,7 @@ router.get('/stats', authMiddleware, async (req, res, next) => {
  *         name: queue
  *         schema:
  *           type: string
- *           enum: [transcription, extraction, email, notification]
+ *           enum: [transcription, extraction]
  *     responses:
  *       200:
  *         description: Job status

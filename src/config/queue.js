@@ -5,9 +5,7 @@ import logger from '../utils/logger.js';
 // Queue names
 export const QUEUE_NAMES = {
   TRANSCRIPTION: 'transcription',
-  EXTRACTION: 'extraction',
-  EMAIL: 'email',
-  NOTIFICATION: 'notification'
+  EXTRACTION: 'extraction'
 };
 
 // Job priorities

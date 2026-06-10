@@ -1,4 +1,7 @@
 import express from 'express';
+import { sequelize } from '../models/orm/index.js';
+import redisClient from '../config/redis.js';
+import queueManager from '../config/queue.js';
 import authRoutes from './auth.routes.js';
 import noteRoutes from './note.routes.js';
 import taskRoutes from './task.routes.js';
@@ -35,11 +38,31 @@ router.use('/categories', categoryRoutes);
 router.use('/queue', queueRoutes);
 
 // Health check
-router.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
+router.get('/health', async (req, res) => {
+  const checks = {
+    database: false,
+    redis: false,
+    queue: false
+  };
+
+  try {
+    await sequelize.authenticate();
+    checks.database = true;
+  } catch {
+    checks.database = false;
+  }
+
+  checks.redis = await redisClient.healthCheck();
+  checks.queue = queueManager.isEnabled;
+
+  const healthy = checks.database;
+  const status = healthy ? 'OK' : 'DEGRADED';
+
+  res.status(healthy ? 200 : 503).json({
+    status,
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    checks
   });
 });
 

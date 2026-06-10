@@ -18,7 +18,8 @@ const router = express.Router();
 
 // Webex OAuth routes
 router.get('/auth', authMiddleware, getWebexAuthUrl);
-router.get('/callback', authMiddleware, handleWebexCallback); // Keep auth middleware
+// OAuth callback — no auth (Webex redirects browser without JWT; userId is in signed state)
+router.get('/callback', handleWebexCallback);
 router.get('/status', authMiddleware, getWebexConnectionStatus);
 router.post('/disconnect', authMiddleware, disconnectWebexCalendar);
 

@@ -3,54 +3,63 @@ import { Op } from 'sequelize';
 import { Reminder, User, Task, Notification, OTP, Session } from '../models/orm/index.js';
 import emailService from './email.service.js';
 import NotificationService from './notification.service.js';
+import logger from '../utils/logger.js';
+
+const ACTIVE_TASK_STATUSES = { [Op.notIn]: ['completed', 'cancelled'] };
 
 class CronService {
   constructor() {
     this.jobs = [];
   }
 
-  // Start all cron jobs
   start() {
-    console.log('🕐 Starting cron jobs...');
+    logger.info('Starting cron jobs...');
 
-    // Check for reminders every minute
     this.jobs.push(
       cron.schedule('* * * * *', () => {
         this.checkReminders();
       })
     );
 
-    // Check for overdue and due soon tasks every hour
     this.jobs.push(
       cron.schedule('0 * * * *', () => {
         this.checkTasksDueSoon();
       })
     );
 
-    // Clean up expired OTPs every hour
     this.jobs.push(
       cron.schedule('0 * * * *', () => {
         this.cleanupExpiredOTPs();
       })
     );
 
-    // Clean up old sessions every day at midnight
     this.jobs.push(
       cron.schedule('0 0 * * *', () => {
         this.cleanupExpiredSessions();
       })
     );
 
-    console.log('✅ Cron jobs started successfully');
+    logger.info('Cron jobs started successfully');
   }
 
-  // Stop all cron jobs
   stop() {
     this.jobs.forEach(job => job.stop());
-    console.log('⏹️  Cron jobs stopped');
+    logger.info('Cron jobs stopped');
   }
 
-  // Check and send due reminders
+  async hasRecentTaskNotification(userId, taskId, hours = 23) {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const count = await Notification.count({
+      where: {
+        user_id: userId,
+        type: 'task',
+        related_id: taskId,
+        created_at: { [Op.gte]: since }
+      }
+    });
+    return count > 0;
+  }
+
   async checkReminders() {
     try {
       const reminders = await Reminder.findAll({
@@ -82,21 +91,19 @@ class CronService {
       }
 
       if (reminders.length > 0) {
-        console.log(`📬 Processed ${reminders.length} reminders`);
+        logger.info(`Processed ${reminders.length} reminders`);
       }
     } catch (error) {
-      console.error('Error checking reminders:', error);
+      logger.error('Error checking reminders', { error: error.message });
     }
   }
 
-  // Send a single reminder
   async sendReminder(reminder) {
     try {
       const user = reminder.user;
       const task = reminder.task;
       const notificationTypes = reminder.notification_types || [];
 
-      // Send email notification
       if (notificationTypes.includes('email')) {
         try {
           await emailService.sendReminder(user.email, {
@@ -105,40 +112,35 @@ class CronService {
             reminder_time: reminder.reminder_time
           });
         } catch (emailError) {
-          console.error('Failed to send email reminder:', emailError);
-          // Don't fail the whole reminder if email fails
+          logger.error('Failed to send email reminder', { error: emailError.message });
         }
       }
 
-      // Create in-app notification
       if (notificationTypes.includes('push')) {
         try {
           await NotificationService.notifyReminderTriggered(user.user_id, reminder, task);
         } catch (notifError) {
-          console.error('Failed to create notification:', notifError);
+          logger.error('Failed to create notification', { error: notifError.message });
         }
       }
 
-      // Mark reminder as sent
       await reminder.update({
         status: 'sent',
         sent_at: new Date()
       });
 
-      console.log(`✅ Reminder sent to ${user.email}`);
+      logger.info(`Reminder sent to ${user.email}`);
     } catch (error) {
-      console.error('Error sending reminder:', error);
+      logger.error('Error sending reminder', { error: error.message });
 
-      // Mark as failed and retry later
       try {
         await reminder.update({ status: 'failed' });
       } catch (updateError) {
-        console.error('Failed to update reminder status:', updateError);
+        logger.error('Failed to update reminder status', { error: updateError.message });
       }
     }
   }
 
-  // Clean up expired OTP codes
   async cleanupExpiredOTPs() {
     try {
       const result = await OTP.destroy({
@@ -150,14 +152,13 @@ class CronService {
       });
 
       if (result > 0) {
-        console.log(`🧹 Cleaned up ${result} expired OTP codes`);
+        logger.info(`Cleaned up ${result} expired OTP codes`);
       }
     } catch (error) {
-      console.error('Error cleaning up OTPs:', error);
+      logger.error('Error cleaning up OTPs', { error: error.message });
     }
   }
 
-  // Clean up expired sessions
   async cleanupExpiredSessions() {
     try {
       const result = await Session.destroy({
@@ -169,28 +170,24 @@ class CronService {
       });
 
       if (result > 0) {
-        console.log(`🧹 Cleaned up ${result} expired sessions`);
+        logger.info(`Cleaned up ${result} expired sessions`);
       }
     } catch (error) {
-      console.error('Error cleaning up sessions:', error);
+      logger.error('Error cleaning up sessions', { error: error.message });
     }
   }
 
-  // Check for tasks due soon or overdue
   async checkTasksDueSoon() {
     try {
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      // Find tasks due in next 24 hours
       const tasksDueSoon = await Task.findAll({
         where: {
           due_date: {
             [Op.between]: [now, in24Hours]
           },
-          status: {
-            [Op.ne]: 'completed'
-          }
+          status: ACTIVE_TASK_STATUSES
         },
         include: [
           {
@@ -201,15 +198,12 @@ class CronService {
         ]
       });
 
-      // Find overdue tasks
       const overdueTasks = await Task.findAll({
         where: {
           due_date: {
             [Op.lt]: now
           },
-          status: {
-            [Op.ne]: 'completed'
-          }
+          status: ACTIVE_TASK_STATUSES
         },
         include: [
           {
@@ -220,32 +214,39 @@ class CronService {
         ]
       });
 
-      // Send notifications for tasks due soon
+      let dueSoonSent = 0;
+      let overdueSent = 0;
+
       for (const task of tasksDueSoon) {
         try {
+          if (await this.hasRecentTaskNotification(task.user_id, task.task_id, 12)) {
+            continue;
+          }
           const hoursLeft = Math.round((new Date(task.due_date) - now) / (1000 * 60 * 60));
           await NotificationService.notifyTaskDueSoon(task.user_id, task, hoursLeft);
+          dueSoonSent++;
         } catch (error) {
-          console.error('Failed to send due soon notification:', error);
+          logger.error('Failed to send due soon notification', { error: error.message });
         }
       }
 
-      // Send notifications for overdue tasks
       for (const task of overdueTasks) {
         try {
+          if (await this.hasRecentTaskNotification(task.user_id, task.task_id, 23)) {
+            continue;
+          }
           await NotificationService.notifyTaskOverdue(task.user_id, task);
+          overdueSent++;
         } catch (error) {
-          console.error('Failed to send overdue notification:', error);
+          logger.error('Failed to send overdue notification', { error: error.message });
         }
       }
 
-      if (tasksDueSoon.length > 0 || overdueTasks.length > 0) {
-        console.log(
-          `📅 Checked tasks: ${tasksDueSoon.length} due soon, ${overdueTasks.length} overdue`
-        );
+      if (dueSoonSent > 0 || overdueSent > 0) {
+        logger.info(`Task notifications sent: ${dueSoonSent} due soon, ${overdueSent} overdue`);
       }
     } catch (error) {
-      console.error('Error checking tasks due soon:', error);
+      logger.error('Error checking tasks due soon', { error: error.message });
     }
   }
 }

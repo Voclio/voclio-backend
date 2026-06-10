@@ -102,7 +102,7 @@ class NotificationService {
   static async notifyReminderCreated(userId, reminder) {
     return await this.createNotification(userId, {
       title: 'تذكير جديد',
-      message: `تم إنشاء تذكير جديد`,
+      message: 'تم إنشاء تذكير جديد',
       type: 'reminder',
       priority: 'normal',
       related_id: reminder.reminder_id

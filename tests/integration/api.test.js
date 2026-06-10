@@ -2,13 +2,20 @@ import request from 'supertest';
 import app from '../../src/app.js';
 
 describe('Health endpoint', () => {
-  test('GET /api/health returns healthy status', async () => {
+  test('GET /api/health returns health status with dependency checks', async () => {
     const response = await request(app).get('/api/health');
 
-    expect(response.status).toBe(200);
-    expect(response.body.status).toBe('OK');
+    expect([200, 503]).toContain(response.status);
+    expect(['OK', 'DEGRADED']).toContain(response.body.status);
     expect(response.body.timestamp).toEqual(expect.any(String));
     expect(response.body.uptime).toEqual(expect.any(Number));
+    expect(response.body.checks).toEqual(
+      expect.objectContaining({
+        database: expect.any(Boolean),
+        redis: expect.any(Boolean),
+        queue: expect.any(Boolean)
+      })
+    );
   });
 });
 

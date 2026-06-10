@@ -59,16 +59,16 @@ const Task = sequelize.define(
     },
     status: {
       type: DataTypes.STRING(50),
-      defaultValue: 'pending',
+      defaultValue: 'todo',
       validate: {
-        isIn: [['pending', 'in_progress', 'completed', 'cancelled']]
+        isIn: [['todo', 'pending', 'in_progress', 'completed', 'cancelled']]
       }
     },
     priority: {
       type: DataTypes.STRING(50),
       defaultValue: 'medium',
       validate: {
-        isIn: [['low', 'medium', 'high']]
+        isIn: [['low', 'medium', 'high', 'urgent']]
       }
     },
     due_date: {

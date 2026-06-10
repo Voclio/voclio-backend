@@ -15,6 +15,9 @@ import ProductivityStreak from './ProductivityStreak.js';
 import OTP from './OTP.js';
 import GoogleCalendarSyncModel from './GoogleCalendarSync.js';
 import WebexSync from './WebexSync.js';
+import ApiKey from './ApiKey.js';
+import AppConfig from './AppConfig.js';
+import ActivityLog from './ActivityLog.js';
 
 // Initialize models
 const GoogleCalendarSync = GoogleCalendarSyncModel(sequelize);
@@ -59,8 +62,12 @@ ProductivityStreak.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(GoogleCalendarSync, { foreignKey: 'user_id', as: 'googleCalendarSyncs' });
 GoogleCalendarSync.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-User.hasMany(WebexSync, { foreignKey: 'userId', as: 'webexSyncs' });
-WebexSync.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(WebexSync, { foreignKey: 'user_id', as: 'webexSyncs' });
+WebexSync.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
+ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+ActivityLog.belongsTo(User, { foreignKey: 'admin_id', as: 'admin' });
 
 Task.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 Category.hasMany(Task, { foreignKey: 'category_id', as: 'tasks' });
@@ -128,5 +135,8 @@ export {
   OTP,
   GoogleCalendarSync,
   WebexSync,
+  ApiKey,
+  AppConfig,
+  ActivityLog,
   syncDatabase
 };

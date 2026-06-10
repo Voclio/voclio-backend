@@ -82,6 +82,15 @@ class NotificationController {
     }
   }
 
+  static async deleteAllNotifications(req, res, next) {
+    try {
+      const deleted = await NotificationModel.deleteAll(req.user.user_id);
+      return successResponse(res, { deleted_count: deleted }, 'All notifications deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getUnreadCount(req, res, next) {
     try {
       const count = await NotificationModel.getUnreadCount(req.user.user_id);

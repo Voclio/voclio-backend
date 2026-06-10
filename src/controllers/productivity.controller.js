@@ -128,23 +128,25 @@ class ProductivityController {
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         switch (period) {
-          case 'today':
-            start_date = today.toISOString().split('T')[0];
-            end_date = today.toISOString().split('T')[0];
-            break;
-          case 'week':
-            const weekStart = new Date(today);
-            weekStart.setDate(today.getDate() - today.getDay());
-            start_date = weekStart.toISOString().split('T')[0];
-            end_date = today.toISOString().split('T')[0];
-            break;
-          case 'month':
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            start_date = monthStart.toISOString().split('T')[0];
-            end_date = today.toISOString().split('T')[0];
-            break;
-          default:
-            throw new ValidationError('Invalid period. Use: today, week, or month');
+        case 'today':
+          start_date = today.toISOString().split('T')[0];
+          end_date = today.toISOString().split('T')[0];
+          break;
+        case 'week': {
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay());
+          start_date = weekStart.toISOString().split('T')[0];
+          end_date = today.toISOString().split('T')[0];
+          break;
+        }
+        case 'month': {
+          const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          start_date = monthStart.toISOString().split('T')[0];
+          end_date = today.toISOString().split('T')[0];
+          break;
+        }
+        default:
+          throw new ValidationError('Invalid period. Use: today, week, or month');
         }
       }
 

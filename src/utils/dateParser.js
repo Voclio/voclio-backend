@@ -147,8 +147,8 @@ export function parseArabicDate(text) {
 
   // Specific date patterns (DD/MM, DD-MM, DD/MM/YYYY)
   const datePatterns = [
-    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/, // DD/MM/YYYY or DD-MM-YYYY
-    /(\d{1,2})[\/\-](\d{1,2})/ // DD/MM or DD-MM
+    /(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/, // DD/MM/YYYY or DD-MM-YYYY
+    /(\d{1,2})[/.-](\d{1,2})/ // DD/MM or DD-MM
   ];
 
   for (const pattern of datePatterns) {
@@ -401,7 +401,6 @@ export function determinePriority(text) {
  */
 export function extractListItems(text) {
   const items = [];
-  const lowerText = text.toLowerCase();
 
   // Pattern 1: "X و Y و Z" (X and Y and Z)
   const andPattern = /([^\s،]+)\s*و\s*/g;
@@ -424,9 +423,13 @@ export function extractListItems(text) {
 
   // Pattern 3: Numbered lists "1. X 2. Y 3. Z" or "أولاً X ثانياً Y"
   const numberedPatterns = [
-    /\d+[.\-\)]\s*([^\d]+?)(?=\d+[.\-\)]|$)/g,
+    /\d+[.)-]\s*([^\d]+?)(?=\d+[.)-]|$)/g,
+    // Arabic ordinal list markers — character classes span combining marks
+    // eslint-disable-next-line no-misleading-character-class
     /(?:أولاً|اولا|أول)\s*([^ثانياً]+)/,
+    // eslint-disable-next-line no-misleading-character-class
     /(?:ثانياً|ثانيا|ثاني)\s*([^ثالثاً]+)/,
+    // eslint-disable-next-line no-misleading-character-class
     /(?:ثالثاً|ثالثا|ثالث)\s*([^رابعاً]+)/
   ];
 
