@@ -149,6 +149,29 @@ class VoiceController {
         });
       }
 
+      const storageKey = recording.storage_key || recording.file_path;
+      const useSyncTranscription =
+        storageService.isLocalUrl(recording.file_path) || !queueManager.isEnabled;
+
+      if (useSyncTranscription) {
+        logger.warn('Running synchronous transcription for recording');
+        const audioBuffer = await storageService.downloadFile(storageKey);
+        const { transcription } = await transcribeAudioBuffer({
+          recordingId: recording_id,
+          userId,
+          language,
+          audioBuffer,
+          originalName: path.basename(storageKey || 'recording.m4a')
+        });
+
+        return successResponse(res, {
+          recording_id,
+          transcription,
+          cached: false,
+          status: 'completed'
+        });
+      }
+
       // Add transcription job to queue
       const job = await queueManager.addJob(
         QUEUE_NAMES.TRANSCRIPTION,
@@ -157,7 +180,7 @@ class VoiceController {
           recordingId: recording_id,
           userId,
           language,
-          storageKey: recording.storage_key || recording.file_path
+          storageKey
         },
         {
           priority: JOB_PRIORITY.HIGH
@@ -165,16 +188,13 @@ class VoiceController {
       );
 
       if (!job) {
-        logger.warn('Queue unavailable — running synchronous transcription');
-        const audioBuffer = await storageService.downloadFile(
-          recording.storage_key || recording.file_path
-        );
+        const audioBuffer = await storageService.downloadFile(storageKey);
         const { transcription } = await transcribeAudioBuffer({
           recordingId: recording_id,
           userId,
           language,
           audioBuffer,
-          originalName: path.basename(recording.storage_key || recording.file_path || 'recording.m4a')
+          originalName: path.basename(storageKey || 'recording.m4a')
         });
 
         return successResponse(res, {
@@ -243,6 +263,50 @@ class VoiceController {
         status: 'processing'
       });
 
+      await cacheService.delPattern(`recordings:${userId}:*`);
+
+      const useSyncTranscription =
+        storageService.isLocalUrl(uploadResult.url) || !queueManager.isEnabled;
+
+      if (useSyncTranscription) {
+        const reason = storageService.isLocalUrl(uploadResult.url)
+          ? 'local storage'
+          : 'queue unavailable';
+        logger.warn(`Running synchronous transcription (${reason})`);
+
+        const { transcription } = await transcribeAudioBuffer({
+          recordingId: recording.recording_id,
+          userId,
+          language,
+          audioBuffer: req.file.buffer,
+          originalName: req.file.originalname
+        });
+
+        const updatedRecording = await VoiceRecordingModel.findById(
+          recording.recording_id,
+          userId
+        );
+
+        return successResponse(
+          res,
+          {
+            recording_id: recording.recording_id,
+            transcription,
+            status: 'completed',
+            recording: {
+              recording_id: updatedRecording.recording_id,
+              file_size: updatedRecording.file_size,
+              format: updatedRecording.format,
+              storage_url: updatedRecording.file_path,
+              transcription: updatedRecording.transcription_text,
+              status: updatedRecording.status,
+              created_at: updatedRecording.created_at
+            }
+          },
+          'Voice processed successfully'
+        );
+      }
+
       // Step 3: Add transcription job (extraction chained after transcription completes)
       const transcriptionJob = await queueManager.addJob(
         QUEUE_NAMES.TRANSCRIPTION,
@@ -263,10 +327,7 @@ class VoiceController {
         }
       );
 
-      await cacheService.delPattern(`recordings:${userId}:*`);
-
       if (!transcriptionJob) {
-        logger.warn('Queue unavailable — running synchronous transcription');
         const { transcription } = await transcribeAudioBuffer({
           recordingId: recording.recording_id,
           userId,

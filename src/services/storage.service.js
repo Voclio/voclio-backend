@@ -104,9 +104,14 @@ class StorageService {
         contentType: options.contentType
       };
     } catch (error) {
-      logger.error('File upload error:', error);
-      throw new Error(`Failed to upload file: ${error.message}`);
+      logger.error('Cloud file upload error:', error);
+      logger.warn('Falling back to local filesystem storage');
+      return this._uploadLocal(fileBuffer, fileKey, options);
     }
+  }
+
+  isLocalUrl(url) {
+    return typeof url === 'string' && url.startsWith('local://');
   }
 
   _uploadLocal(fileBuffer, fileKey, options = {}) {
