@@ -243,16 +243,32 @@ class VoiceController {
 
       logger.info(`Starting complete voice processing for user ${userId}`);
 
-      // Step 1: Upload to cloud storage
-      const uploadResult = await storageService.uploadFile(
-        req.file.buffer,
-        req.file.originalname,
-        userId,
-        {
-          folder: 'voice',
-          contentType: req.file.mimetype
-        }
-      );
+      // Step 1: Upload to storage (cloud → local → ephemeral placeholder)
+      let uploadResult;
+      try {
+        uploadResult = await storageService.uploadFile(
+          req.file.buffer,
+          req.file.originalname,
+          userId,
+          {
+            folder: 'voice',
+            contentType: req.file.mimetype
+          }
+        );
+      } catch (uploadError) {
+        logger.warn('Storage upload failed, using ephemeral recording reference', uploadError);
+        const fileKey = storageService.generateFileKey(
+          req.file.originalname,
+          userId,
+          'voice'
+        );
+        uploadResult = {
+          key: fileKey,
+          url: `ephemeral://${fileKey}`,
+          size: req.file.buffer.length,
+          contentType: req.file.mimetype || 'audio/mp4'
+        };
+      }
 
       // Step 2: Create recording in database
       const recording = await VoiceRecordingModel.create(userId, {
@@ -266,7 +282,9 @@ class VoiceController {
       await cacheService.delPattern(`recordings:${userId}:*`);
 
       const useSyncTranscription =
-        storageService.isLocalUrl(uploadResult.url) || !queueManager.isEnabled;
+        storageService.isLocalUrl(uploadResult.url) ||
+        uploadResult.url.startsWith('ephemeral://') ||
+        !queueManager.isEnabled;
 
       if (useSyncTranscription) {
         const reason = storageService.isLocalUrl(uploadResult.url)

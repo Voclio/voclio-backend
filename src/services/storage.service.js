@@ -111,7 +111,10 @@ class StorageService {
   }
 
   isLocalUrl(url) {
-    return typeof url === 'string' && url.startsWith('local://');
+    return (
+      typeof url === 'string' &&
+      (url.startsWith('local://') || url.startsWith('ephemeral://'))
+    );
   }
 
   _uploadLocal(fileBuffer, fileKey, options = {}) {
