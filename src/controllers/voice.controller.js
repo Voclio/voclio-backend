@@ -126,7 +126,7 @@ class VoiceController {
    */
   static async transcribeRecording(req, res, next) {
     try {
-      const { recording_id, language = 'ar' } = req.body;
+      const { recording_id, language = 'en' } = req.body;
       const userId = req.user.user_id;
 
       if (!recording_id) {
@@ -234,7 +234,7 @@ class VoiceController {
       }
 
       const {
-        language = 'ar',
+        language = 'en',
         category_id,
         auto_create_tasks = true,
         auto_create_notes = true

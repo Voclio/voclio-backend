@@ -20,7 +20,7 @@ export function normalizeTranscriptionText(transResult) {
 export async function transcribeAudioBuffer({
   recordingId,
   userId,
-  language = 'ar',
+  language = 'en',
   audioBuffer,
   originalName = 'recording.m4a'
 }) {

@@ -46,7 +46,19 @@ ${text}
     const currentDate = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().toLocaleDateString('ar-EG', { weekday: 'long' });
 
-    const prompt = `أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية بجميع لهجاتها (مصرية، سعودية، خليجية، شامية، مغربية).
+    const prompt = `You extract actionable tasks from voice transcriptions in **English or Arabic** (all Arabic dialects).
+
+أنت مساعد ذكي لاستخراج المهام من النصوص الصوتية بالإنجليزية أو العربية بجميع اللهجات.
+
+**IMPORTANT:** If the user mentions a task, appointment, gym session, meeting, or anything to do — you MUST return at least one task. Never return an empty array when actionable content exists.
+
+Examples in English:
+- "I have a gym session" → task: "Gym session"
+- "Add to calendar, gym session tomorrow" → task with due_date
+- "Task after 3 minutes: call John" → task due in 3 minutes
+- "Task at 8pm: review code" → task due today 20:00
+
+أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية بجميع لهجاتها (مصرية، سعودية، خليجية، شامية، مغربية).
 
 📅 **معلومات التاريخ الحالي:**
 - التاريخ: ${currentDate}
@@ -176,7 +188,7 @@ ${text}
           {
             role: 'system',
             content:
-              'أنت مساعد ذكي متخصص في استخراج المهام من النصوص العربية. تفهم جميع اللهجات العربية وتستخرج المهام بدقة عالية. ترجع دائماً JSON صحيح بدون أي نص إضافي.'
+              'You extract tasks from English and Arabic voice text. Always return a JSON array. If there is any actionable item, return at least one task — never return [] for clear requests like gym session, meetings, or reminders.'
           },
           {
             role: 'user',
