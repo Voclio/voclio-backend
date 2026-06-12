@@ -212,6 +212,10 @@ class CalendarController {
       // Group events by day
       const eventsByDay = {};
 
+      const tasksById = Object.fromEntries(
+        monthTasks.map(task => [task.task_id, task])
+      );
+
       monthTasks.forEach(task => {
         const day = new Date(task.due_date).getDate();
         if (!eventsByDay[day]) {
@@ -220,6 +224,7 @@ class CalendarController {
         eventsByDay[day].tasks.push({
           task_id: task.task_id,
           title: task.title,
+          description: task.description || '',
           priority: task.priority,
           status: task.status,
           due_date: task.due_date
@@ -232,9 +237,15 @@ class CalendarController {
         if (!eventsByDay[day]) {
           eventsByDay[day] = { tasks: [], reminders: [], count: 0 };
         }
+        const linkedTask = reminder.task_id
+          ? tasksById[reminder.task_id]
+          : null;
         eventsByDay[day].reminders.push({
           reminder_id: reminder.reminder_id,
-          title: reminder.title || 'Reminder',
+          title:
+            reminder.title ||
+            linkedTask?.title ||
+            'Reminder',
           reminder_time: reminder.reminder_time,
           task_id: reminder.task_id
         });
