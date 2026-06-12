@@ -281,121 +281,67 @@ class VoiceController {
 
       await cacheService.delPattern(`recordings:${userId}:*`);
 
-      const useSyncTranscription =
-        storageService.isLocalUrl(uploadResult.url) ||
-        uploadResult.url.startsWith('ephemeral://') ||
-        !queueManager.isEnabled;
-
-      if (useSyncTranscription) {
-        const reason = storageService.isLocalUrl(uploadResult.url)
-          ? 'local storage'
-          : 'queue unavailable';
-        logger.warn(`Running synchronous transcription (${reason})`);
-
-        const { transcription } = await transcribeAudioBuffer({
-          recordingId: recording.recording_id,
-          userId,
-          language,
-          audioBuffer: req.file.buffer,
-          originalName: req.file.originalname
-        });
-
-        const updatedRecording = await VoiceRecordingModel.findById(
-          recording.recording_id,
-          userId
-        );
-
-        return successResponse(
-          res,
-          {
-            recording_id: recording.recording_id,
-            transcription,
-            status: 'completed',
-            recording: {
-              recording_id: updatedRecording.recording_id,
-              file_size: updatedRecording.file_size,
-              format: updatedRecording.format,
-              storage_url: updatedRecording.file_path,
-              transcription: updatedRecording.transcription_text,
-              status: updatedRecording.status,
-              created_at: updatedRecording.created_at
-            }
-          },
-          'Voice processed successfully'
+      // Always transcribe from the in-memory upload buffer for /process-complete.
+      // Production often has S3 + Redis but no worker process — async jobs never finish.
+      if (!process.env.ASSEMBLYAI_API_KEY) {
+        throw new ServiceUnavailableError(
+          'Voice transcription is not configured on the server. Contact support.'
         );
       }
 
-      // Step 3: Add transcription job (extraction chained after transcription completes)
-      const transcriptionJob = await queueManager.addJob(
-        QUEUE_NAMES.TRANSCRIPTION,
-        'transcribe-audio',
-        {
-          recordingId: recording.recording_id,
-          userId,
-          language,
-          storageKey: uploadResult.key,
-          extractionOptions: {
-            autoCreateTasks: auto_create_tasks === 'true' || auto_create_tasks === true,
-            autoCreateNotes: auto_create_notes === 'true' || auto_create_notes === true,
-            categoryId: category_id || null
-          }
-        },
-        {
-          priority: JOB_PRIORITY.HIGH
-        }
+      const { transcription } = await transcribeAudioBuffer({
+        recordingId: recording.recording_id,
+        userId,
+        language,
+        audioBuffer: req.file.buffer,
+        originalName: req.file.originalname
+      });
+
+      const updatedRecording = await VoiceRecordingModel.findById(
+        recording.recording_id,
+        userId
       );
 
-      if (!transcriptionJob) {
-        const { transcription } = await transcribeAudioBuffer({
-          recordingId: recording.recording_id,
-          userId,
-          language,
-          audioBuffer: req.file.buffer,
-          originalName: req.file.originalname
-        });
+      const wantsTasks = auto_create_tasks === 'true' || auto_create_tasks === true;
+      const wantsNotes = auto_create_notes === 'true' || auto_create_notes === true;
 
-        const updatedRecording = await VoiceRecordingModel.findById(
-          recording.recording_id,
-          userId
-        );
-
-        return successResponse(
-          res,
-          {
-            recording_id: recording.recording_id,
-            transcription,
-            status: 'completed',
-            recording: {
-              recording_id: updatedRecording.recording_id,
-              file_size: updatedRecording.file_size,
-              format: updatedRecording.format,
-              storage_url: updatedRecording.file_path,
-              transcription: updatedRecording.transcription_text,
-              status: updatedRecording.status,
-              created_at: updatedRecording.created_at
-            }
-          },
-          'Voice processed successfully'
-        );
+      if ((wantsTasks || wantsNotes) && queueManager.isEnabled) {
+        queueManager
+          .addJob(
+            QUEUE_NAMES.EXTRACTION,
+            'extract-tasks-notes',
+            {
+              recordingId: recording.recording_id,
+              userId,
+              transcriptId: null,
+              autoCreateTasks: wantsTasks,
+              autoCreateNotes: wantsNotes,
+              categoryId: category_id || null
+            },
+            { priority: JOB_PRIORITY.MEDIUM }
+          )
+          .catch(err => {
+            logger.warn('Background extraction enqueue failed (non-blocking)', err);
+          });
       }
 
-      logger.info(`Voice processing job created: transcription=${transcriptionJob.id}`);
-
-      // Return immediately with job ID (extraction job ID available after transcription completes)
       return successResponse(
         res,
         {
           recording_id: recording.recording_id,
-          jobs: {
-            transcription: transcriptionJob.id,
-            extraction: null
-          },
-          status: 'processing',
-          message:
-            'Voice processing started. Extraction begins after transcription. Use /api/voice/job-status/:jobId to check progress.'
+          transcription,
+          status: 'completed',
+          recording: {
+            recording_id: updatedRecording.recording_id,
+            file_size: updatedRecording.file_size,
+            format: updatedRecording.format,
+            storage_url: updatedRecording.file_path,
+            transcription: updatedRecording.transcription_text,
+            status: updatedRecording.status,
+            created_at: updatedRecording.created_at
+          }
         },
-        'Voice processing started',
-        202 // Accepted
+        'Voice processed successfully'
       );
     } catch (error) {
       logger.error('Process voice complete error:', error);

@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { ServiceUnavailableError } from '../utils/errors.js';
 import { OpenRouterProvider } from './ai/openrouter.provider.js';
 import { GeminiProvider } from './ai/gemini.provider.js';
 import { AssemblyAIProvider } from './ai/assemblyai.provider.js';
@@ -76,7 +77,7 @@ class AIService {
   async transcribeAudio(audioFilePath, language = 'ar') {
     try {
       if (!this.assemblyAIKey) {
-        throw new Error('AssemblyAI API key not configured');
+        throw new ServiceUnavailableError('AssemblyAI API key not configured');
       }
       return await this.assemblyAI.transcribeWithAssemblyAI(audioFilePath, language);
     } catch (error) {
