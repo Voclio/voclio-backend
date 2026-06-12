@@ -121,7 +121,17 @@ export default {
 
   upload: {
     maxFileSize: 10 * 1024 * 1024, // 10MB
-    allowedFormats: ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/webm']
+    allowedFormats: [
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp4',
+      'audio/m4a',
+      'audio/x-m4a',
+      'audio/aac',
+      'audio/ogg',
+      'audio/webm',
+      'application/octet-stream'
+    ]
   },
 
   rateLimit: {

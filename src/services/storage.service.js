@@ -1,3 +1,4 @@
+import fs from 'fs';
 import {
   S3Client,
   PutObjectCommand,
@@ -13,14 +14,32 @@ import path from 'path';
 
 class StorageService {
   constructor() {
-    this.client = null;
     this.bucket = config.storage.bucket;
     this.region = config.storage.region;
-    this.provider = config.storage.provider; // 's3' or 'r2'
+    this.provider = config.storage.provider;
+    this.client = null;
+    this.useLocal = this._shouldUseLocalStorage();
+    this.localRoot = path.join(process.cwd(), 'uploads');
     this.initialize();
   }
 
+  _shouldUseLocalStorage() {
+    if (config.storage.provider === 'local') {
+      return true;
+    }
+
+    return !config.storage.accessKeyId || !config.storage.secretAccessKey;
+  }
+
   initialize() {
+    if (this.useLocal) {
+      if (!fs.existsSync(this.localRoot)) {
+        fs.mkdirSync(this.localRoot, { recursive: true });
+      }
+      logger.warn('⚠️  Storage service using local filesystem (cloud credentials not configured)');
+      return;
+    }
+
     const clientConfig = {
       region: this.region,
       credentials: {
@@ -29,7 +48,6 @@ class StorageService {
       }
     };
 
-    // Cloudflare R2 specific configuration
     if (this.provider === 'r2') {
       clientConfig.endpoint = config.storage.endpoint;
     }
@@ -38,9 +56,10 @@ class StorageService {
     logger.info(`✅ Storage service initialized (${this.provider})`);
   }
 
-  /**
-   * Generate unique file key
-   */
+  _localPath(fileKey) {
+    return path.join(this.localRoot, fileKey);
+  }
+
   generateFileKey(originalName, userId, folder = 'voice') {
     const timestamp = Date.now();
     const randomString = crypto.randomBytes(8).toString('hex');
@@ -50,13 +69,14 @@ class StorageService {
     return `${folder}/${userId}/${timestamp}-${randomString}-${sanitizedName}${ext}`;
   }
 
-  /**
-   * Upload file to cloud storage
-   */
   async uploadFile(fileBuffer, originalName, userId, options = {}) {
-    try {
-      const fileKey = this.generateFileKey(originalName, userId, options.folder);
+    const fileKey = this.generateFileKey(originalName, userId, options.folder);
 
+    if (this.useLocal) {
+      return this._uploadLocal(fileBuffer, fileKey, options);
+    }
+
+    try {
       const command = new PutObjectCommand({
         Bucket: this.bucket,
         Key: fileKey,
@@ -89,57 +109,68 @@ class StorageService {
     }
   }
 
-  /**
-   * Upload from file path (for migration)
-   */
+  _uploadLocal(fileBuffer, fileKey, options = {}) {
+    const fullPath = this._localPath(fileKey);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, fileBuffer);
+
+    logger.info(`File uploaded locally: ${fileKey}`);
+
+    return {
+      key: fileKey,
+      url: `local://${fileKey}`,
+      bucket: 'local',
+      size: fileBuffer.length,
+      contentType: options.contentType || 'application/octet-stream'
+    };
+  }
+
   async uploadFromPath(filePath, userId, options = {}) {
-    try {
-      const fs = await import('fs');
-      const fileBuffer = fs.readFileSync(filePath);
-      const originalName = path.basename(filePath);
-
-      return await this.uploadFile(fileBuffer, originalName, userId, options);
-    } catch (error) {
-      logger.error('Upload from path error:', error);
-      throw new Error(`Failed to upload from path: ${error.message}`);
-    }
+    const fileBuffer = fs.readFileSync(filePath);
+    const originalName = path.basename(filePath);
+    return await this.uploadFile(fileBuffer, originalName, userId, options);
   }
 
-  /**
-   * Get public URL for file
-   */
   getPublicUrl(fileKey) {
-    if (this.provider === 'r2') {
-      // Cloudflare R2 public URL
-      return `${config.storage.publicUrl}/${fileKey}`;
-    } else {
-      // AWS S3 public URL
-      return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${fileKey}`;
+    if (this.useLocal) {
+      return `local://${fileKey}`;
     }
+
+    if (this.provider === 'r2') {
+      return `${config.storage.publicUrl}/${fileKey}`;
+    }
+
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${fileKey}`;
   }
 
-  /**
-   * Generate signed URL for private access
-   */
   async getSignedUrl(fileKey, expiresIn = 3600) {
+    if (this.useLocal) {
+      return this.getPublicUrl(fileKey);
+    }
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: fileKey
       });
 
-      const signedUrl = await getSignedUrl(this.client, command, { expiresIn });
-      return signedUrl;
+      return await getSignedUrl(this.client, command, { expiresIn });
     } catch (error) {
       logger.error('Get signed URL error:', error);
       throw new Error(`Failed to generate signed URL: ${error.message}`);
     }
   }
 
-  /**
-   * Delete file from storage
-   */
   async deleteFile(fileKey) {
+    if (this.useLocal) {
+      const fullPath = this._localPath(fileKey);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        logger.info(`Local file deleted: ${fileKey}`);
+      }
+      return true;
+    }
+
     try {
       const command = new DeleteObjectCommand({
         Bucket: this.bucket,
@@ -156,10 +187,11 @@ class StorageService {
     }
   }
 
-  /**
-   * Check if file exists
-   */
   async fileExists(fileKey) {
+    if (this.useLocal) {
+      return fs.existsSync(this._localPath(fileKey));
+    }
+
     try {
       const command = new HeadObjectCommand({
         Bucket: this.bucket,
@@ -176,10 +208,18 @@ class StorageService {
     }
   }
 
-  /**
-   * Get file metadata
-   */
   async getFileMetadata(fileKey) {
+    if (this.useLocal) {
+      const fullPath = this._localPath(fileKey);
+      const stats = fs.statSync(fullPath);
+      return {
+        size: stats.size,
+        contentType: 'application/octet-stream',
+        lastModified: stats.mtime,
+        metadata: {}
+      };
+    }
+
     try {
       const command = new HeadObjectCommand({
         Bucket: this.bucket,
@@ -200,10 +240,15 @@ class StorageService {
     }
   }
 
-  /**
-   * Download file as buffer
-   */
   async downloadFile(fileKey) {
+    if (this.useLocal) {
+      const fullPath = this._localPath(fileKey);
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`Local file not found: ${fileKey}`);
+      }
+      return fs.readFileSync(fullPath);
+    }
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
@@ -212,7 +257,6 @@ class StorageService {
 
       const response = await this.client.send(command);
 
-      // Convert stream to buffer
       const chunks = [];
       for await (const chunk of response.Body) {
         chunks.push(chunk);

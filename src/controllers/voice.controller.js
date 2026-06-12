@@ -1,4 +1,5 @@
 import multer from 'multer';
+import path from 'path';
 import VoiceRecordingModel from '../models/voice.model.js';
 import storageService from '../services/storage.service.js';
 import queueManager, { QUEUE_NAMES, JOB_PRIORITY } from '../config/queue.js';
@@ -6,6 +7,7 @@ import { successResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError, ServiceUnavailableError } from '../utils/errors.js';
 import config from '../config/index.js';
 import cacheService from '../services/cache.service.js';
+import { transcribeAudioBuffer } from '../services/voiceProcessing.service.js';
 import logger from '../utils/logger.js';
 
 // Configure multer for memory storage (upload to cloud instead of disk)
@@ -163,9 +165,24 @@ class VoiceController {
       );
 
       if (!job) {
-        throw new ServiceUnavailableError(
-          'Transcription queue unavailable. Ensure Redis is running and start the worker with npm run worker.'
+        logger.warn('Queue unavailable — running synchronous transcription');
+        const audioBuffer = await storageService.downloadFile(
+          recording.storage_key || recording.file_path
         );
+        const { transcription } = await transcribeAudioBuffer({
+          recordingId: recording_id,
+          userId,
+          language,
+          audioBuffer,
+          originalName: path.basename(recording.storage_key || recording.file_path || 'recording.m4a')
+        });
+
+        return successResponse(res, {
+          recording_id,
+          transcription,
+          cached: false,
+          status: 'completed'
+        });
       }
 
       logger.info(`Transcription job created: ${job.id}`);
@@ -246,14 +263,42 @@ class VoiceController {
         }
       );
 
+      await cacheService.delPattern(`recordings:${userId}:*`);
+
       if (!transcriptionJob) {
-        throw new ServiceUnavailableError(
-          'Voice processing queue unavailable. Ensure Redis is running and start the worker with npm run worker.'
+        logger.warn('Queue unavailable — running synchronous transcription');
+        const { transcription } = await transcribeAudioBuffer({
+          recordingId: recording.recording_id,
+          userId,
+          language,
+          audioBuffer: req.file.buffer,
+          originalName: req.file.originalname
+        });
+
+        const updatedRecording = await VoiceRecordingModel.findById(
+          recording.recording_id,
+          userId
+        );
+
+        return successResponse(
+          res,
+          {
+            recording_id: recording.recording_id,
+            transcription,
+            status: 'completed',
+            recording: {
+              recording_id: updatedRecording.recording_id,
+              file_size: updatedRecording.file_size,
+              format: updatedRecording.format,
+              storage_url: updatedRecording.file_path,
+              transcription: updatedRecording.transcription_text,
+              status: updatedRecording.status,
+              created_at: updatedRecording.created_at
+            }
+          },
+          'Voice processed successfully'
         );
       }
-
-      // Invalidate cache
-      await cacheService.delPattern(`recordings:${userId}:*`);
 
       logger.info(`Voice processing job created: transcription=${transcriptionJob.id}`);
 

@@ -1,4 +1,5 @@
 import aiService from '../services/ai.service.js';
+import { normalizeTranscriptionText } from '../services/voiceProcessing.service.js';
 import VoiceRecordingModel from '../models/voice.model.js';
 import storageService from '../services/storage.service.js';
 import queueManager, { QUEUE_NAMES, JOB_PRIORITY } from '../config/queue.js';
@@ -49,8 +50,8 @@ export async function processTranscription(job) {
     // Transcribe using AI service
     logger.info(`[Transcription Job ${job.id}] Transcribing audio`);
     const transResult = await aiService.transcribeAudio(tempFilePath, language);
-    const transcriptionText = transResult.text || transResult;
-    const transcriptId = transResult.id;
+    const transcriptionText = normalizeTranscriptionText(transResult);
+    const transcriptId = transResult?.id ?? null;
 
     await job.updateProgress(80);
 
