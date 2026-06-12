@@ -10,6 +10,7 @@ class RedisClient {
   }
 
   connect() {
+    console.log('REDIS CONFIG:', config.redis);
     // Check if Redis is configured
     if (!config.redis.host || config.redis.host === 'disabled') {
       logger.info('⚠️  Redis is disabled - running without cache/queue support');
@@ -24,7 +25,7 @@ class RedisClient {
     try {
       const redisConfig = {
         host: config.redis.host,
-        port: config.redis.port,
+        port: Number(config.redis.port),
         password: config.redis.password,
         maxRetriesPerRequest: 1,
         retryStrategy: times => {
@@ -49,10 +50,12 @@ class RedisClient {
       });
 
       this.client.on('error', err => {
+        console.error('REDIS EVENT ERROR:', err);
+
         this.isConnected = false;
-        // Only log once, not repeatedly
+
         if (this.isEnabled) {
-          logger.warn('⚠️  Redis connection error - running without cache/queue support');
+          logger.warn('⚠️ Redis connection error');
           this.isEnabled = false;
         }
       });
@@ -76,13 +79,11 @@ class RedisClient {
   }
 
   getClient() {
-    if (!this.isEnabled) {
-      return null;
+    if (this.client) {
+      return this.client;
     }
-    if (!this.client) {
-      return this.connect();
-    }
-    return this.client;
+
+    return this.connect();
   }
 
   async disconnect() {
