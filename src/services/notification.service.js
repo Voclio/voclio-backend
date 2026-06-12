@@ -1,7 +1,13 @@
 import NotificationModel from '../models/notification.model.js';
+import SettingsModel from '../models/settings.model.js';
 import { Notification } from '../models/orm/index.js';
+import { notificationCopy } from '../i18n/notification.messages.js';
 
 class NotificationService {
+  static async getUserLanguage(_userId) {
+    return 'en';
+  }
+
   /**
    * Create and send notification to user
    * @param {number} userId - User ID
@@ -14,15 +20,23 @@ class NotificationService {
         message,
         type = 'general',
         priority = 'normal',
-        related_id = null
+        related_id = null,
+        bypassPushPreference = false
       } = notificationData;
+
+      if (!bypassPushPreference && type !== 'system') {
+        const settings = await SettingsModel.findByUserId(userId);
+        if (settings?.push_enabled === false) {
+          return null;
+        }
+      }
 
       const notification = await NotificationModel.create(userId, {
         title,
         message,
         type,
         priority,
-        related_id
+        related_id: related_id ?? null
       });
 
       console.log(`📬 Notification created for user ${userId}: ${title}`);
@@ -33,182 +47,240 @@ class NotificationService {
     }
   }
 
+  static async createLocalizedNotification(userId, type, data, options = {}) {
+    const language = await this.getUserLanguage(userId);
+    const { title, message } = notificationCopy(type, language, data);
+    return this.createNotification(userId, {
+      title,
+      message,
+      ...options
+    });
+  }
+
   /**
    * Task related notifications
    */
   static async notifyTaskCreated(userId, task) {
-    return await this.createNotification(userId, {
-      title: 'مهمة جديدة',
-      message: `تم إنشاء مهمة جديدة: ${task.title}`,
-      type: 'task',
-      priority: task.priority === 'high' || task.priority === 'urgent' ? 'high' : 'normal',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'taskCreated',
+      { task },
+      {
+        type: 'task',
+        priority: task.priority === 'high' || task.priority === 'urgent' ? 'high' : 'normal',
+        related_id: task.task_id
+      }
+    );
   }
 
   static async notifyTaskUpdated(userId, task) {
-    return await this.createNotification(userId, {
-      title: 'تحديث مهمة',
-      message: `تم تحديث المهمة: ${task.title}`,
-      type: 'task',
-      priority: 'normal',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'taskUpdated',
+      { task },
+      {
+        type: 'task',
+        priority: 'normal',
+        related_id: task.task_id
+      }
+    );
   }
 
   static async notifyTaskCompleted(userId, task) {
-    return await this.createNotification(userId, {
-      title: '✅ مهمة مكتملة',
-      message: `أحسنت! تم إكمال المهمة: ${task.title}`,
-      type: 'task',
-      priority: 'normal',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'taskCompleted',
+      { task },
+      {
+        type: 'task',
+        priority: 'normal',
+        related_id: task.task_id
+      }
+    );
   }
 
   static async notifyTaskDueSoon(userId, task, hoursLeft) {
-    return await this.createNotification(userId, {
-      title: '⏰ موعد المهمة قريب',
-      message: `المهمة "${task.title}" موعدها بعد ${hoursLeft} ساعة`,
-      type: 'task',
-      priority: 'high',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'taskDueSoon',
+      { task, hoursLeft },
+      {
+        type: 'task',
+        priority: 'high',
+        related_id: task.task_id
+      }
+    );
   }
 
   static async notifyTaskOverdue(userId, task) {
-    return await this.createNotification(userId, {
-      title: '⚠️ مهمة متأخرة',
-      message: `المهمة "${task.title}" تجاوزت موعدها`,
-      type: 'task',
-      priority: 'urgent',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'taskOverdue',
+      { task },
+      {
+        type: 'task',
+        priority: 'urgent',
+        related_id: task.task_id
+      }
+    );
   }
 
   /**
    * Reminder notifications
    */
   static async notifyReminderTriggered(userId, reminder, task) {
-    return await this.createNotification(userId, {
-      title: '🔔 تذكير',
-      message: task ? `تذكير بالمهمة: ${task.title}` : 'لديك تذكير',
-      type: 'reminder',
-      priority: 'high',
-      related_id: reminder.reminder_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'reminderTriggered',
+      { task },
+      {
+        type: 'reminder',
+        priority: 'high',
+        related_id: reminder.reminder_id
+      }
+    );
   }
 
   static async notifyReminderCreated(userId, reminder) {
-    return await this.createNotification(userId, {
-      title: 'تذكير جديد',
-      message: 'تم إنشاء تذكير جديد',
-      type: 'reminder',
-      priority: 'normal',
-      related_id: reminder.reminder_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'reminderCreated',
+      {},
+      {
+        type: 'reminder',
+        priority: 'normal',
+        related_id: reminder.reminder_id
+      }
+    );
   }
 
   /**
    * Note notifications
    */
   static async notifyNoteCreated(userId, note) {
-    return await this.createNotification(userId, {
-      title: '📝 ملاحظة جديدة',
-      message: `تم إنشاء ملاحظة: ${note.title || 'بدون عنوان'}`,
-      type: 'general',
-      priority: 'normal',
-      related_id: note.note_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'noteCreated',
+      { note },
+      {
+        type: 'general',
+        priority: 'normal',
+        related_id: note.note_id
+      }
+    );
   }
 
   /**
    * Voice recording notifications
    */
   static async notifyVoiceProcessed(userId, recording) {
-    return await this.createNotification(userId, {
-      title: '🎤 تم معالجة التسجيل الصوتي',
-      message: 'تم تحويل التسجيل الصوتي إلى نص بنجاح',
-      type: 'general',
-      priority: 'normal',
-      related_id: recording.recording_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'voiceProcessed',
+      {},
+      {
+        type: 'general',
+        priority: 'normal',
+        related_id: recording.recording_id
+      }
+    );
   }
 
   static async notifyVoiceToTaskCreated(userId, task) {
-    return await this.createNotification(userId, {
-      title: '✨ تم إنشاء مهمة من الصوت',
-      message: `تم إنشاء المهمة: ${task.title}`,
-      type: 'task',
-      priority: 'normal',
-      related_id: task.task_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'voiceToTaskCreated',
+      { task },
+      {
+        type: 'task',
+        priority: 'normal',
+        related_id: task.task_id
+      }
+    );
   }
 
   /**
    * Achievement notifications
    */
   static async notifyAchievementEarned(userId, achievement) {
-    return await this.createNotification(userId, {
-      title: '🏆 إنجاز جديد!',
-      message: `تهانينا! حصلت على: ${achievement.title}`,
-      type: 'achievement',
-      priority: 'high',
-      related_id: achievement.achievement_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'achievementEarned',
+      { achievement },
+      {
+        type: 'achievement',
+        priority: 'high',
+        related_id: achievement.achievement_id
+      }
+    );
   }
 
   static async notifyStreakMilestone(userId, streak) {
-    return await this.createNotification(userId, {
-      title: '🔥 سلسلة إنجازات!',
-      message: `رائع! وصلت إلى ${streak.current_streak} يوم متتالي`,
-      type: 'achievement',
-      priority: 'high',
-      related_id: streak.streak_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'streakMilestone',
+      { streak },
+      {
+        type: 'achievement',
+        priority: 'high',
+        related_id: streak.streak_id
+      }
+    );
   }
 
   /**
    * Focus session notifications
    */
   static async notifyFocusSessionCompleted(userId, session) {
-    return await this.createNotification(userId, {
-      title: '⏱️ جلسة تركيز مكتملة',
-      message: `أحسنت! أكملت جلسة تركيز لمدة ${Math.floor(session.timer_duration / 60)} دقيقة`,
-      type: 'general',
-      priority: 'normal',
-      related_id: session.session_id
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'focusSessionCompleted',
+      { session },
+      {
+        type: 'general',
+        priority: 'normal',
+        related_id: session.session_id
+      }
+    );
   }
 
   /**
    * System notifications
    */
   static async notifyWelcome(userId, userName) {
-    return await this.createNotification(userId, {
-      title: '👋 مرحباً بك في Voclio',
-      message: `أهلاً ${userName}! نحن سعداء بانضمامك`,
-      type: 'system',
-      priority: 'normal'
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'welcome',
+      { userName },
+      {
+        type: 'system',
+        priority: 'normal'
+      }
+    );
   }
 
   static async notifyPasswordChanged(userId) {
-    return await this.createNotification(userId, {
-      title: '🔒 تم تغيير كلمة المرور',
-      message: 'تم تغيير كلمة المرور الخاصة بك بنجاح',
-      type: 'system',
-      priority: 'high'
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'passwordChanged',
+      {},
+      {
+        type: 'system',
+        priority: 'high'
+      }
+    );
   }
 
   static async notifyEmailVerified(userId) {
-    return await this.createNotification(userId, {
-      title: '✅ تم تأكيد البريد الإلكتروني',
-      message: 'تم تأكيد بريدك الإلكتروني بنجاح',
-      type: 'system',
-      priority: 'normal'
-    });
+    return this.createLocalizedNotification(
+      userId,
+      'emailVerified',
+      {},
+      {
+        type: 'system',
+        priority: 'normal'
+      }
+    );
   }
 
   /**

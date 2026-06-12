@@ -68,6 +68,10 @@ class TaskModel {
 
     if (!task) return null;
 
+    if (updates.status && updates.status !== 'completed') {
+      updates.completed_at = null;
+    }
+
     await task.update(updates);
     return task.toJSON();
   }

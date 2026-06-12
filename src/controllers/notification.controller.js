@@ -1,16 +1,31 @@
 import NotificationModel from '../models/notification.model.js';
+import SettingsModel from '../models/settings.model.js';
+import { localizeNotificationForDisplay } from '../i18n/notification.messages.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { NotFoundError } from '../utils/errors.js';
+
 class NotificationController {
+  static async localizeForUser(userId, notifications) {
+    const settings = await SettingsModel.findByUserId(userId);
+    const language = settings?.language ?? 'en';
+    return notifications.map((notification) =>
+      localizeNotificationForDisplay(notification, language)
+    );
+  }
+
   static async getAllNotifications(req, res, next) {
     try {
       const { page = 1, limit = 20, is_read } = req.query;
 
-      const notifications = await NotificationModel.findAll(req.user.user_id, {
+      const rawNotifications = await NotificationModel.findAll(req.user.user_id, {
         page: parseInt(page),
         limit: parseInt(limit),
         is_read: is_read !== undefined ? is_read === 'true' : undefined
       });
+      const notifications = await NotificationController.localizeForUser(
+        req.user.user_id,
+        rawNotifications
+      );
 
       const total = await NotificationModel.count(
         req.user.user_id,
@@ -32,11 +47,15 @@ class NotificationController {
 
   static async getNotificationById(req, res, next) {
     try {
-      const notification = await NotificationModel.findById(req.params.id, req.user.user_id);
+      const rawNotification = await NotificationModel.findById(req.params.id, req.user.user_id);
 
-      if (!notification) {
+      if (!rawNotification) {
         throw new NotFoundError('Notification not found');
       }
+
+      const [notification] = await NotificationController.localizeForUser(req.user.user_id, [
+        rawNotification
+      ]);
 
       return successResponse(res, { notification });
     } catch (error) {

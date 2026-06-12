@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { Reminder, User, Task, Notification, OTP, Session } from '../models/orm/index.js';
 import emailService from './email.service.js';
 import NotificationService from './notification.service.js';
+import SettingsModel from '../models/settings.model.js';
 import logger from '../utils/logger.js';
 
 const ACTIVE_TASK_STATUSES = { [Op.notIn]: ['completed', 'cancelled'] };
@@ -103,24 +104,32 @@ class CronService {
       const user = reminder.user;
       const task = reminder.task;
       const notificationTypes = reminder.notification_types || [];
+      const userSettings = await SettingsModel.findByUserId(user.user_id);
 
       if (notificationTypes.includes('email')) {
-        try {
-          await emailService.sendReminder(user.email, {
-            title: task?.title || 'Reminder',
-            message: task?.description || 'You have a reminder',
-            reminder_time: reminder.reminder_time
-          });
-        } catch (emailError) {
-          logger.error('Failed to send email reminder', { error: emailError.message });
+        const emailAllowed =
+          userSettings?.email_enabled !== false &&
+          userSettings?.email_for_reminders !== false;
+        if (emailAllowed) {
+          try {
+            await emailService.sendReminder(user.email, {
+              title: task?.title || 'Reminder',
+              message: task?.description || 'You have a reminder',
+              reminder_time: reminder.reminder_time
+            });
+          } catch (emailError) {
+            logger.error('Failed to send email reminder', { error: emailError.message });
+          }
         }
       }
 
       if (notificationTypes.includes('push')) {
-        try {
-          await NotificationService.notifyReminderTriggered(user.user_id, reminder, task);
-        } catch (notifError) {
-          logger.error('Failed to create notification', { error: notifError.message });
+        if (userSettings?.push_enabled !== false) {
+          try {
+            await NotificationService.notifyReminderTriggered(user.user_id, reminder, task);
+          } catch (notifError) {
+            logger.error('Failed to create notification', { error: notifError.message });
+          }
         }
       }
 
