@@ -55,6 +55,40 @@ if (process.env.NODE_ENV !== 'test') {
   validateConfig();
 }
 
+function resolveGoogleRedirectUri() {
+  const port = process.env.PORT || 3000;
+  const localDefault = `http://localhost:${port}/api/calendar/google/callback`;
+  const apiBase = (process.env.API_URL || '').replace(/\/$/, '');
+  const fromApiUrl = apiBase ? `${apiBase}/api/calendar/google/callback` : null;
+  const explicit = process.env.GOOGLE_REDIRECT_URI?.trim();
+
+  if (process.env.NODE_ENV === 'production') {
+    if (explicit && !explicit.includes('localhost')) {
+      return explicit;
+    }
+    if (fromApiUrl) {
+      return fromApiUrl;
+    }
+    if (explicit) {
+      return explicit;
+    }
+    return localDefault;
+  }
+
+  return explicit || fromApiUrl || localDefault;
+}
+
+const googleRedirectUri = resolveGoogleRedirectUri();
+
+if (
+  process.env.NODE_ENV === 'production' &&
+  googleRedirectUri.includes('localhost')
+) {
+  console.warn(
+    '⚠️  GOOGLE_REDIRECT_URI points to localhost in production. Google Calendar OAuth will fail until API_URL or GOOGLE_REDIRECT_URI is set to your public HTTPS backend URL.'
+  );
+}
+
 export default {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -108,9 +142,7 @@ export default {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri:
-      process.env.GOOGLE_REDIRECT_URI ||
-      `http://localhost:${process.env.PORT || 3000}/api/calendar/google/callback`
+    redirectUri: googleRedirectUri
   },
 
 
