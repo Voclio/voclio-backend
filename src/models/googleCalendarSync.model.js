@@ -1,5 +1,6 @@
 import { GoogleCalendarSync } from './orm/index.js';
 import encryptionService from '../services/encryption.service.js';
+import GoogleCalendarService from '../services/googleCalendar.service.js';
 
 /**
  * Encrypt tokens before persisting to DB
@@ -78,6 +79,46 @@ class GoogleCalendarSyncModel {
       where: { user_id: userId, sync_enabled: true, sync_status: 'active' }
     });
     return decryptRecord(sync?.toJSON() ?? null);
+  }
+
+  /**
+   * Resolve Google tokens for API calls, refreshing expired access tokens when possible.
+   */
+  static async resolveTokensForUser(userId) {
+    const sync = await this.findByUserId(userId);
+    if (!sync?.google_access_token || sync.sync_enabled === false) {
+      return null;
+    }
+
+    let tokens = {
+      access_token: sync.google_access_token,
+      refresh_token: sync.google_refresh_token,
+      expiry_date: sync.google_token_expiry
+        ? new Date(sync.google_token_expiry).getTime()
+        : undefined
+    };
+
+    const isExpired =
+      sync.google_token_expiry && new Date(sync.google_token_expiry) <= new Date();
+
+    if (isExpired && sync.google_refresh_token) {
+      try {
+        const refreshed = await GoogleCalendarService.refreshAccessToken(
+          sync.google_refresh_token
+        );
+        await this.updateTokens(userId, refreshed);
+        tokens = {
+          access_token: refreshed.access_token,
+          refresh_token: refreshed.refresh_token || sync.google_refresh_token,
+          expiry_date: refreshed.expiry_date
+        };
+      } catch (error) {
+        await this.updateSyncStatus(userId, 'error', error.message);
+        return null;
+      }
+    }
+
+    return { sync, tokens };
   }
 
   static async getAllActiveSyncs() {

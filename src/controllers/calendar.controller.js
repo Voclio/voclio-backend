@@ -33,20 +33,11 @@ class CalendarController {
       let googleEvents = [];
       if (include_google === 'true') {
         try {
-          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-          if (googleSync) {
-            const tokens = {
-              access_token: googleSync.google_access_token,
-              refresh_token: googleSync.google_refresh_token,
-              expiry_date: googleSync.google_token_expiry
-            };
-
-            googleEvents = await GoogleCalendarService.getEventsInRange(
-              tokens,
-              start_date,
-              end_date
-            );
-          }
+          googleEvents = await CalendarController.fetchGoogleEventsInRange(
+            req.user.user_id,
+            start_date,
+            end_date
+          );
         } catch (error) {
           console.error('Error fetching Google Calendar events:', error);
           // Continue without Google events if there's an error
@@ -193,31 +184,22 @@ class CalendarController {
 
       let googleEventsCount = 0;
       try {
-        const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-        if (googleSync) {
-          const tokens = {
-            access_token: googleSync.google_access_token,
-            refresh_token: googleSync.google_refresh_token,
-            expiry_date: googleSync.google_token_expiry
-          };
+        const googleEvents = await CalendarController.fetchGoogleEventsInRange(
+          req.user.user_id,
+          startDate,
+          endDate
+        );
 
-          const googleEvents = await GoogleCalendarService.getEventsInRange(
-            tokens,
-            startDate,
-            endDate
-          );
-
-          googleEvents.forEach(event => {
-            const eventStart = new Date(event.start);
-            const day = eventStart.getDate();
-            if (!eventsByDay[day]) {
-              eventsByDay[day] = { tasks: [], reminders: [], google_events: [], count: 0 };
-            }
-            eventsByDay[day].google_events.push(event);
-            eventsByDay[day].count++;
-            googleEventsCount++;
-          });
-        }
+        googleEvents.forEach(event => {
+          const eventStart = new Date(event.start);
+          const day = eventStart.getUTCDate();
+          if (!eventsByDay[day]) {
+            eventsByDay[day] = { tasks: [], reminders: [], google_events: [], count: 0 };
+          }
+          eventsByDay[day].google_events.push(event);
+          eventsByDay[day].count++;
+          googleEventsCount++;
+        });
       } catch (error) {
         console.error('Error fetching Google Calendar events for month:', error);
       }
@@ -271,20 +253,11 @@ class CalendarController {
       let googleEvents = [];
       if (include_google === 'true') {
         try {
-          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
-          if (googleSync) {
-            const tokens = {
-              access_token: googleSync.google_access_token,
-              refresh_token: googleSync.google_refresh_token,
-              expiry_date: googleSync.google_token_expiry
-            };
-
-            googleEvents = await GoogleCalendarService.getEventsInRange(
-              tokens,
-              startOfDay,
-              endOfDay
-            );
-          }
+          googleEvents = await CalendarController.fetchGoogleEventsInRange(
+            req.user.user_id,
+            startOfDay,
+            endOfDay
+          );
         } catch (error) {
           console.error('Error fetching Google Calendar events for day:', error);
         }
@@ -574,9 +547,10 @@ class CalendarController {
   static async getGoogleCalendarStatus(req, res, next) {
     try {
       const sync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);
+      const connected = !!(sync?.google_access_token && sync.sync_enabled !== false);
 
       return successResponse(res, {
-        connected: !!sync,
+        connected,
         sync_enabled: sync?.sync_enabled || false,
         sync_status: sync?.sync_status || 'not_connected',
         calendar_name: sync?.calendar_name || null,
@@ -596,19 +570,17 @@ class CalendarController {
         throw new ValidationError('start_date and end_date are required');
       }
 
-      const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+      const resolved = await GoogleCalendarSyncModel.resolveTokensForUser(req.user.user_id);
 
-      if (!googleSync) {
+      if (!resolved) {
         throw new NotFoundError('Google Calendar not connected');
       }
 
-      const tokens = {
-        access_token: googleSync.google_access_token,
-        refresh_token: googleSync.google_refresh_token,
-        expiry_date: googleSync.google_token_expiry
-      };
-
-      const events = await GoogleCalendarService.getEventsInRange(tokens, start_date, end_date);
+      const events = await GoogleCalendarService.getEventsInRange(
+        resolved.tokens,
+        start_date,
+        end_date
+      );
 
       return successResponse(res, {
         events,
@@ -622,9 +594,9 @@ class CalendarController {
 
   static async getTodayMeetings(req, res, next) {
     try {
-      const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+      const resolved = await GoogleCalendarSyncModel.resolveTokensForUser(req.user.user_id);
 
-      if (!googleSync) {
+      if (!resolved) {
         return successResponse(res, {
           meetings: [],
           count: 0,
@@ -632,13 +604,7 @@ class CalendarController {
         });
       }
 
-      const tokens = {
-        access_token: googleSync.google_access_token,
-        refresh_token: googleSync.google_refresh_token,
-        expiry_date: googleSync.google_token_expiry
-      };
-
-      const meetings = await GoogleCalendarService.getTodayEvents(tokens);
+      const meetings = await GoogleCalendarService.getTodayEvents(resolved.tokens);
 
       return successResponse(res, {
         meetings,
@@ -659,17 +625,13 @@ class CalendarController {
       // Get Google Calendar meetings
       if (include_google === 'true') {
         try {
-          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          const resolved = await GoogleCalendarSyncModel.resolveTokensForUser(
+            req.user.user_id
+          );
 
-          if (googleSync) {
-            const tokens = {
-              access_token: googleSync.google_access_token,
-              refresh_token: googleSync.google_refresh_token,
-              expiry_date: googleSync.google_token_expiry
-            };
-
+          if (resolved) {
             const googleMeetings = await GoogleCalendarService.getUpcomingEvents(
-              tokens,
+              resolved.tokens,
               parseInt(days)
             );
             allMeetings.push(
@@ -697,6 +659,19 @@ class CalendarController {
     } catch (error) {
       next(error);
     }
+  }
+
+  static async fetchGoogleEventsInRange(userId, startDate, endDate) {
+    const resolved = await GoogleCalendarSyncModel.resolveTokensForUser(userId);
+    if (!resolved) {
+      return [];
+    }
+
+    return GoogleCalendarService.getEventsInRange(
+      resolved.tokens,
+      startDate,
+      endDate
+    );
   }
 }
 

@@ -120,15 +120,13 @@ class ProductivityModel {
 
     const today = todayDateOnly();
     const yesterday = yesterdayDateOnly();
-    const lastActivity = toDateOnly(latest.last_activity_date || latest.streak_date);
+    const lastActivity = toDateOnly(latest.streak_date);
 
     if (lastActivity < yesterday) {
       return {
         current_streak: 0,
         longest_streak: latest.longest_streak || 0,
-        streak_date: lastActivity,
-        last_activity_date: lastActivity,
-        total_points: latest.total_points || 0
+        streak_date: lastActivity
       };
     }
 
@@ -145,14 +143,12 @@ class ProductivityModel {
         user_id: userId,
         streak_date: today,
         current_streak: 1,
-        longest_streak: 1,
-        last_activity_date: today,
-        total_points: 10
+        longest_streak: 1
       });
       return created.toJSON();
     }
 
-    const lastActivity = toDateOnly(latest.last_activity_date || latest.streak_date);
+    const lastActivity = toDateOnly(latest.streak_date);
 
     if (lastActivity === today) {
       return latest.toJSON();
@@ -160,7 +156,6 @@ class ProductivityModel {
 
     const nextCurrent = lastActivity === yesterday ? (latest.current_streak || 0) + 1 : 1;
     const nextLongest = Math.max(latest.longest_streak || 0, nextCurrent);
-    const nextPoints = (latest.total_points || 0) + 10;
 
     const [todayRecord, created] = await ProductivityStreak.findOrCreate({
       where: { user_id: userId, streak_date: today },
@@ -168,18 +163,14 @@ class ProductivityModel {
         user_id: userId,
         streak_date: today,
         current_streak: nextCurrent,
-        longest_streak: nextLongest,
-        last_activity_date: today,
-        total_points: nextPoints
+        longest_streak: nextLongest
       }
     });
 
     if (!created) {
       await todayRecord.update({
         current_streak: nextCurrent,
-        longest_streak: nextLongest,
-        last_activity_date: today,
-        total_points: nextPoints
+        longest_streak: nextLongest
       });
     }
 
@@ -310,7 +301,7 @@ class ProductivityModel {
       hasEarlyBird: hasEarlyBird > 0,
       hasNightOwl: hasNightOwl > 0,
       maxSessionMinutes: parseInt(maxSessionMinutes, 10) || 0,
-      totalPoints: streak?.total_points || 0
+      totalPoints: 0
     };
   }
 
