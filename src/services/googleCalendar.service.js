@@ -147,7 +147,8 @@ class GoogleCalendarService {
         timeMax,
         maxResults,
         singleEvents,
-        orderBy
+        orderBy,
+        conferenceDataVersion: 1
       });
 
       return response.data.items || [];
@@ -155,6 +156,25 @@ class GoogleCalendarService {
       console.error('Error fetching calendar events:', error);
       throw error;
     }
+  }
+
+  /**
+   * Extract Google Meet / video conference link from a Calendar event.
+   */
+  static extractMeetLink(event) {
+    if (event.hangoutLink) {
+      return event.hangoutLink;
+    }
+
+    const entryPoints = event.conferenceData?.entryPoints;
+    if (Array.isArray(entryPoints)) {
+      const videoEntry = entryPoints.find(entry => entry.entryPointType === 'video');
+      if (videoEntry?.uri) {
+        return videoEntry.uri;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -180,6 +200,7 @@ class GoogleCalendarService {
         organizer: event.organizer,
         status: event.status,
         htmlLink: event.htmlLink,
+        meet_link: this.extractMeetLink(event),
         isAllDay: !event.start.dateTime, // If no dateTime, it's all day
         type: 'google_calendar_event'
       }));

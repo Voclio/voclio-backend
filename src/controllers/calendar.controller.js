@@ -88,7 +88,8 @@ class CalendarController {
           attendees: event.attendees,
           allDay: event.isAllDay,
           source: 'google_calendar',
-          htmlLink: event.htmlLink
+          htmlLink: event.htmlLink,
+          meet_link: event.meet_link
         }))
       ];
 
@@ -157,7 +158,7 @@ class CalendarController {
         const dueDate = new Date(task.due_date);
         const day = dueDate.getUTCDate();
         if (!eventsByDay[day]) {
-          eventsByDay[day] = { tasks: [], reminders: [], count: 0 };
+          eventsByDay[day] = { tasks: [], reminders: [], google_events: [], count: 0 };
         }
         eventsByDay[day].tasks.push({
           task_id: task.task_id,
@@ -173,7 +174,7 @@ class CalendarController {
       monthReminders.forEach(reminder => {
         const day = new Date(reminder.reminder_time).getDate();
         if (!eventsByDay[day]) {
-          eventsByDay[day] = { tasks: [], reminders: [], count: 0 };
+          eventsByDay[day] = { tasks: [], reminders: [], google_events: [], count: 0 };
         }
         const linkedTask = reminder.task_id
           ? tasksById[reminder.task_id]
@@ -190,15 +191,48 @@ class CalendarController {
         eventsByDay[day].count++;
       });
 
+      let googleEventsCount = 0;
+      try {
+        const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+        if (googleSync) {
+          const tokens = {
+            access_token: googleSync.google_access_token,
+            refresh_token: googleSync.google_refresh_token,
+            expiry_date: googleSync.google_token_expiry
+          };
+
+          const googleEvents = await GoogleCalendarService.getEventsInRange(
+            tokens,
+            startDate,
+            endDate
+          );
+
+          googleEvents.forEach(event => {
+            const eventStart = new Date(event.start);
+            const day = eventStart.getDate();
+            if (!eventsByDay[day]) {
+              eventsByDay[day] = { tasks: [], reminders: [], google_events: [], count: 0 };
+            }
+            eventsByDay[day].google_events.push(event);
+            eventsByDay[day].count++;
+            googleEventsCount++;
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching Google Calendar events for month:', error);
+      }
+
       return successResponse(res, {
         year: yearNum,
         month: monthNum,
         month_name: new Date(yearNum, monthNum - 1).toLocaleString('en', { month: 'long' }),
         days_in_month: endDate.getDate(),
         events_by_day: eventsByDay,
-        total_events: monthTasks.length + monthReminders.length,
+        total_events: monthTasks.length + monthReminders.length + googleEventsCount,
         tasks_count: monthTasks.length,
-        reminders_count: monthReminders.length
+        reminders_count: monthReminders.length,
+        google_events_count: googleEventsCount,
+        google_sync_enabled: googleEventsCount > 0
       });
     } catch (error) {
       next(error);
