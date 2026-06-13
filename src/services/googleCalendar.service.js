@@ -28,7 +28,7 @@ class GoogleCalendarService {
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/calendar.readonly'
+      'https://www.googleapis.com/auth/calendar.events'
     ];
 
     return oauth2Client.generateAuthUrl({
@@ -46,7 +46,7 @@ class GoogleCalendarService {
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/calendar.readonly'
+      'https://www.googleapis.com/auth/calendar.events'
     ];
 
     return oauth2Client.generateAuthUrl({
@@ -232,6 +232,72 @@ class GoogleCalendarService {
       return response.data;
     } catch (error) {
       console.error('Error creating calendar event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing event in Google Calendar
+   */
+  static async updateEvent(tokens, eventId, eventData, userTimezone = 'UTC') {
+    try {
+      const oauth2Client = this.createClient(tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+      const {
+        title,
+        description,
+        startDateTime,
+        endDateTime,
+        location,
+        attendees = [],
+        calendarId = 'primary'
+      } = eventData;
+
+      const event = {
+        summary: title,
+        description,
+        location,
+        start: {
+          dateTime: startDateTime,
+          timeZone: userTimezone
+        },
+        end: {
+          dateTime: endDateTime,
+          timeZone: userTimezone
+        },
+        attendees: attendees.map(email => ({ email }))
+      };
+
+      const response = await calendar.events.patch({
+        calendarId,
+        eventId,
+        resource: event
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error updating calendar event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an event from Google Calendar
+   */
+  static async deleteEvent(tokens, eventId, calendarId = 'primary') {
+    try {
+      const oauth2Client = this.createClient(tokens);
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+      await calendar.events.delete({
+        calendarId,
+        eventId
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting calendar event:', error);
       throw error;
     }
   }

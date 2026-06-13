@@ -166,11 +166,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Webex test page
-app.get('/webex-test', (req, res) => {
-  res.sendFile('webex-test.html', { root: 'public' });
-});
-
 // 404 handler
 app.use((req, res) => {
   logger.warn(`404 Not Found: ${req.method} ${req.path}`);

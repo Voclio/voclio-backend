@@ -78,6 +78,10 @@ const Task = sequelize.define(
     completed_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    google_event_id: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     }
   },
   {

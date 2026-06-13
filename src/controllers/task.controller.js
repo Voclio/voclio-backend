@@ -3,6 +3,9 @@ import TaskModel from '../models/task.model.js';
 import { successResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import NotificationService from '../services/notification.service.js';
+import GoogleCalendarSyncModel from '../models/googleCalendarSync.model.js';
+import GoogleCalendarService from '../services/googleCalendar.service.js';
+
 class TaskController {
   static async getAllTasks(req, res, next) {
     try {
@@ -57,7 +60,46 @@ class TaskController {
         throw new ValidationError('Invalid request data', errors.mapped());
       }
 
-      const task = await TaskModel.create(req.user.user_id, req.body);
+      const taskData = req.body;
+      let googleEventId = null;
+
+      // Sync to Google Calendar if due date is provided and sync is enabled
+      if (taskData.due_date) {
+        try {
+          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          if (googleSync) {
+            const tokens = {
+              access_token: googleSync.google_access_token,
+              refresh_token: googleSync.google_refresh_token,
+              expiry_date: googleSync.google_token_expiry
+            };
+
+            const startDate = new Date(taskData.due_date);
+            // Default 1 hour meeting for tasks
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); 
+
+            const event = await GoogleCalendarService.createEvent(tokens, {
+              title: `Voclio Task: ${taskData.title}`,
+              description: taskData.description || 'Task created from Voclio App',
+              startDateTime: startDate.toISOString(),
+              endDateTime: endDate.toISOString(),
+            });
+
+            if (event && event.id) {
+              googleEventId = event.id;
+            }
+          }
+        } catch (syncError) {
+          console.error('Failed to sync new task to Google Calendar:', syncError);
+          // Do not fail the task creation if sync fails
+        }
+      }
+
+      // Add google_event_id to the data we pass to create
+      const task = await TaskModel.create(req.user.user_id, {
+          ...taskData,
+          google_event_id: googleEventId
+      });
 
       // Send notification
       await NotificationService.notifyTaskCreated(req.user.user_id, task);
@@ -99,10 +141,67 @@ class TaskController {
         }
       });
 
+      // Get the task first to check if it has a google_event_id
+      const existingTask = await TaskModel.findById(req.params.id, req.user.user_id);
+      if (!existingTask) {
+        throw new NotFoundError('Task not found');
+      }
+
       const task = await TaskModel.update(req.params.id, req.user.user_id, updates);
 
-      if (!task) {
-        throw new NotFoundError('Task not found');
+      // Sync update to Google Calendar
+      if (existingTask.google_event_id && (updates.title || updates.description || updates.due_date)) {
+        try {
+          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          if (googleSync) {
+            const tokens = {
+              access_token: googleSync.google_access_token,
+              refresh_token: googleSync.google_refresh_token,
+              expiry_date: googleSync.google_token_expiry
+            };
+
+            const startDate = new Date(task.due_date || existingTask.due_date);
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); 
+
+            await GoogleCalendarService.updateEvent(tokens, existingTask.google_event_id, {
+              title: `Voclio Task: ${task.title || existingTask.title}`,
+              description: task.description || existingTask.description || 'Task created from Voclio App',
+              startDateTime: startDate.toISOString(),
+              endDateTime: endDate.toISOString(),
+            });
+          }
+        } catch (syncError) {
+          console.error('Failed to sync task update to Google Calendar:', syncError);
+        }
+      } else if (!existingTask.google_event_id && updates.due_date) {
+         // Create event if a due date was added and it didn't have one
+         try {
+          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          if (googleSync) {
+            const tokens = {
+              access_token: googleSync.google_access_token,
+              refresh_token: googleSync.google_refresh_token,
+              expiry_date: googleSync.google_token_expiry
+            };
+
+            const startDate = new Date(updates.due_date);
+            const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); 
+
+            const event = await GoogleCalendarService.createEvent(tokens, {
+              title: `Voclio Task: ${task.title || existingTask.title}`,
+              description: task.description || existingTask.description || 'Task created from Voclio App',
+              startDateTime: startDate.toISOString(),
+              endDateTime: endDate.toISOString(),
+            });
+
+            if (event && event.id) {
+               await TaskModel.update(req.params.id, req.user.user_id, { google_event_id: event.id });
+               task.google_event_id = event.id;
+            }
+          }
+        } catch (syncError) {
+          console.error('Failed to sync new task due date to Google Calendar:', syncError);
+        }
       }
 
       // Send notification
@@ -133,10 +232,31 @@ class TaskController {
 
   static async deleteTask(req, res, next) {
     try {
+      const existingTask = await TaskModel.findById(req.params.id, req.user.user_id);
+      if (!existingTask) {
+        throw new NotFoundError('Task not found');
+      }
+
       const task = await TaskModel.delete(req.params.id, req.user.user_id);
 
       if (!task) {
         throw new NotFoundError('Task not found');
+      }
+
+      if (existingTask.google_event_id) {
+         try {
+          const googleSync = await GoogleCalendarSyncModel.findActiveSync(req.user.user_id);
+          if (googleSync) {
+            const tokens = {
+              access_token: googleSync.google_access_token,
+              refresh_token: googleSync.google_refresh_token,
+              expiry_date: googleSync.google_token_expiry
+            };
+            await GoogleCalendarService.deleteEvent(tokens, existingTask.google_event_id);
+          }
+         } catch (syncError) {
+             console.error('Failed to sync task deletion to Google Calendar:', syncError);
+         }
       }
 
       return successResponse(res, null, 'Task deleted successfully');

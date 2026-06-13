@@ -355,6 +355,11 @@ class AuthController {
 
   static async changePassword(req, res, next) {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new ValidationError('Invalid request data', errors.mapped());
+      }
+
       const { current_password, new_password } = req.body;
       await authService.changePassword(req.user.user_id, current_password, new_password);
       return successResponse(res, null, 'Password changed successfully');

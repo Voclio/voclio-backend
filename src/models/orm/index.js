@@ -14,7 +14,6 @@ import Tag from './Tag.js';
 import ProductivityStreak from './ProductivityStreak.js';
 import OTP from './OTP.js';
 import GoogleCalendarSyncModel from './GoogleCalendarSync.js';
-import WebexSync from './WebexSync.js';
 import ApiKey from './ApiKey.js';
 import AppConfig from './AppConfig.js';
 import ActivityLog from './ActivityLog.js';
@@ -61,9 +60,6 @@ ProductivityStreak.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(GoogleCalendarSync, { foreignKey: 'user_id', as: 'googleCalendarSyncs' });
 GoogleCalendarSync.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-
-User.hasMany(WebexSync, { foreignKey: 'user_id', as: 'webexSyncs' });
-WebexSync.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(ActivityLog, { foreignKey: 'user_id', as: 'activityLogs' });
 ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -134,7 +130,6 @@ export {
   ProductivityStreak,
   OTP,
   GoogleCalendarSync,
-  WebexSync,
   ApiKey,
   AppConfig,
   ActivityLog,
