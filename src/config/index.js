@@ -62,6 +62,15 @@ function resolveGoogleRedirectUri() {
   const fromApiUrl = apiBase ? `${apiBase}/api/calendar/google/callback` : null;
   const explicit = process.env.GOOGLE_REDIRECT_URI?.trim();
 
+  const httpsOrigin = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .find(origin => origin.startsWith('https://'))
+    ?.replace(/\/$/, '');
+  const fromAllowedOrigins = httpsOrigin
+    ? `${httpsOrigin}/api/calendar/google/callback`
+    : null;
+
   if (process.env.NODE_ENV === 'production') {
     if (explicit && !explicit.includes('localhost')) {
       return explicit;
@@ -69,8 +78,8 @@ function resolveGoogleRedirectUri() {
     if (fromApiUrl) {
       return fromApiUrl;
     }
-    if (explicit) {
-      return explicit;
+    if (fromAllowedOrigins) {
+      return fromAllowedOrigins;
     }
     return localDefault;
   }
@@ -85,8 +94,10 @@ if (
   googleRedirectUri.includes('localhost')
 ) {
   console.warn(
-    '⚠️  GOOGLE_REDIRECT_URI points to localhost in production. Google Calendar OAuth will fail until API_URL or GOOGLE_REDIRECT_URI is set to your public HTTPS backend URL.'
+    '⚠️  Google OAuth redirect URI is localhost in production. Set GOOGLE_REDIRECT_URI, API_URL, or ALLOWED_ORIGINS to your public HTTPS backend URL.'
   );
+} else if (process.env.NODE_ENV === 'production') {
+  console.log(`Google OAuth redirect URI: ${googleRedirectUri}`);
 }
 
 export default {
