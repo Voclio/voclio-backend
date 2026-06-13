@@ -39,7 +39,36 @@ class GoogleCalendarService {
   }
 
   /**
-   * Generate OAuth URL for mobile apps (Flutter)
+   * Encode mobile OAuth state (HTTPS redirect + deep link back to app).
+   */
+  static encodeMobileOAuthState(customScheme = 'voclio') {
+    return Buffer.from(
+      JSON.stringify({ mobile: true, scheme: customScheme }),
+      'utf8'
+    ).toString('base64url');
+  }
+
+  /**
+   * Decode mobile OAuth state from Google callback query param.
+   */
+  static decodeMobileOAuthState(state) {
+    if (!state) return null;
+
+    try {
+      const parsed = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+      if (parsed?.mobile && parsed?.scheme) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  /**
+   * Generate OAuth URL for mobile apps (Flutter).
+   * Uses the HTTPS backend callback (Web client) then redirects to the app deep link.
    */
   static generateMobileAuthUrl(customScheme = 'voclio') {
     const oauth2Client = this.createClient();
@@ -53,7 +82,8 @@ class GoogleCalendarService {
       access_type: 'offline',
       scope: scopes,
       prompt: 'consent',
-      redirect_uri: `${customScheme}://oauth/callback`
+      redirect_uri: config.google.redirectUri,
+      state: this.encodeMobileOAuthState(customScheme)
     });
   }
 

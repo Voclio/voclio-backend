@@ -308,8 +308,7 @@ class CalendarController {
         throw new ValidationError('Authorization code is required');
       }
 
-      const redirectUri = `${custom_scheme}://oauth/callback`;
-      const tokens = await GoogleCalendarService.getTokens(code, redirectUri);
+      const tokens = await GoogleCalendarService.getTokens(code);
 
       // Save or update sync configuration
       const existingSync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);
@@ -428,7 +427,7 @@ class CalendarController {
 
   static async handleGoogleCallback(req, res, next) {
     try {
-      const { code } = req.query;
+      const { code, state } = req.query;
 
       if (!code) {
         return res.status(400).send(`
@@ -441,6 +440,12 @@ class CalendarController {
             </body>
           </html>
         `);
+      }
+
+      const mobileState = GoogleCalendarService.decodeMobileOAuthState(state);
+      if (mobileState) {
+        const deepLink = `${mobileState.scheme}://oauth/callback?code=${encodeURIComponent(code)}`;
+        return res.redirect(deepLink);
       }
 
       const tokens = await GoogleCalendarService.getTokens(code);
