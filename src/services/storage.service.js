@@ -33,14 +33,23 @@ class StorageService {
     }
 
     if (config.storage.provider === 'cloudinary') {
-      return (
-        !config.storage.cloudName ||
-        !config.storage.cloudinaryApiKey ||
-        !config.storage.cloudinaryApiSecret
-      );
+      return !this._hasCloudinaryCredentials();
     }
 
-    return !config.storage.accessKeyId || !config.storage.secretAccessKey;
+    return !this._hasObjectStorageCredentials();
+  }
+
+  _hasCloudinaryCredentials() {
+    const cloudName = (config.storage.cloudName || '').trim();
+    const apiKey = (config.storage.cloudinaryApiKey || '').trim();
+    const apiSecret = (config.storage.cloudinaryApiSecret || '').trim();
+    return Boolean(cloudName && apiKey && apiSecret);
+  }
+
+  _hasObjectStorageCredentials() {
+    const accessKeyId = (config.storage.accessKeyId || '').trim();
+    const secretAccessKey = (config.storage.secretAccessKey || '').trim();
+    return Boolean(accessKeyId && secretAccessKey);
   }
 
   _isCloudinary() {
@@ -52,7 +61,9 @@ class StorageService {
       if (!fs.existsSync(this.localRoot)) {
         fs.mkdirSync(this.localRoot, { recursive: true });
       }
-      logger.warn('⚠️  Storage service using local filesystem (cloud credentials not configured)');
+      logger.warn(
+        `⚠️  Storage service using local filesystem (provider=${this.provider}, cloud credentials not configured)`
+      );
       return;
     }
 

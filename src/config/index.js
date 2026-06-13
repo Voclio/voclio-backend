@@ -37,6 +37,29 @@ const validateConfig = () => {
     if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
       errors.push('JWT_SECRET must be at least 32 characters in production');
     }
+
+    const storageProvider = process.env.STORAGE_PROVIDER || 'cloudinary';
+    const cloudinaryConfigured = Boolean(
+      (process.env.CLOUDINARY_CLOUD_NAME || '').trim() &&
+        (process.env.CLOUDINARY_API_KEY || '').trim() &&
+        (process.env.CLOUDINARY_API_SECRET || '').trim()
+    );
+    const objectStorageConfigured = Boolean(
+      (process.env.STORAGE_ACCESS_KEY_ID || '').trim() &&
+        (process.env.STORAGE_SECRET_ACCESS_KEY || '').trim()
+    );
+
+    if (storageProvider === 'cloudinary' && !cloudinaryConfigured) {
+      errors.push(
+        'Cloudinary storage is selected but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET must be set in production'
+      );
+    }
+
+    if ((storageProvider === 's3' || storageProvider === 'r2') && !objectStorageConfigured) {
+      errors.push(
+        `${storageProvider.toUpperCase()} storage is selected but STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY must be set in production`
+      );
+    }
   }
 
   if (errors.length > 0) {

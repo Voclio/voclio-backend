@@ -23,8 +23,17 @@ class AdminIntegrationsService {
   static getServicesStatus() {
     const storageConfigured =
       config.storage.provider === 'local' ||
-      Boolean(config.storage.accessKeyId && config.storage.secretAccessKey) ||
-      Boolean(process.env.STORAGE_CLOUD_NAME);
+      (config.storage.provider === 'cloudinary' &&
+        Boolean(
+          (config.storage.cloudName || '').trim() &&
+            (config.storage.cloudinaryApiKey || '').trim() &&
+            (config.storage.cloudinaryApiSecret || '').trim()
+        )) ||
+      (['s3', 'r2'].includes(config.storage.provider) &&
+        Boolean(
+          (config.storage.accessKeyId || '').trim() &&
+            (config.storage.secretAccessKey || '').trim()
+        ));
 
     return {
       database: 'unknown',
