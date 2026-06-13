@@ -17,8 +17,14 @@ const transcribeVoiceValidator = [
   body('recording_id').isInt().withMessage('Recording ID must be a valid integer'),
   body('language')
     .optional()
-    .isIn(['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
-    .withMessage('Language must be one of: en, ar, fr, es, de, it, pt, ru, ja, ko, zh, hi, tr')
+    .isIn(['auto', 'en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
+    .withMessage(
+      'Language must be one of: auto, en, ar, fr, es, de, it, pt, ru, ja, ko, zh, hi, tr'
+    ),
+  body('output_language')
+    .optional()
+    .isIn(['en', 'ar'])
+    .withMessage('output_language must be en or ar')
 ];
 
 const createNoteFromVoiceValidator = [
@@ -65,8 +71,14 @@ const updateTranscriptionValidator = [
 const processVoiceCompleteValidator = [
   body('language')
     .optional()
-    .isIn(['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
-    .withMessage('Language must be one of: en, ar, fr, es, de, it, pt, ru, ja, ko, zh, hi, tr'),
+    .isIn(['auto', 'en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'hi', 'tr'])
+    .withMessage(
+      'Language must be one of: auto, en, ar, fr, es, de, it, pt, ru, ja, ko, zh, hi, tr'
+    ),
+  body('output_language')
+    .optional()
+    .isIn(['en', 'ar'])
+    .withMessage('output_language must be en or ar'),
   body('category_id').optional().isInt().withMessage('Category ID must be a valid integer'),
   body('auto_create_tasks')
     .optional()

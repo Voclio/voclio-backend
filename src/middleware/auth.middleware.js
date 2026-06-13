@@ -8,10 +8,13 @@ const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Invalid or expired token');
+      throw new UnauthorizedError('Authentication required');
     }
 
-    const token = authHeader.substring(7);
+    const token = authHeader.substring(7).trim();
+    if (!token) {
+      throw new UnauthorizedError('Authentication required');
+    }
     const decoded = jwt.verify(token, config.jwt.secret);
 
     const user = await User.findOne({

@@ -7,6 +7,7 @@ import {
   Notification,
   Session,
   ActivityLog,
+  GoogleCalendarSync,
   sequelize
 } from '../models/orm/index.js';
 
@@ -38,7 +39,12 @@ class AdminDashboardService {
       tasksThisWeek,
       tasksLastWeek,
       apiOpsThisWeek,
-      apiOpsLastWeek
+      apiOpsLastWeek,
+      totalRecordings,
+      recordingsThisWeek,
+      recordingsLastWeek,
+      calendarConnections,
+      oauthUsers
     ] = await Promise.all([
       User.count(),
       User.count({ where: { created_at: { [Op.gte]: weekAgo } } }),
@@ -61,7 +67,12 @@ class AdminDashboardService {
           transcription_text: { [Op.ne]: null },
           created_at: { [Op.between]: [twoWeeksAgo, weekAgo] }
         }
-      })
+      }),
+      VoiceRecording.count(),
+      VoiceRecording.count({ where: { created_at: { [Op.gte]: weekAgo } } }),
+      VoiceRecording.count({ where: { created_at: { [Op.between]: [twoWeeksAgo, weekAgo] } } }),
+      GoogleCalendarSync.count({ where: { sync_enabled: true } }).catch(() => 0),
+      User.count({ where: { oauth_provider: { [Op.not]: null } } })
     ]);
 
     const notesThisMonth = await Note.count({ where: { created_at: { [Op.gte]: monthAgo } } });
@@ -89,6 +100,18 @@ class AdminDashboardService {
       content_this_month: {
         value: notesThisMonth,
         change_percent: percentChange(notesThisMonth, notesLastMonth)
+      },
+      voice_recordings: {
+        value: totalRecordings,
+        change_percent: percentChange(recordingsThisWeek, recordingsLastWeek)
+      },
+      calendar_connections: {
+        value: calendarConnections,
+        change_percent: 0
+      },
+      oauth_integrations: {
+        value: oauthUsers,
+        change_percent: 0
       }
     };
   }
@@ -257,7 +280,8 @@ class AdminDashboardService {
         'nav.logs': 'السجلات',
         'nav.settings': 'الإعدادات',
         'nav.analytics': 'التحليلات',
-        'nav.system': 'النظام'
+        'nav.system': 'النظام',
+        'nav.integrations': 'التكاملات'
       },
       en: {
         'dashboard.title': 'Dashboard',
@@ -282,7 +306,8 @@ class AdminDashboardService {
         'nav.logs': 'Logs',
         'nav.settings': 'Settings',
         'nav.analytics': 'Analytics',
-        'nav.system': 'System'
+        'nav.system': 'System',
+        'nav.integrations': 'Integrations'
       }
     };
 

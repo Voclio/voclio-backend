@@ -7,10 +7,14 @@ import {
   HeadObjectCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { v2 as cloudinary } from 'cloudinary';
+import axios from 'axios';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
 import path from 'path';
+
+const CLOUDINARY_RESOURCE_TYPE = 'raw';
 
 class StorageService {
   constructor() {
@@ -28,7 +32,19 @@ class StorageService {
       return true;
     }
 
+    if (config.storage.provider === 'cloudinary') {
+      return (
+        !config.storage.cloudName ||
+        !config.storage.cloudinaryApiKey ||
+        !config.storage.cloudinaryApiSecret
+      );
+    }
+
     return !config.storage.accessKeyId || !config.storage.secretAccessKey;
+  }
+
+  _isCloudinary() {
+    return this.provider === 'cloudinary' && !this.useLocal;
   }
 
   initialize() {
@@ -37,6 +53,17 @@ class StorageService {
         fs.mkdirSync(this.localRoot, { recursive: true });
       }
       logger.warn('⚠️  Storage service using local filesystem (cloud credentials not configured)');
+      return;
+    }
+
+    if (this._isCloudinary()) {
+      cloudinary.config({
+        cloud_name: config.storage.cloudName,
+        api_key: config.storage.cloudinaryApiKey,
+        api_secret: config.storage.cloudinaryApiSecret,
+        secure: true
+      });
+      logger.info('✅ Storage service initialized (cloudinary)');
       return;
     }
 
@@ -76,6 +103,16 @@ class StorageService {
       return this._uploadLocal(fileBuffer, fileKey, options);
     }
 
+    if (this._isCloudinary()) {
+      try {
+        return await this._uploadCloudinary(fileBuffer, fileKey, options);
+      } catch (error) {
+        logger.error('Cloudinary upload error:', error);
+        logger.warn('Falling back to local filesystem storage');
+        return this._uploadLocal(fileBuffer, fileKey, options);
+      }
+    }
+
     try {
       const command = new PutObjectCommand({
         Bucket: this.bucket,
@@ -108,6 +145,41 @@ class StorageService {
       logger.warn('Falling back to local filesystem storage');
       return this._uploadLocal(fileBuffer, fileKey, options);
     }
+  }
+
+  async _uploadCloudinary(fileBuffer, fileKey, options = {}) {
+    const ext = path.extname(fileKey).slice(1);
+    const publicId = fileKey.replace(/\.[^/.]+$/, '');
+
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          public_id: publicId,
+          resource_type: CLOUDINARY_RESOURCE_TYPE,
+          format: ext || undefined,
+          type: 'upload'
+        },
+        (error, uploadResult) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(uploadResult);
+        }
+      );
+
+      uploadStream.end(fileBuffer);
+    });
+
+    logger.info(`File uploaded to Cloudinary: ${result.public_id}`);
+
+    return {
+      key: result.public_id,
+      url: result.secure_url,
+      bucket: config.storage.cloudName,
+      size: fileBuffer.length,
+      contentType: options.contentType || result.format
+    };
   }
 
   isLocalUrl(url) {
@@ -144,6 +216,13 @@ class StorageService {
       return `local://${fileKey}`;
     }
 
+    if (this._isCloudinary()) {
+      return cloudinary.url(fileKey, {
+        resource_type: CLOUDINARY_RESOURCE_TYPE,
+        secure: true
+      });
+    }
+
     if (this.provider === 'r2') {
       return `${config.storage.publicUrl}/${fileKey}`;
     }
@@ -154,6 +233,16 @@ class StorageService {
   async getSignedUrl(fileKey, expiresIn = 3600) {
     if (this.useLocal) {
       return this.getPublicUrl(fileKey);
+    }
+
+    if (this._isCloudinary()) {
+      return cloudinary.utils.private_download_url(
+        fileKey,
+        CLOUDINARY_RESOURCE_TYPE,
+        {
+          expires_at: Math.floor(Date.now() / 1000) + expiresIn
+        }
+      );
     }
 
     try {
@@ -179,6 +268,20 @@ class StorageService {
       return true;
     }
 
+    if (this._isCloudinary()) {
+      try {
+        await cloudinary.uploader.destroy(fileKey, {
+          resource_type: CLOUDINARY_RESOURCE_TYPE,
+          invalidate: true
+        });
+        logger.info(`Cloudinary file deleted: ${fileKey}`);
+        return true;
+      } catch (error) {
+        logger.error('Cloudinary file deletion error:', error);
+        throw new Error(`Failed to delete file: ${error.message}`);
+      }
+    }
+
     try {
       const command = new DeleteObjectCommand({
         Bucket: this.bucket,
@@ -198,6 +301,20 @@ class StorageService {
   async fileExists(fileKey) {
     if (this.useLocal) {
       return fs.existsSync(this._localPath(fileKey));
+    }
+
+    if (this._isCloudinary()) {
+      try {
+        await cloudinary.api.resource(fileKey, {
+          resource_type: CLOUDINARY_RESOURCE_TYPE
+        });
+        return true;
+      } catch (error) {
+        if (error.error?.http_code === 404) {
+          return false;
+        }
+        throw error;
+      }
     }
 
     try {
@@ -228,6 +345,24 @@ class StorageService {
       };
     }
 
+    if (this._isCloudinary()) {
+      try {
+        const resource = await cloudinary.api.resource(fileKey, {
+          resource_type: CLOUDINARY_RESOURCE_TYPE
+        });
+
+        return {
+          size: resource.bytes,
+          contentType: resource.format,
+          lastModified: new Date(resource.created_at),
+          metadata: resource.context?.custom || {}
+        };
+      } catch (error) {
+        logger.error('Get Cloudinary file metadata error:', error);
+        throw new Error(`Failed to get file metadata: ${error.message}`);
+      }
+    }
+
     try {
       const command = new HeadObjectCommand({
         Bucket: this.bucket,
@@ -255,6 +390,20 @@ class StorageService {
         throw new Error(`Local file not found: ${fileKey}`);
       }
       return fs.readFileSync(fullPath);
+    }
+
+    if (this._isCloudinary()) {
+      try {
+        const url = this.getPublicUrl(fileKey);
+        const response = await axios.get(url, {
+          responseType: 'arraybuffer',
+          timeout: 60000
+        });
+        return Buffer.from(response.data);
+      } catch (error) {
+        logger.error('Cloudinary file download error:', error);
+        throw new Error(`Failed to download file: ${error.message}`);
+      }
     }
 
     try {

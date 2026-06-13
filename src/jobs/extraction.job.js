@@ -5,6 +5,8 @@ import NoteModel from '../models/note.model.js';
 import NotificationService from '../services/notification.service.js';
 import cacheService from '../services/cache.service.js';
 import logger from '../utils/logger.js';
+import SettingsModel from '../models/settings.model.js';
+import { reconcileVoiceTaskDueDate } from '../utils/dueDateNormalizer.js';
 
 /**
  * Extraction Job Processor
@@ -63,14 +65,25 @@ export async function processExtraction(job) {
     if (autoCreateTasks && extractedData.tasks && extractedData.tasks.length > 0) {
       logger.info(`[Extraction Job ${job.id}] Creating ${extractedData.tasks.length} tasks`);
 
+      const userSettings = await SettingsModel.findByUserId(userId);
+      const timeZone = userSettings?.timezone || 'UTC';
+      const now = new Date();
+
       for (const taskData of extractedData.tasks) {
         try {
+          const dueDate = reconcileVoiceTaskDueDate({
+            dueDate: taskData.due_date,
+            noteContent: recording.transcription_text,
+            timeZone,
+            now
+          });
+
           // Create main task
           const task = await TaskModel.create(userId, {
             title: taskData.title,
             description: taskData.description || recording.transcription_text.substring(0, 500),
             priority: taskData.priority || 'medium',
-            due_date: taskData.due_date || null,
+            due_date: dueDate ? dueDate.toISOString() : null,
             category_id: categoryId || null,
             voice_recording_id: recordingId
           });

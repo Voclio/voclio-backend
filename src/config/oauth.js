@@ -6,6 +6,20 @@ const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_SECRET
 );
 
+function getGoogleAudiences() {
+  const audiences = [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_IOS_CLIENT_ID,
+    process.env.GOOGLE_ANDROID_CLIENT_ID
+  ].filter(Boolean);
+
+  if (audiences.length === 0) {
+    throw new Error('Google OAuth client IDs are not configured');
+  }
+
+  return audiences.length === 1 ? audiences[0] : audiences;
+}
+
 /**
  * Verify Google ID Token from Flutter
  * @param {string} idToken - ID token from Google Sign In
@@ -15,7 +29,7 @@ async function verifyGoogleToken(idToken) {
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: getGoogleAudiences()
     });
 
     const payload = ticket.getPayload();

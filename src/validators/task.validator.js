@@ -19,7 +19,7 @@ const updateTaskValidator = [
   body('due_date').optional().isISO8601().withMessage('Due date must be a valid ISO 8601 date'),
   body('status')
     .optional()
-    .isIn(['todo', 'in_progress', 'completed', 'cancelled'])
+    .isIn(['todo', 'pending', 'in_progress', 'completed', 'cancelled'])
     .withMessage('Invalid status'),
   body('priority')
     .optional()

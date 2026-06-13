@@ -5,6 +5,13 @@ import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import TaskModel from '../models/task.model.js';
 import { buildVoiceTaskFallback } from '../utils/voiceTaskFallback.js';
+import SettingsModel from '../models/settings.model.js';
+import {
+  endOfTodayInTimezone,
+  normalizeDueDate,
+  reconcileVoiceTaskDueDate,
+  resolveTimezone
+} from '../utils/dueDateNormalizer.js';
 class NoteController {
   static async getAllNotes(req, res, next) {
     try {
@@ -196,16 +203,33 @@ class NoteController {
         );
       }
 
-      const endOfToday = new Date();
-      endOfToday.setHours(23, 59, 59, 999);
+      const userSettings = await SettingsModel.findByUserId(req.user.user_id);
+      const timeZone = resolveTimezone(req, userSettings?.timezone || 'UTC');
+      const now = new Date();
+      const endOfToday = endOfTodayInTimezone(timeZone, now);
 
       // Auto-create tasks - ensure category_id is valid or null
       const tasksToCreate = extractedTasks.map(task => {
+        let dueDate = task.due_date
+          ? normalizeDueDate(task.due_date, timeZone)
+          : null;
+
+        if (voice_recording_id) {
+          dueDate = reconcileVoiceTaskDueDate({
+            dueDate: task.due_date,
+            noteContent: note.content,
+            timeZone,
+            now
+          });
+        } else if (!dueDate && default_due_if_missing) {
+          dueDate = endOfToday;
+        }
+
         const taskData = {
           title: task.title,
           description: task.description || note.content.substring(0, 500),
           priority: task.priority || 'medium',
-          due_date: task.due_date || (default_due_if_missing ? endOfToday : null),
+          due_date: dueDate ? dueDate.toISOString() : null,
           note_id: discard_staging_note ? null : note.note_id
         };
 

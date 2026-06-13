@@ -36,8 +36,20 @@ export class AssemblyAIProvider {
       // Step 2: Request transcription
       console.log('🔄 Requesting transcription...');
 
-      // Map language codes
-      const languageCode = language === 'ar' ? 'ar' : 'en';
+      // Map language codes — auto-detect Arabic, English, and mixed speech
+      const useDetection = !language || language === 'auto';
+      const requestBody = {
+        audio_url: upload_url,
+        punctuate: true,
+        format_text: true,
+        speech_model: 'universal'
+      };
+
+      if (useDetection) {
+        requestBody.language_detection = true;
+      } else {
+        requestBody.language_code = language === 'ar' ? 'ar' : 'en';
+      }
 
       const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
         method: 'POST',
@@ -45,12 +57,7 @@ export class AssemblyAIProvider {
           authorization: this.apiKey,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          audio_url: upload_url,
-          language_code: languageCode,
-          punctuate: true,
-          format_text: true
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!transcriptResponse.ok) {
@@ -86,7 +93,11 @@ export class AssemblyAIProvider {
 
         if (transcript.status === 'completed') {
           console.log('✅ Transcription completed successfully!');
-          return { text: transcript.text, id: transcript.id };
+          return {
+            text: transcript.text,
+            id: transcript.id,
+            detectedLanguage: transcript.language_code || language || 'auto'
+          };
         } else if (transcript.status === 'error') {
           throw new Error(`Transcription failed: ${transcript.error}`);
         }

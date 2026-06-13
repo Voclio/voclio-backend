@@ -3,6 +3,7 @@ import path from 'path';
 import aiService from './ai.service.js';
 import VoiceRecordingModel from '../models/voice.model.js';
 import logger from '../utils/logger.js';
+import { shouldLocalizeToEnglish } from '../utils/voiceTranscriptLanguage.js';
 
 export function normalizeTranscriptionText(transResult) {
   if (typeof transResult === 'string') {
@@ -14,13 +15,21 @@ export function normalizeTranscriptionText(transResult) {
   return '';
 }
 
+export function getDetectedLanguage(transResult) {
+  if (transResult && typeof transResult === 'object') {
+    return transResult.detectedLanguage || transResult.language_code || null;
+  }
+  return null;
+}
+
 /**
- * Transcribe audio synchronously when the job queue is unavailable.
+ * Transcribe audio and optionally rewrite Arabic/Egyptian speech as natural English.
  */
 export async function transcribeAudioBuffer({
   recordingId,
   userId,
-  language = 'en',
+  language = 'auto',
+  outputLanguage = 'en',
   audioBuffer,
   originalName = 'recording.m4a'
 }) {
@@ -35,15 +44,28 @@ export async function transcribeAudioBuffer({
   try {
     fs.writeFileSync(tempFilePath, audioBuffer);
 
-    logger.info(`[Sync transcription] Starting for recording ${recordingId}`);
+    logger.info(
+      `[Sync transcription] Starting for recording ${recordingId} (speech=${language}, output=${outputLanguage})`
+    );
     const transResult = await aiService.transcribeAudio(tempFilePath, language);
-    const transcriptionText = normalizeTranscriptionText(transResult);
+    const detectedLanguage = getDetectedLanguage(transResult);
+    let transcriptionText = normalizeTranscriptionText(transResult);
+
+    if (
+      shouldLocalizeToEnglish(transcriptionText, outputLanguage, detectedLanguage)
+    ) {
+      logger.info(`[Sync transcription] Localizing transcript to English for ${recordingId}`);
+      transcriptionText = await aiService.localizeVoiceTranscript(transcriptionText, {
+        detectedLanguage
+      });
+    }
 
     await VoiceRecordingModel.updateTranscription(recordingId, transcriptionText);
 
     return {
       transcription: transcriptionText,
-      transcriptId: transResult.id ?? null
+      transcriptId: transResult?.id ?? null,
+      detectedLanguage
     };
   } finally {
     if (fs.existsSync(tempFilePath)) {

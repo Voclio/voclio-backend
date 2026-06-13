@@ -41,7 +41,7 @@ class GoogleCalendarService {
   /**
    * Generate OAuth URL for mobile apps (Flutter)
    */
-  static generateMobileAuthUrl(customScheme = 'com.voclio.app') {
+  static generateMobileAuthUrl(customScheme = 'voclio') {
     const oauth2Client = this.createClient();
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
@@ -60,9 +60,15 @@ class GoogleCalendarService {
   /**
    * Exchange authorization code for tokens
    */
-  static async getTokens(code) {
+  static async getTokens(code, redirectUri = null) {
     try {
-      const oauth2Client = this.createClient();
+      const oauth2Client = redirectUri
+        ? new google.auth.OAuth2(
+            config.google.clientId,
+            config.google.clientSecret,
+            redirectUri
+          )
+        : this.createClient();
       const { tokens } = await oauth2Client.getToken(code);
       return tokens;
     } catch (error) {

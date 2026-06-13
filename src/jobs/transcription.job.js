@@ -1,5 +1,9 @@
 import aiService from '../services/ai.service.js';
-import { normalizeTranscriptionText } from '../services/voiceProcessing.service.js';
+import {
+  normalizeTranscriptionText,
+  getDetectedLanguage
+} from '../services/voiceProcessing.service.js';
+import { shouldLocalizeToEnglish } from '../utils/voiceTranscriptLanguage.js';
 import VoiceRecordingModel from '../models/voice.model.js';
 import storageService from '../services/storage.service.js';
 import queueManager, { QUEUE_NAMES, JOB_PRIORITY } from '../config/queue.js';
@@ -10,7 +14,8 @@ import logger from '../utils/logger.js';
  * Handles audio transcription using AssemblyAI
  */
 export async function processTranscription(job) {
-  const { recordingId, userId, language, storageKey, extractionOptions } = job.data;
+  const { recordingId, userId, language = 'auto', outputLanguage = 'en', storageKey, extractionOptions } =
+    job.data;
 
   try {
     logger.info(`[Transcription Job ${job.id}] Starting for recording ${recordingId}`);
@@ -50,8 +55,15 @@ export async function processTranscription(job) {
     // Transcribe using AI service
     logger.info(`[Transcription Job ${job.id}] Transcribing audio`);
     const transResult = await aiService.transcribeAudio(tempFilePath, language);
-    const transcriptionText = normalizeTranscriptionText(transResult);
+    const detectedLanguage = getDetectedLanguage(transResult);
+    let transcriptionText = normalizeTranscriptionText(transResult);
     const transcriptId = transResult?.id ?? null;
+
+    if (shouldLocalizeToEnglish(transcriptionText, outputLanguage, detectedLanguage)) {
+      transcriptionText = await aiService.localizeVoiceTranscript(transcriptionText, {
+        detectedLanguage
+      });
+    }
 
     await job.updateProgress(80);
 

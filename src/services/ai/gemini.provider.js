@@ -174,4 +174,21 @@ Base suggestions on actual user data patterns. Return JSON only:`;
       steps: []
     }));
   }
+
+  async localizeVoiceTranscriptToEnglish(text, detectedLanguage) {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(this.apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `Rewrite this voice transcript as natural English (native speaker style).
+The speaker may have used Arabic or Egyptian dialect. Detected language: ${detectedLanguage || 'unknown'}.
+Return ONLY the English text.
+
+Transcript:
+${text}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  }
 }

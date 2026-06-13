@@ -17,7 +17,7 @@ class CalendarController {
       // Get tasks within date range
       const tasks = await TaskModel.findAll(req.user.user_id, {});
       const filteredTasks = tasks.filter(task => {
-        if (!task.due_date) return false;
+        if (!task.due_date || task.parent_task_id) return false;
         const dueDate = new Date(task.due_date);
         return dueDate >= new Date(start_date) && dueDate <= new Date(end_date);
       });
@@ -131,9 +131,12 @@ class CalendarController {
       // Get tasks
       const tasks = await TaskModel.findAll(req.user.user_id, {});
       const monthTasks = tasks.filter(task => {
-        if (!task.due_date) return false;
+        if (!task.due_date || task.parent_task_id) return false;
         const dueDate = new Date(task.due_date);
-        return dueDate >= startDate && dueDate <= endDate;
+        return (
+          dueDate.getUTCFullYear() === yearNum &&
+          dueDate.getUTCMonth() + 1 === monthNum
+        );
       });
 
       // Get reminders
@@ -151,7 +154,8 @@ class CalendarController {
       );
 
       monthTasks.forEach(task => {
-        const day = new Date(task.due_date).getDate();
+        const dueDate = new Date(task.due_date);
+        const day = dueDate.getUTCDate();
         if (!eventsByDay[day]) {
           eventsByDay[day] = { tasks: [], reminders: [], count: 0 };
         }
@@ -282,7 +286,7 @@ class CalendarController {
   // Mobile/Flutter specific OAuth URL
   static async connectGoogleCalendarMobile(req, res, next) {
     try {
-      const { custom_scheme = 'com.voclio.app' } = req.query;
+      const { custom_scheme = 'voclio' } = req.query;
       const authUrl = GoogleCalendarService.generateMobileAuthUrl(custom_scheme);
 
       return successResponse(res, {
@@ -298,13 +302,14 @@ class CalendarController {
   // Handle mobile OAuth callback with authorization code
   static async handleMobileCallback(req, res, next) {
     try {
-      const { code } = req.body;
+      const { code, custom_scheme = 'voclio' } = req.body;
 
       if (!code) {
         throw new ValidationError('Authorization code is required');
       }
 
-      const tokens = await GoogleCalendarService.getTokens(code);
+      const redirectUri = `${custom_scheme}://oauth/callback`;
+      const tokens = await GoogleCalendarService.getTokens(code, redirectUri);
 
       // Save or update sync configuration
       const existingSync = await GoogleCalendarSyncModel.findByUserId(req.user.user_id);

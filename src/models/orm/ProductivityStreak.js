@@ -28,6 +28,14 @@ const ProductivityStreak = sequelize.define(
     longest_streak: {
       type: DataTypes.INTEGER,
       defaultValue: 1
+    },
+    last_activity_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    total_points: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
     }
   },
   {

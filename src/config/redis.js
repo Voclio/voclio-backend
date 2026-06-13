@@ -41,6 +41,10 @@ class RedisClient {
         enableOfflineQueue: false
       };
 
+      if (config.redis.host?.includes('rlwy.net')) {
+        redisConfig.tls = {};
+      }
+
       this.client = new Redis(redisConfig);
 
       this.client.on('connect', () => {

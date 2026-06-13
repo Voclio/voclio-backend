@@ -7,7 +7,20 @@ const createFocusSessionValidator = [
     .withMessage('Timer duration must be between 1 and 180 minutes'),
   body('ambient_sound')
     .optional()
-    .isIn(['rain', 'ocean', 'forest', 'cafe', 'white_noise', 'none'])
+    .isIn([
+      'rain',
+      'ocean',
+      'forest',
+      'cafe',
+      'white_noise',
+      'thunder',
+      'wind',
+      'birds',
+      'fireplace',
+      'lofi',
+      'piano',
+      'none'
+    ])
     .withMessage('Invalid ambient sound'),
   body('sound_volume')
     .optional()
@@ -26,7 +39,20 @@ const updateFocusSessionValidator = [
     .withMessage('Elapsed time must be a positive integer'),
   body('ambient_sound')
     .optional()
-    .isIn(['rain', 'ocean', 'forest', 'cafe', 'white_noise', 'none'])
+    .isIn([
+      'rain',
+      'ocean',
+      'forest',
+      'cafe',
+      'white_noise',
+      'thunder',
+      'wind',
+      'birds',
+      'fireplace',
+      'lofi',
+      'piano',
+      'none'
+    ])
     .withMessage('Invalid ambient sound'),
   body('sound_volume')
     .optional()
@@ -74,7 +100,11 @@ const getAISuggestionsValidator = [
     .optional()
     .isInt({ min: 1, max: 10 })
     .withMessage('Count must be between 1 and 10'),
-  query('language').optional().isIn(['ar', 'en']).withMessage('Language must be ar or en')
+  query('language').optional().isIn(['ar', 'en']).withMessage('Language must be ar or en'),
+  query('use_ai')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('use_ai must be true or false')
 ];
 
 export {

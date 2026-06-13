@@ -5,6 +5,7 @@ import { ValidationError, NotFoundError } from '../utils/errors.js';
 import NotificationService from '../services/notification.service.js';
 import GoogleCalendarSyncModel from '../models/googleCalendarSync.model.js';
 import GoogleCalendarService from '../services/googleCalendar.service.js';
+import ProductivityModel from '../models/productivity.model.js';
 
 class TaskController {
   static async getAllTasks(req, res, next) {
@@ -207,6 +208,10 @@ class TaskController {
       // Send notification
       await NotificationService.notifyTaskUpdated(req.user.user_id, task);
 
+      if (updates.status === 'completed' && existingTask.status !== 'completed') {
+        await ProductivityModel.evaluateTaskActivity(req.user.user_id);
+      }
+
       return successResponse(res, { task }, 'Task updated successfully');
     } catch (error) {
       next(error);
@@ -223,6 +228,7 @@ class TaskController {
 
       // Send notification
       await NotificationService.notifyTaskCompleted(req.user.user_id, task);
+      await ProductivityModel.evaluateTaskActivity(req.user.user_id);
 
       return successResponse(res, { task }, 'Task marked as complete');
     } catch (error) {

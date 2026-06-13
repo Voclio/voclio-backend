@@ -445,7 +445,13 @@ ${text}
   }
 
   async generateSuggestionsWithOpenRouter(userData, options = {}) {
-    const { focus_area = 'general', tone = 'professional', count = 5, language = 'ar' } = options;
+    const {
+      focus_area = 'general',
+      tone = 'professional',
+      count = 5,
+      language = 'ar',
+      fast = false
+    } = options;
 
     const focusAreaPrompts = {
       time_management: 'إدارة الوقت وتنظيم الجدول اليومي',
@@ -529,7 +535,7 @@ ${JSON.stringify(userData, null, 2)}
         'X-Title': 'Voclio'
       },
       body: JSON.stringify({
-        model: 'openai/gpt-4o',
+        model: fast ? 'openai/gpt-4o-mini' : 'openai/gpt-4o',
         messages: [
           {
             role: 'system',
@@ -541,8 +547,8 @@ ${JSON.stringify(userData, null, 2)}
             content: prompt
           }
         ],
-        temperature: 0.3, // Lower for more consistent suggestions
-        max_tokens: 4000
+        temperature: 0.3,
+        max_tokens: fast ? 600 : 4000
       })
     });
 
@@ -591,6 +597,57 @@ ${JSON.stringify(userData, null, 2)}
       console.error('Response content:', content);
       return [];
     }
+  }
+
+  async localizeVoiceTranscriptToEnglish(text, detectedLanguage) {
+    const prompt = `You rewrite voice transcripts for an English productivity app.
+
+The speaker may have used Arabic (including Egyptian dialect), English, or a mix.
+
+Rewrite the transcript as natural, fluent English — exactly how a native English speaker would say the same thing out loud.
+
+Rules:
+- Never output gibberish, transliteration, or phonetic spelling of Arabic
+- Keep tasks, times, dates, names, and intent accurate
+- If the transcript is already clear natural English, return it with only light grammar fixes
+- Be concise and conversational
+- Return ONLY the English text (no quotes, labels, or explanation)
+
+Detected speech language: ${detectedLanguage || 'unknown'}
+
+Transcript:
+${text}`;
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://voclio.app',
+        'X-Title': 'Voclio'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You convert Arabic and Egyptian Arabic voice transcripts into natural English. Output English text only.'
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenRouter voice localization error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
   }
 
   async transcribeWithOpenRouter(audioBuffer, language = 'ar') {

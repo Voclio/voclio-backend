@@ -91,7 +91,7 @@ class VoiceController {
       // Create recording in database with cloud storage URL
       const recording = await VoiceRecordingModel.create(userId, {
         file_path: uploadResult.url, // Cloud URL instead of local path
-        storage_key: uploadResult.key, // S3/R2 key for retrieval
+        storage_key: uploadResult.key, // Cloud storage key for retrieval
         file_size: uploadResult.size,
         format: uploadResult.contentType,
         duration: null,
@@ -126,7 +126,7 @@ class VoiceController {
    */
   static async transcribeRecording(req, res, next) {
     try {
-      const { recording_id, language = 'en' } = req.body;
+      const { recording_id, language = 'auto', output_language = 'en' } = req.body;
       const userId = req.user.user_id;
 
       if (!recording_id) {
@@ -160,6 +160,7 @@ class VoiceController {
           recordingId: recording_id,
           userId,
           language,
+          outputLanguage: output_language,
           audioBuffer,
           originalName: path.basename(storageKey || 'recording.m4a')
         });
@@ -180,6 +181,7 @@ class VoiceController {
           recordingId: recording_id,
           userId,
           language,
+          outputLanguage: output_language,
           storageKey
         },
         {
@@ -193,6 +195,7 @@ class VoiceController {
           recordingId: recording_id,
           userId,
           language,
+          outputLanguage: output_language,
           audioBuffer,
           originalName: path.basename(storageKey || 'recording.m4a')
         });
@@ -234,7 +237,8 @@ class VoiceController {
       }
 
       const {
-        language = 'en',
+        language = 'auto',
+        output_language = 'en',
         category_id,
         auto_create_tasks = true,
         auto_create_notes = true
@@ -293,6 +297,7 @@ class VoiceController {
         recordingId: recording.recording_id,
         userId,
         language,
+        outputLanguage: output_language,
         audioBuffer: req.file.buffer,
         originalName: req.file.originalname
       });

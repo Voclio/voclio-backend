@@ -81,9 +81,12 @@ export default {
     password: process.env.REDIS_PASSWORD || null
   },
 
-  // Cloud Storage (S3 or Cloudflare R2)
+  // Cloud Storage (Cloudinary, AWS S3, or Cloudflare R2)
   storage: {
-    provider: process.env.STORAGE_PROVIDER || 's3', // 's3' or 'r2'
+    provider: process.env.STORAGE_PROVIDER || 'cloudinary', // 'cloudinary', 's3', 'r2', or 'local'
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
     bucket: process.env.STORAGE_BUCKET || 'voclio-uploads',
     region: process.env.STORAGE_REGION || 'us-east-1',
     accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || '',

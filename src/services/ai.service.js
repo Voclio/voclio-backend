@@ -74,7 +74,7 @@ class AIService {
     }
   }
 
-  async transcribeAudio(audioFilePath, language = 'ar') {
+  async transcribeAudio(audioFilePath, language = 'auto') {
     try {
       if (!this.assemblyAIKey) {
         throw new ServiceUnavailableError('AssemblyAI API key not configured');
@@ -83,6 +83,30 @@ class AIService {
     } catch (error) {
       logger.error('Error transcribing audio', { error: error.message });
       throw error;
+    }
+  }
+
+  async localizeVoiceTranscript(text, { detectedLanguage } = {}) {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return '';
+
+    try {
+      if (this.openRouterKey) {
+        return await this.openRouter.localizeVoiceTranscriptToEnglish(
+          trimmed,
+          detectedLanguage
+        );
+      }
+      if (this.geminiKey) {
+        return await this.gemini.localizeVoiceTranscriptToEnglish(
+          trimmed,
+          detectedLanguage
+        );
+      }
+      return trimmed;
+    } catch (error) {
+      logger.error('Error localizing voice transcript', { error: error.message });
+      return trimmed;
     }
   }
 }

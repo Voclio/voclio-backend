@@ -1,6 +1,7 @@
 import express from 'express';
 import AdminController from '../controllers/admin.controller.js';
 import AdminDashboardController from '../controllers/adminDashboard.controller.js';
+import AdminIntegrationsController from '../controllers/adminIntegrations.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
 import { body, query, param } from 'express-validator';
 
@@ -44,6 +45,23 @@ router.get(
   AdminDashboardController.getLogs
 );
 router.get('/api-usage', AdminDashboardController.getApiUsage);
+
+// ==================== INTEGRATIONS & FEATURES ====================
+router.get('/integrations/overview', AdminIntegrationsController.getOverview);
+router.get(
+  '/integrations/calendar',
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('status').optional().isIn(['all', 'active', 'error', 'disabled'])
+  ],
+  AdminIntegrationsController.getCalendarSyncs
+);
+router.put(
+  '/integrations/feature-flags',
+  [body('flags').isObject()],
+  AdminIntegrationsController.updateFeatureFlags
+);
 
 // ==================== APP CONFIG ====================
 router.get('/config', AdminController.getConfig);

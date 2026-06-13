@@ -994,14 +994,27 @@ class AdminController {
       const activeSessions = await Session.count();
       const activeNotifications = await Notification.count({ where: { is_read: false } });
 
+      const AdminIntegrationsService = (await import('../services/adminIntegrations.service.js')).default;
+      const services = AdminIntegrationsService.getServicesStatus();
+      services.database = dbStatus;
+
+      let redisHealthy = false;
+      if (services.redis.enabled) {
+        redisHealthy = await import('../config/redis.js').then(m => m.default.healthCheck());
+      }
+
       return successResponse(res, {
-        status: 'operational',
+        status: dbStatus === 'healthy' ? 'operational' : 'degraded',
         database: dbStatus,
         uptime: process.uptime(),
         memory_usage: process.memoryUsage(),
         active_sessions: activeSessions,
         unread_notifications: activeNotifications,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        services: {
+          ...services,
+          redis: { ...services.redis, healthy: redisHealthy }
+        }
       });
     } catch (error) {
       next(error);

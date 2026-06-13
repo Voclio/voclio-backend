@@ -4,6 +4,15 @@ import TaskModel from '../models/task.model.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
 import { ValidationError, NotFoundError } from '../utils/errors.js';
 import NotificationService from '../services/notification.service.js';
+import {
+  buildPersonalizedInsights,
+  pickDailyInsight
+} from '../utils/productivityInsightFallback.js';
+import {
+  getInsightCache,
+  setInsightCache,
+  withTimeout
+} from '../utils/insightCache.js';
 class ProductivityController {
   static async startFocusSession(req, res, next) {
     try {
@@ -40,6 +49,15 @@ class ProductivityController {
         throw new NotFoundError('Focus session not found');
       }
 
+      if (updates.status === 'completed') {
+        const streak = await ProductivityModel.getStreak(req.user.user_id);
+        await NotificationService.notifyFocusSessionCompleted(req.user.user_id, session);
+
+        if (streak?.current_streak > 0 && streak.current_streak % 7 === 0) {
+          await NotificationService.notifyStreakMilestone(req.user.user_id, streak);
+        }
+      }
+
       return successResponse(res, { session }, 'Focus session updated');
     } catch (error) {
       next(error);
@@ -48,24 +66,23 @@ class ProductivityController {
 
   static async endFocusSession(req, res, next) {
     try {
-      const session = await ProductivityModel.endFocusSession(req.params.id, req.user.user_id);
+      const session = await ProductivityModel.endFocusSession(
+        req.params.id,
+        req.user.user_id
+      );
 
       if (!session) {
         throw new NotFoundError('Focus session not found');
       }
 
-      // Update streak
-      const streak = await ProductivityModel.updateStreak(req.user.user_id);
-
-      // Send notification for completed focus session
+      const streak = await ProductivityModel.getStreak(req.user.user_id);
       await NotificationService.notifyFocusSessionCompleted(req.user.user_id, session);
 
-      // Check for streak milestone and send notification
-      if (streak && streak.current_streak > 0 && streak.current_streak % 7 === 0) {
+      if (streak?.current_streak > 0 && streak.current_streak % 7 === 0) {
         await NotificationService.notifyStreakMilestone(req.user.user_id, streak);
       }
 
-      return successResponse(res, { session }, 'Focus session completed');
+      return successResponse(res, { session, streak }, 'Focus session completed');
     } catch (error) {
       next(error);
     }
@@ -177,9 +194,24 @@ class ProductivityController {
         days = 7,
         focus_area = 'general',
         tone = 'professional',
-        count = 5,
-        language = 'ar'
+        count = 1,
+        language = 'ar',
+        use_ai = 'false'
       } = req.query;
+
+      const wantsAi = use_ai === 'true' || use_ai === true;
+      const cacheKey = `${req.user.user_id}:${language}:${wantsAi}:${count}`;
+      const cached = getInsightCache(cacheKey);
+      if (cached) {
+        return successResponse(res, {
+          ...cached,
+          metadata: {
+            ...cached.metadata,
+            cache_hit: true,
+            response_time_ms: Date.now() - startTime
+          }
+        });
+      }
 
       // Get user's productivity data for specified period
       const endDate = new Date().toISOString().split('T')[0];
@@ -187,13 +219,10 @@ class ProductivityController {
         .toISOString()
         .split('T')[0];
 
-      const summary = await ProductivityModel.getProductivitySummary(
-        req.user.user_id,
-        startDate,
-        endDate
-      );
-
-      const tasks = await TaskModel.findAll(req.user.user_id, {});
+      const [summary, tasks] = await Promise.all([
+        ProductivityModel.getProductivitySummary(req.user.user_id, startDate, endDate),
+        TaskModel.findAll(req.user.user_id, {})
+      ]);
       const completedTasks = tasks.filter(t => t.status === 'completed');
       const pendingTasks = tasks.filter(t => t.status !== 'completed');
       const overdueTasks = tasks.filter(
@@ -227,34 +256,70 @@ class ProductivityController {
         }
       };
 
-      // Generate AI suggestions with enhanced options
-      const suggestions = await aiService.generateProductivitySuggestions(userData, {
-        focus_area,
-        tone,
-        count: parseInt(count),
-        language
-      });
+      // Fast personalized insights from user data (milliseconds)
+      let suggestions = buildPersonalizedInsights(userData, language);
+      let insightSource = 'rules';
+
+      if (wantsAi) {
+        try {
+          const aiSuggestions = await withTimeout(
+            aiService.generateProductivitySuggestions(userData, {
+              focus_area,
+              tone,
+              count: Math.min(parseInt(count, 10) || 1, 3),
+              language,
+              fast: true
+            }),
+            5000,
+            'AI suggestions'
+          );
+
+          if (Array.isArray(aiSuggestions) && aiSuggestions.length > 0) {
+            suggestions = aiSuggestions;
+            insightSource = 'ai';
+          }
+        } catch (aiError) {
+          console.warn('AI suggestions skipped, using rules fallback:', aiError.message);
+        }
+      }
+
+      const dailyInsight = pickDailyInsight(suggestions, req.user.user_id);
 
       // Enhanced response structure
       const response = {
         suggestions: suggestions.map((suggestion, index) => ({
           id: index + 1,
-          text: suggestion.suggestion || suggestion,
+          text: suggestion.suggestion || suggestion.text || suggestion,
           category: suggestion.category || focus_area,
           priority: suggestion.priority || 'medium',
           estimated_impact: suggestion.estimated_impact || 'medium',
           implementation_time: suggestion.implementation_time || 'daily',
-          steps: suggestion.steps || []
+          steps: suggestion.steps || [],
+          source: suggestion.source || insightSource
         })),
+        daily_insight: dailyInsight
+          ? {
+              text:
+                dailyInsight.suggestion ||
+                dailyInsight.text ||
+                dailyInsight,
+              category: dailyInsight.category || focus_area,
+              source: dailyInsight.source || insightSource
+            }
+          : null,
         metadata: {
           generated_at: new Date().toISOString(),
           data_period: { start_date: startDate, end_date: endDate, days },
-          ai_provider: aiService.provider,
-          parameters: { focus_area, tone, count, language },
-          response_time_ms: Date.now() - startTime
+          ai_provider: insightSource === 'ai' ? aiService.provider : 'rules',
+          insight_source: insightSource,
+          parameters: { focus_area, tone, count, language, use_ai: wantsAi },
+          response_time_ms: Date.now() - startTime,
+          cache_hit: false
         },
         based_on: userData
       };
+
+      setInsightCache(cacheKey, response);
 
       return successResponse(res, response);
     } catch (error) {

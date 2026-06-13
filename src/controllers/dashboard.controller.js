@@ -25,21 +25,28 @@ class DashboardController {
       const completedTasks = parseInt(taskStats.completed) || 0;
       const overallProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      // Get upcoming tasks (next 7 days)
+      // Pending tasks for dashboard (overdue, upcoming, and undated)
       const upcomingTasks = await Task.findAll({
         where: {
           user_id: userId,
-          status: { [Op.ne]: 'completed' },
-          due_date: {
-            [Op.and]: [
-              { [Op.gte]: new Date() },
-              { [Op.lte]: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
-            ]
-          }
+          status: { [Op.notIn]: ['completed', 'done', 'cancelled'] }
         },
         attributes: ['task_id', 'title', 'due_date', 'priority', 'status', 'category_id'],
-        order: [['due_date', 'ASC']],
-        limit: 5,
+        order: [
+          [
+            sequelize.literal(
+              `CASE
+                WHEN due_date IS NOT NULL AND due_date < NOW() THEN 0
+                WHEN due_date IS NOT NULL THEN 1
+                ELSE 2
+              END`
+            ),
+            'ASC'
+          ],
+          ['due_date', 'ASC NULLS LAST'],
+          ['created_at', 'DESC']
+        ],
+        limit: 8,
         raw: true
       });
 

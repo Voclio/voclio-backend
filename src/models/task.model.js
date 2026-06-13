@@ -139,7 +139,11 @@ class TaskModel {
     const subtask = await Task.create({
       user_id: userId,
       parent_task_id: parentTaskId,
-      ...subtaskData
+      title: subtaskData.title,
+      description: subtaskData.description ?? null,
+      due_date: subtaskData.due_date ?? parentTask.due_date,
+      priority: subtaskData.priority ?? parentTask.priority,
+      status: 'todo'
     });
 
     return subtask.toJSON();
