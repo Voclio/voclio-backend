@@ -1,11 +1,13 @@
 import NotificationModel from '../models/notification.model.js';
 import SettingsModel from '../models/settings.model.js';
+import PushNotificationService from './pushNotification.service.js';
 import { Notification } from '../models/orm/index.js';
 import { notificationCopy } from '../i18n/notification.messages.js';
 
 class NotificationService {
-  static async getUserLanguage(_userId) {
-    return 'en';
+  static async getUserLanguage(userId) {
+    const settings = await SettingsModel.findByUserId(userId);
+    return settings?.language === 'ar' ? 'ar' : 'en';
   }
 
   /**
@@ -21,7 +23,8 @@ class NotificationService {
         type = 'general',
         priority = 'normal',
         related_id = null,
-        bypassPushPreference = false
+        bypassPushPreference = false,
+        skipPush = false
       } = notificationData;
 
       if (!bypassPushPreference && type !== 'system') {
@@ -39,8 +42,26 @@ class NotificationService {
         related_id: related_id ?? null
       });
 
+      let pushDelivery = null;
+      if (!skipPush) {
+        pushDelivery = await PushNotificationService.sendToUser(userId, {
+          title,
+          body: message,
+          type,
+          priority,
+          related_id: related_id ?? null,
+          notification_id: notification?.notification_id ?? null
+        }).catch(error => {
+          console.error('Push notification delivery failed:', error);
+          return { sent: 0, failed: 1, error: error.message };
+        });
+      }
+
       console.log(`📬 Notification created for user ${userId}: ${title}`);
-      return notification;
+      return {
+        ...notification,
+        push_delivery: pushDelivery
+      };
     } catch (error) {
       console.error('Error creating notification:', error);
       throw error;
@@ -136,12 +157,12 @@ class NotificationService {
       {
         type: 'reminder',
         priority: 'high',
-        related_id: reminder.reminder_id
+        related_id: task?.task_id ?? reminder.task_id ?? null
       }
     );
   }
 
-  static async notifyReminderCreated(userId, reminder) {
+  static async notifyReminderCreated(userId, reminder, task = null) {
     return this.createLocalizedNotification(
       userId,
       'reminderCreated',
@@ -149,7 +170,7 @@ class NotificationService {
       {
         type: 'reminder',
         priority: 'normal',
-        related_id: reminder.reminder_id
+        related_id: task?.task_id ?? reminder.task_id ?? null
       }
     );
   }

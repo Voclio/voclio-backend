@@ -17,6 +17,8 @@ import GoogleCalendarSyncModel from './GoogleCalendarSync.js';
 import ApiKey from './ApiKey.js';
 import AppConfig from './AppConfig.js';
 import ActivityLog from './ActivityLog.js';
+import DeviceToken from './DeviceToken.js';
+import ScheduledNotification from './ScheduledNotification.js';
 
 // Initialize models
 const GoogleCalendarSync = GoogleCalendarSyncModel(sequelize);
@@ -51,6 +53,12 @@ Achievement.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(DeviceToken, { foreignKey: 'user_id', as: 'deviceTokens' });
+DeviceToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(ScheduledNotification, { foreignKey: 'created_by', as: 'scheduledNotifications' });
+ScheduledNotification.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
 User.hasMany(Tag, { foreignKey: 'user_id', as: 'tags' });
 Tag.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -133,5 +141,7 @@ export {
   ApiKey,
   AppConfig,
   ActivityLog,
+  DeviceToken,
+  ScheduledNotification,
   syncDatabase
 };

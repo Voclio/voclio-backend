@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { Reminder, User, Task, Notification, OTP, Session } from '../models/orm/index.js';
 import emailService from './email.service.js';
 import NotificationService from './notification.service.js';
+import ScheduledNotificationService from './scheduledNotification.service.js';
 import SettingsModel from '../models/settings.model.js';
 import logger from '../utils/logger.js';
 
@@ -19,6 +20,7 @@ class CronService {
     this.jobs.push(
       cron.schedule('* * * * *', () => {
         this.checkReminders();
+        this.checkScheduledNotifications();
       })
     );
 
@@ -138,6 +140,8 @@ class CronService {
         sent_at: new Date()
       });
 
+      await this.rescheduleRecurringReminder(reminder);
+
       logger.info(`Reminder sent to ${user.email}`);
     } catch (error) {
       logger.error('Error sending reminder', { error: error.message });
@@ -147,6 +151,56 @@ class CronService {
       } catch (updateError) {
         logger.error('Failed to update reminder status', { error: updateError.message });
       }
+    }
+  }
+
+  computeNextReminderTime(reminderTime, reminderType) {
+    const next = new Date(reminderTime);
+    switch (reminderType) {
+      case 'daily':
+        next.setDate(next.getDate() + 1);
+        return next;
+      case 'weekly':
+        next.setDate(next.getDate() + 7);
+        return next;
+      default:
+        return null;
+    }
+  }
+
+  async rescheduleRecurringReminder(reminder) {
+    const reminderType = reminder.reminder_type;
+    if (!reminderType || reminderType === 'one_time' || reminderType === 'push') {
+      return;
+    }
+
+    const nextTime = this.computeNextReminderTime(reminder.reminder_time, reminderType);
+    if (!nextTime) {
+      return;
+    }
+
+    await reminder.update({
+      reminder_time: nextTime,
+      status: 'pending',
+      sent_at: null,
+      is_dismissed: false
+    });
+
+    logger.info(`Recurring reminder rescheduled`, {
+      reminder_id: reminder.reminder_id,
+      reminder_type: reminderType,
+      next_time: nextTime.toISOString()
+    });
+  }
+
+  async checkScheduledNotifications() {
+    try {
+      const processed = await ScheduledNotificationService.processDue(20);
+      if (processed > 0) {
+        logger.info(`Processed ${processed} scheduled notification campaigns`);
+      }
+    } catch (error) {
+      logger.error('Error checking scheduled notifications', { error: error.message });
     }
   }
 

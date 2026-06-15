@@ -288,6 +288,20 @@ CREATE INDEX idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX idx_reminders_user_id ON reminders(user_id);
 CREATE INDEX idx_reminders_reminder_time ON reminders(reminder_time);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+
+-- Device tokens for Firebase Cloud Messaging push notifications
+CREATE TABLE IF NOT EXISTS device_tokens (
+    device_token_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    platform VARCHAR(20) NOT NULL DEFAULT 'unknown',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, token)
+);
+
+CREATE INDEX idx_device_tokens_user_id ON device_tokens(user_id);
+CREATE INDEX idx_device_tokens_token ON device_tokens(token);
 CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
 
 -- Insert default app configuration

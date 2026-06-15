@@ -9,6 +9,7 @@ import {
 } from '../models/orm/index.js';
 import config from '../config/index.js';
 import redisClient from '../config/redis.js';
+import PushNotificationService from './pushNotification.service.js';
 
 const FEATURE_FLAG_KEYS = [
   'voice_recording_enabled',
@@ -63,6 +64,10 @@ class AdminIntegrationsService {
         google: Boolean(process.env.GOOGLE_CLIENT_ID),
         facebook: Boolean(process.env.FACEBOOK_APP_ID),
         webex: Boolean(process.env.WEBEX_CLIENT_ID)
+      },
+      push: {
+        configured: PushNotificationService.isConfigured(),
+        provider: 'firebase'
       }
     };
   }

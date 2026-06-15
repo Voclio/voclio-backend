@@ -136,6 +136,7 @@ Thumbs.db
 # API Keys (extra safety)
 *_secret_*.json
 client_secret_*.json
+config/firebase-service-account.json
 
 # Test
 test-results/

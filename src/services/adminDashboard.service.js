@@ -281,7 +281,8 @@ class AdminDashboardService {
         'nav.settings': 'الإعدادات',
         'nav.analytics': 'التحليلات',
         'nav.system': 'النظام',
-        'nav.integrations': 'التكاملات'
+        'nav.integrations': 'التكاملات',
+        'nav.notifications': 'الإشعارات'
       },
       en: {
         'dashboard.title': 'Dashboard',
@@ -307,7 +308,8 @@ class AdminDashboardService {
         'nav.settings': 'Settings',
         'nav.analytics': 'Analytics',
         'nav.system': 'System',
-        'nav.integrations': 'Integrations'
+        'nav.integrations': 'Integrations',
+        'nav.notifications': 'Notifications'
       }
     };
 

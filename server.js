@@ -4,6 +4,7 @@ import config from './src/config/index.js';
 import { syncDatabase } from './src/models/orm/index.js';
 import cronService from './src/services/cron.service.js';
 import emailService from './src/services/email.service.js';
+import PushNotificationService from './src/services/pushNotification.service.js';
 import redisClient from './src/config/redis.js';
 import queueManager from './src/config/queue.js';
 import cacheService from './src/services/cache.service.js';
@@ -54,6 +55,11 @@ const server = app.listen(PORT, () => {
   logger.info(`🌍 Environment: ${config.nodeEnv}`);
   logger.info(`📚 API Docs (Swagger): http://localhost:${PORT}/api-docs`);
   logger.info(`💚 Health Check: http://localhost:${PORT}/api/health`);
+  logger.info(
+    PushNotificationService.isConfigured()
+      ? '📲 Push notifications: Firebase configured'
+      : '⚠️  Push notifications: Firebase not configured (add service account)'
+  );
   logger.info('━'.repeat(50));
   logger.info('\n✨ Server is ready to accept requests\n');
 });

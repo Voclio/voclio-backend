@@ -1,8 +1,9 @@
 import NotificationModel from '../models/notification.model.js';
+import DeviceTokenModel from '../models/deviceToken.model.js';
 import SettingsModel from '../models/settings.model.js';
 import { localizeNotificationForDisplay } from '../i18n/notification.messages.js';
 import { successResponse, paginatedResponse } from '../utils/responses.js';
-import { NotFoundError } from '../utils/errors.js';
+import { NotFoundError, ValidationError } from '../utils/errors.js';
 
 class NotificationController {
   static async localizeForUser(userId, notifications) {
@@ -115,6 +116,46 @@ class NotificationController {
       const count = await NotificationModel.getUnreadCount(req.user.user_id);
 
       return successResponse(res, { unread_count: count });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async registerDeviceToken(req, res, next) {
+    try {
+      const { token, platform = 'unknown' } = req.body;
+
+      if (!token || String(token).trim().length < 10) {
+        throw new ValidationError('A valid device token is required');
+      }
+
+      const saved = await DeviceTokenModel.upsert(
+        req.user.user_id,
+        token,
+        String(platform).toLowerCase()
+      );
+
+      return successResponse(
+        res,
+        { registered: Boolean(saved) },
+        'Device token registered successfully'
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async unregisterDeviceToken(req, res, next) {
+    try {
+      const { token } = req.body;
+
+      if (token) {
+        await DeviceTokenModel.remove(req.user.user_id, token);
+      } else {
+        await DeviceTokenModel.removeAllForUser(req.user.user_id);
+      }
+
+      return successResponse(res, null, 'Device token removed successfully');
     } catch (error) {
       next(error);
     }

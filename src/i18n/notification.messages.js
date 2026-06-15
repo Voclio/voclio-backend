@@ -311,5 +311,261 @@ const MESSAGES = {
       title: '✅ تم تأكيد البريد الإلكتروني',
       message: 'تم تأكيد بريدك الإلكتروني بنجاح'
     }
+  },
+  engagementMorningMotivation: {
+    en: {
+      title: '☀️ Good morning!',
+      message: ({ userName }) =>
+        `Hi ${userName || 'there'}! A focused start makes the whole day easier. What's your first win today?`
+    },
+    ar: {
+      title: '☀️ صباح الخير!',
+      message: ({ userName }) =>
+        `أهلاً ${userName || ''}! بداية مركّزة تصنع يوماً أسهل. ما أول إنجاز اليوم؟`
+    }
+  },
+  engagementPendingTasks: {
+    en: {
+      title: '📋 Tasks waiting for you',
+      message: ({ pendingCount }) =>
+        `You have ${pendingCount} open task${pendingCount === 1 ? '' : 's'}. Pick one and finish it today!`
+    },
+    ar: {
+      title: '📋 مهام بانتظارك',
+      message: ({ pendingCount }) =>
+        `لديك ${pendingCount} مهمة مفتوحة. اختر واحدة وأنجزها اليوم!`
+    }
+  },
+  engagementEveningReview: {
+    en: {
+      title: '🌙 Evening check-in',
+      message: ({ pendingCount }) =>
+        pendingCount > 0
+          ? `Before you wrap up: ${pendingCount} task${pendingCount === 1 ? '' : 's'} still open. Plan tomorrow now.`
+          : 'Great work today! Review your wins and set up tomorrow.'
+    },
+    ar: {
+      title: '🌙 مراجعة مسائية',
+      message: ({ pendingCount }) =>
+        pendingCount > 0
+          ? `قبل النوم: ${pendingCount} مهمة لم تُنجز بعد. خطّط لغدٍ الآن.`
+          : 'عمل رائع اليوم! راجع إنجازاتك وخطّط للغد.'
+    }
+  },
+  engagementWeeklyDigest: {
+    en: {
+      title: '📊 Your weekly snapshot',
+      message: ({ completedCount, pendingCount }) =>
+        `This week: ${completedCount} completed, ${pendingCount} still open. Keep the momentum!`
+    },
+    ar: {
+      title: '📊 ملخص أسبوعك',
+      message: ({ completedCount, pendingCount }) =>
+        `هذا الأسبوع: ${completedCount} مكتملة، ${pendingCount} مفتوحة. واصل الزخم!`
+    }
+  },
+  engagementStreakBoost: {
+    en: {
+      title: '🔥 Keep your streak alive',
+      message: ({ streakDays }) =>
+        streakDays > 0
+          ? `You're on a ${streakDays}-day streak. Don't break it — complete one task today!`
+          : 'Start a streak today! Complete one task to build momentum.'
+    },
+    ar: {
+      title: '🔥 حافظ على سلسلتك',
+      message: ({ streakDays }) =>
+        streakDays > 0
+          ? `سلسلتك ${streakDays} أيام. لا تقطعها — أنجز مهمة اليوم!`
+          : 'ابدأ سلسلة اليوم! أنجز مهمة واحدة لبناء الزخم.'
+    }
+  },
+  engagementVoiceTip: {
+    en: {
+      title: '🎤 Try voice tasks',
+      message: 'Speak your tasks instead of typing — Voclio turns voice into action in seconds.'
+    },
+    ar: {
+      title: '🎤 جرّب المهام بالصوت',
+      message: 'تحدّث بمهامك بدل الكتابة — Voclio يحوّل صوتك لإجراءات في ثوانٍ.'
+    }
+  },
+  engagementInactiveReturn: {
+    en: {
+      title: '👋 We miss you!',
+      message: ({ userName }) =>
+        `${userName ? `Hi ${userName}, ` : ''}Your tasks and reminders are waiting. Come back and take control.`
+    },
+    ar: {
+      title: '👋 اشتقنا لك!',
+      message: ({ userName }) =>
+        `${userName ? `أهلاً ${userName}، ` : ''}مهامك وتذكيراتك بانتظارك. عد واستأنف التنظيم.`
+    }
+  },
+  reminderTasksDueToday: {
+    en: {
+      title: '⏰ Tasks due today',
+      message: ({ dueTodayCount, firstTaskTitle }) =>
+        dueTodayCount === 1
+          ? `Reminder: "${firstTaskTitle}" is due today.`
+          : `You have ${dueTodayCount} tasks due today. Start with "${firstTaskTitle}".`
+    },
+    ar: {
+      title: '⏰ مهام مستحقة اليوم',
+      message: ({ dueTodayCount, firstTaskTitle }) =>
+        dueTodayCount === 1
+          ? `تذكير: "${firstTaskTitle}" مستحقة اليوم.`
+          : `لديك ${dueTodayCount} مهام مستحقة اليوم. ابدأ بـ"${firstTaskTitle}".`
+    }
+  },
+  reminderOverdueNudge: {
+    en: {
+      title: '⚠️ Overdue tasks need attention',
+      message: ({ overdueCount }) =>
+        `${overdueCount} task${overdueCount === 1 ? '' : 's'} overdue. Reschedule or finish one now.`
+    },
+    ar: {
+      title: '⚠️ مهام متأخرة تحتاج اهتمام',
+      message: ({ overdueCount }) =>
+        `${overdueCount} مهمة متأخرة. أعد جدولتها أو أنجز واحدة الآن.`
+    }
   }
 };
+
+export const NOTIFICATION_TEMPLATE_CATALOG = [
+  {
+    key: 'engagementMorningMotivation',
+    category: 'engagement',
+    label: { en: 'Morning motivation', ar: 'تحفيز صباحي' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '09:00',
+    notificationType: 'system',
+    priority: 'normal',
+    audience: 'all_active'
+  },
+  {
+    key: 'engagementPendingTasks',
+    category: 'engagement',
+    label: { en: 'Pending tasks nudge', ar: 'تذكير بالمهام المفتوحة' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '18:00',
+    notificationType: 'task',
+    priority: 'high',
+    audience: 'with_pending_tasks'
+  },
+  {
+    key: 'engagementEveningReview',
+    category: 'engagement',
+    label: { en: 'Evening review', ar: 'مراجعة مسائية' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '21:00',
+    notificationType: 'reminder',
+    priority: 'normal',
+    audience: 'all_active'
+  },
+  {
+    key: 'engagementWeeklyDigest',
+    category: 'engagement',
+    label: { en: 'Weekly digest', ar: 'ملخص أسبوعي' },
+    suggestedRecurrence: 'weekly',
+    suggestedTime: '10:00',
+    notificationType: 'system',
+    priority: 'normal',
+    audience: 'all_active'
+  },
+  {
+    key: 'engagementStreakBoost',
+    category: 'engagement',
+    label: { en: 'Streak boost', ar: 'تشجيع السلسلة' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '12:00',
+    notificationType: 'achievement',
+    priority: 'normal',
+    audience: 'all_active'
+  },
+  {
+    key: 'engagementVoiceTip',
+    category: 'engagement',
+    label: { en: 'Voice feature tip', ar: 'نصيحة الميزة الصوتية' },
+    suggestedRecurrence: 'weekly',
+    suggestedTime: '11:00',
+    notificationType: 'system',
+    priority: 'low',
+    audience: 'all_active'
+  },
+  {
+    key: 'engagementInactiveReturn',
+    category: 'engagement',
+    label: { en: 'Inactive user return', ar: 'استرجاع مستخدم غير نشط' },
+    suggestedRecurrence: 'weekly',
+    suggestedTime: '10:00',
+    notificationType: 'system',
+    priority: 'normal',
+    audience: 'inactive_7d'
+  },
+  {
+    key: 'reminderTasksDueToday',
+    category: 'reminder',
+    label: { en: 'Tasks due today', ar: 'مهام مستحقة اليوم' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '08:00',
+    notificationType: 'task',
+    priority: 'high',
+    audience: 'with_tasks_due_today'
+  },
+  {
+    key: 'reminderOverdueNudge',
+    category: 'reminder',
+    label: { en: 'Overdue tasks nudge', ar: 'تذكير بالمهام المتأخرة' },
+    suggestedRecurrence: 'daily',
+    suggestedTime: '17:00',
+    notificationType: 'reminder',
+    priority: 'urgent',
+    audience: 'with_overdue_tasks'
+  },
+  {
+    key: 'taskDueSoon',
+    category: 'task',
+    label: { en: 'Task due soon', ar: 'مهمة قريبة الموعد' },
+    suggestedRecurrence: 'once',
+    notificationType: 'task',
+    priority: 'high',
+    audience: 'single_user'
+  },
+  {
+    key: 'reminderTriggered',
+    category: 'reminder',
+    label: { en: 'Reminder triggered', ar: 'تذكير مفعّل' },
+    suggestedRecurrence: 'once',
+    notificationType: 'reminder',
+    priority: 'high',
+    audience: 'single_user'
+  }
+];
+
+export function getTemplateCatalogEntry(templateKey) {
+  return NOTIFICATION_TEMPLATE_CATALOG.find(entry => entry.key === templateKey) ?? null;
+}
+
+export function listNotificationTemplates(lang = 'en') {
+  const locale = resolveNotificationLanguage(lang);
+  return NOTIFICATION_TEMPLATE_CATALOG.map(entry => {
+    const preview = notificationCopy(entry.key, locale, {
+      userName: 'Alex',
+      pendingCount: 3,
+      completedCount: 5,
+      dueTodayCount: 2,
+      firstTaskTitle: 'Finish project draft',
+      overdueCount: 1,
+      streakDays: 4,
+      task: { title: 'Finish project draft' },
+      hoursLeft: 2
+    });
+
+    return {
+      ...entry,
+      label: entry.label[locale] ?? entry.label.en,
+      preview
+    };
+  });
+}

@@ -2,6 +2,7 @@ import express from 'express';
 import AdminController from '../controllers/admin.controller.js';
 import AdminDashboardController from '../controllers/adminDashboard.controller.js';
 import AdminIntegrationsController from '../controllers/adminIntegrations.controller.js';
+import AdminNotificationsController from '../controllers/adminNotifications.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
 import { body, query, param } from 'express-validator';
 
@@ -61,6 +62,100 @@ router.put(
   '/integrations/feature-flags',
   [body('flags').isObject()],
   AdminIntegrationsController.updateFeatureFlags
+);
+
+// ==================== PUSH NOTIFICATIONS ====================
+router.get('/push-notifications/stats', AdminNotificationsController.getStats);
+router.get(
+  '/push-notifications/templates',
+  [query('locale').optional().isIn(['ar', 'en'])],
+  AdminNotificationsController.listTemplates
+);
+router.get('/push-notifications/scheduled', AdminNotificationsController.listScheduled);
+router.post(
+  '/push-notifications/scheduled',
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('template_key').optional({ nullable: true }).trim(),
+    body('title').optional({ nullable: true }).trim(),
+    body('message').optional({ nullable: true }).trim(),
+    body('audience')
+      .optional()
+      .isIn([
+        'all_active',
+        'with_push_token',
+        'with_pending_tasks',
+        'with_tasks_due_today',
+        'with_overdue_tasks',
+        'inactive_7d',
+        'single_user'
+      ]),
+    body('target_user_id').optional({ nullable: true }).isInt(),
+    body('recurrence').optional().isIn(['once', 'daily', 'weekly']),
+    body('scheduled_at').optional().isISO8601(),
+    body('notification_type')
+      .optional()
+      .isIn(['general', 'reminder', 'task', 'achievement', 'system']),
+    body('priority').optional().isIn(['low', 'normal', 'high', 'urgent']),
+    body('send_push').optional().isBoolean()
+  ],
+  AdminNotificationsController.createScheduled
+);
+router.post('/push-notifications/presets', AdminNotificationsController.createPresetCampaigns);
+router.patch(
+  '/push-notifications/scheduled/:id',
+  [
+    param('id').isInt(),
+    body('is_active').optional().isBoolean(),
+    body('name').optional().trim(),
+    body('scheduled_at').optional().isISO8601()
+  ],
+  AdminNotificationsController.updateScheduled
+);
+router.delete(
+  '/push-notifications/scheduled/:id',
+  [param('id').isInt()],
+  AdminNotificationsController.deleteScheduled
+);
+router.get(
+  '/push-notifications/recipients',
+  [
+    query('search').optional().trim(),
+    query('limit').optional().isInt({ min: 1, max: 100 })
+  ],
+  AdminNotificationsController.listRecipients
+);
+router.post(
+  '/push-notifications/send',
+  [
+    body('template_key').optional({ nullable: true }).trim(),
+    body('audience')
+      .optional({ nullable: true })
+      .isIn([
+        'all_active',
+        'with_push_token',
+        'with_pending_tasks',
+        'with_tasks_due_today',
+        'with_overdue_tasks',
+        'inactive_7d',
+        'single_user'
+      ]),
+    body('title').optional({ nullable: true }).trim(),
+    body('message').optional({ nullable: true }).trim(),
+    body('user_id').optional({ nullable: true }).isInt().withMessage('user_id must be an integer'),
+    body('email').optional({ nullable: true }).isEmail().withMessage('email must be valid'),
+    body('broadcast').optional().isBoolean(),
+    body('type')
+      .optional()
+      .isIn(['general', 'reminder', 'task', 'achievement', 'system'])
+      .withMessage('Invalid notification type'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'normal', 'high', 'urgent'])
+      .withMessage('Invalid priority'),
+    body('send_push').optional().isBoolean()
+  ],
+  AdminNotificationsController.sendNotification
 );
 
 // ==================== APP CONFIG ====================
