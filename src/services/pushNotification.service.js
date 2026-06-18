@@ -32,12 +32,16 @@ function initFirebaseAdmin() {
   try {
     const credentials = loadServiceAccountCredentials();
     if (!credentials) {
+      logger.warn(
+        'Firebase service account credentials not found, push notifications will be disabled'
+      );
       return null;
     }
 
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert(credentials)
     });
+    logger.info('Firebase Admin initialized successfully for push notifications');
     logger.info('Firebase Admin initialized for push notifications');
     return firebaseApp;
   } catch (error) {
