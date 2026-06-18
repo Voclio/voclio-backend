@@ -7,21 +7,43 @@ import DeviceTokenModel from '../models/deviceToken.model.js';
 let firebaseApp = null;
 
 function loadServiceAccountCredentials() {
+  // Option 1: individual env vars (recommended for production)
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+
+  if (privateKey && clientEmail && projectId) {
+    return {
+      type: 'service_account',
+      project_id: projectId,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID?.trim() || '',
+      private_key: privateKey.replace(/\\n/g, '\n'),
+      client_email: clientEmail,
+      client_id: process.env.FIREBASE_CLIENT_ID?.trim() || '',
+      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+      token_uri: 'https://oauth2.googleapis.com/token',
+      auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(clientEmail)}`,
+      universe_domain: 'googleapis.com'
+    };
+  }
+
+  // Option 2: full JSON in a single env var
   const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
   if (inlineJson) {
     return JSON.parse(inlineJson);
   }
 
-  const configuredPath =
+  // Option 3: JSON file on disk (local dev fallback)
+  const filePath =
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim() ||
     path.join(process.cwd(), 'config/firebase-service-account.json');
 
-  if (!fs.existsSync(configuredPath)) {
+  if (!fs.existsSync(filePath)) {
     return null;
   }
 
-  const fileContents = fs.readFileSync(configuredPath, 'utf8');
-  return JSON.parse(fileContents);
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function initFirebaseAdmin() {
