@@ -143,10 +143,13 @@ export default {
   },
 
   // Redis Configuration
+  // Accepts REDIS_URL (preferred, Railway injects this automatically) or individual vars
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
-    password: process.env.REDIS_PASSWORD || null
+    url: process.env.REDIS_URL || null,
+    host: process.env.REDIS_HOST || process.env.REDISHOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || process.env.REDISPORT) || 6379,
+    username: process.env.REDIS_USERNAME || process.env.REDISUSER || null,
+    password: process.env.REDIS_PASSWORD || process.env.REDISPASSWORD || null
   },
 
   // Cloud Storage (Cloudinary, AWS S3, or Cloudflare R2)

@@ -10,9 +10,10 @@ class RedisClient {
   }
 
   connect() {
-    console.log('REDIS CONFIG:', config.redis);
-    // Check if Redis is configured
-    if (!config.redis.host || config.redis.host === 'disabled') {
+    const { url, host, port, username, password } = config.redis;
+
+    const isDisabled = !url && (!host || host === 'disabled');
+    if (isDisabled) {
       logger.info('⚠️  Redis is disabled - running without cache/queue support');
       this.isEnabled = false;
       return null;
@@ -23,29 +24,41 @@ class RedisClient {
     }
 
     try {
-      const redisConfig = {
-        host: config.redis.host,
-        port: Number(config.redis.port),
-        password: config.redis.password,
+      const sharedOptions = {
         maxRetriesPerRequest: 1,
         retryStrategy: times => {
           if (times > 3) {
             logger.warn('⚠️  Redis connection failed after 3 attempts - disabling Redis');
             this.isEnabled = false;
-            return null; // Stop retrying
+            return null;
           }
           return Math.min(times * 50, 2000);
         },
         reconnectOnError: () => false,
-        lazyConnect: true, // Don't connect immediately
+        lazyConnect: true,
         enableOfflineQueue: false
       };
 
-      if (config.redis.host?.includes('rlwy.net')) {
-        redisConfig.tls = {};
+      if (url) {
+        const parsed = new URL(url);
+        // rediss:// scheme or rlwy.net proxy both require TLS
+        if (parsed.protocol === 'rediss:' || parsed.hostname.includes('rlwy.net')) {
+          sharedOptions.tls = { rejectUnauthorized: false };
+        }
+        this.client = new Redis(url, sharedOptions);
+      } else {
+        const redisConfig = {
+          ...sharedOptions,
+          host,
+          port: Number(port),
+          ...(username && { username }),
+          ...(password && { password })
+        };
+        if (host.includes('rlwy.net')) {
+          redisConfig.tls = { rejectUnauthorized: false };
+        }
+        this.client = new Redis(redisConfig);
       }
-
-      this.client = new Redis(redisConfig);
 
       this.client.on('connect', () => {
         this.isConnected = true;
